@@ -464,19 +464,28 @@ dbml-diagram {
   letter-spacing: 0.04em;
 }
 
-.dv-edge {
-  fill: none;
-  stroke: var(--dv-edge);
-  stroke-width: 1.5;
-  transition: stroke 120ms, stroke-width 120ms;
+.dv-edge-group {
+  color: var(--dv-edge);
+  transition: color 120ms;
 }
 
-.dv-edge.is-related {
-  stroke: var(--dv-edge-hover);
+.dv-edge-group.is-related {
+  color: var(--dv-edge-hover);
+}
+
+.dv-edge {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  transition: stroke-width 120ms;
+}
+
+.dv-edge-group.is-related .dv-edge {
   stroke-width: 2;
 }
 
-.dv-marker {
-  fill: var(--dv-edge);
-  stroke: var(--dv-edge);
+.dv-marker,
+.dv-arrow {
+  fill: currentColor;
+  stroke: currentColor;
 }
