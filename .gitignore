@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.cache/
+.vite/
+.tsbuildinfo
+*.tsbuildinfo
+.DS_Store
+Thumbs.db
+
+# Tauri
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+
+# IDE
+.idea/
+.vscode/

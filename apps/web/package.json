@@ -1,0 +1,19 @@
+{
+  "name": "@dbml-view/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@dbml-view/components": "workspace:*",
+    "@dbml-view/parser": "workspace:*"
+  },
+  "devDependencies": {
+    "vite": "^6.0.3"
+  }
+}

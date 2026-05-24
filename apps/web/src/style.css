@@ -1,0 +1,76 @@
+:root {
+  --app-bg: #f9fafb;
+  --app-fg: #111827;
+  --app-border: #e5e7eb;
+  --app-accent: #2563eb;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  background: var(--app-bg);
+  color: var(--app-fg);
+  font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--app-border);
+  background: #fff;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.tabs button {
+  border: 1px solid var(--app-border);
+  background: #fff;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.tabs button:hover {
+  border-color: var(--app-accent);
+  color: var(--app-accent);
+}
+
+#app {
+  padding: 1rem;
+}
+
+.dropzone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 240px;
+  border: 2px dashed var(--app-border);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  color: #6b7280;
+}
+
+.dropzone.is-over {
+  border-color: var(--app-accent);
+  color: var(--app-accent);
+  background: #eff6ff;
+}

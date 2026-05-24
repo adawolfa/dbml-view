@@ -1,0 +1,35 @@
+# dbml-view
+
+Read-only viewer for `.dbml` files — diagram (ER) + clickable structure. See [ROADMAP.md](ROADMAP.md) for the full scope and design decisions.
+
+## Layout
+
+pnpm workspace, ESM, TypeScript strict.
+
+- `packages/parser` — wraps `@dbml/parse` into the normalized model the rest of the app consumes
+- `packages/layout` — graph layout for the diagram (`@dagrejs/dagre`)
+- `packages/components` — framework-free DOM components (diagram canvas, structure tree), ships its own `style.css`
+- `apps/web` — Vite SPA shell that wires the packages together
+- `samples/` — `.dbml` files used during development
+- A future `apps/desktop` (Tauri, Windows-only) will wrap the web app — not present yet
+
+Internal packages export TypeScript sources directly (`main`/`exports` point at `src/index.ts`); there is no pre-build step required for `pnpm dev`.
+
+## Commands
+
+Run from the repo root.
+
+- `pnpm dev` — start the web app (Vite, `@dbml-view/web`)
+- `pnpm build` — recursive build of all workspace packages
+- `pnpm typecheck` — recursive `tsc -b`
+- `pnpm lint` — Biome check
+- `pnpm format` — Biome format (writes)
+
+## Conventions
+
+- **Toolchain:** Biome for lint + format, Vite for the app, pnpm workspaces. No ESLint/Prettier/webpack — keep it single-tool. (See user memory: prefer lean toolchains.)
+- **TS config:** strict + `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `verbatimModuleSyntax`. Code must hold up under these.
+- **Formatting (Biome):** 2-space indent, 100-col, single quotes, trailing commas, semicolons.
+- **Module style:** ESM only (`"type": "module"`), bundler-style resolution.
+- **Node:** `>=20`, package manager pinned to `pnpm@9.15.0`.
+- **Scope discipline:** read-only viewer. No editor, no SQL export, no DB connection, no multi-file DBML — those are explicit non-goals for v1.

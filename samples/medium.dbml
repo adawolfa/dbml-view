@@ -1,0 +1,77 @@
+// Medium-sized sample: multiple schemas, enum, indexes, notes, TableGroup.
+
+Project shop {
+  database_type: 'PostgreSQL'
+  Note: 'Demo e-shop for testing the diagram with schemas and enums.'
+}
+
+enum order_status {
+  draft
+  paid
+  shipped
+  cancelled
+}
+
+Table auth.users {
+  id integer [pk, increment]
+  email varchar [unique, not null]
+  password_hash varchar [not null]
+  created_at timestamp [default: `now()`]
+
+  Note: 'User identity. Addresses live in shop.addresses.'
+}
+
+Table shop.addresses {
+  id integer [pk, increment]
+  user_id integer [not null, ref: > auth.users.id]
+  line1 varchar [not null]
+  city varchar [not null]
+  country char(2) [not null]
+
+  indexes {
+    (user_id, country)
+  }
+}
+
+Table shop.products {
+  id integer [pk, increment]
+  sku varchar [unique, not null]
+  name varchar [not null]
+  price_cents integer [not null]
+  active boolean [default: true]
+
+  indexes {
+    sku [unique]
+    name
+  }
+}
+
+Table shop.orders {
+  id integer [pk, increment]
+  user_id integer [not null]
+  shipping_address_id integer
+  status order_status [not null, default: 'draft']
+  created_at timestamp [default: `now()`]
+}
+
+Table shop.order_items {
+  order_id integer [not null]
+  product_id integer [not null]
+  qty integer [not null, default: 1]
+  unit_price_cents integer [not null]
+
+  indexes {
+    (order_id, product_id) [pk]
+  }
+}
+
+Ref: shop.orders.user_id > auth.users.id
+Ref: shop.orders.shipping_address_id > shop.addresses.id
+Ref: shop.order_items.order_id > shop.orders.id
+Ref: shop.order_items.product_id > shop.products.id
+
+TableGroup commerce {
+  shop.products
+  shop.orders
+  shop.order_items
+}

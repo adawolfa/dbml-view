@@ -1,0 +1,96 @@
+// Edge cases: self-ref, composite FK, one-to-one, many-to-many,
+// quoted identifiers, lots of columns, long names.
+
+Table "Weird Name" {
+  "Some Column" varchar [pk]
+  note text
+}
+
+// Self-reference (tree).
+Table categories {
+  id integer [pk, increment]
+  parent_id integer [ref: > categories.id]
+  name varchar [not null]
+}
+
+// One-to-one.
+Table profiles {
+  user_id integer [pk]
+  bio text
+  avatar_url varchar
+}
+Ref: profiles.user_id - users.id
+
+Table users {
+  id integer [pk, increment]
+  email varchar [unique, not null]
+}
+
+// Many-to-many via a join table with a composite PK and FK.
+Table tags {
+  id integer [pk, increment]
+  slug varchar [unique, not null]
+}
+
+Table posts {
+  id integer [pk, increment]
+  title varchar
+}
+
+Table post_tags {
+  post_id integer [not null]
+  tag_id integer [not null]
+
+  indexes {
+    (post_id, tag_id) [pk]
+  }
+}
+
+Ref: post_tags.post_id > posts.id
+Ref: post_tags.tag_id > tags.id
+
+// Composite FK.
+Table shipments {
+  carrier varchar [not null]
+  tracking varchar [not null]
+  order_id integer [not null]
+
+  indexes {
+    (carrier, tracking) [pk]
+  }
+}
+
+Table shipment_events {
+  carrier varchar [not null]
+  tracking varchar [not null]
+  occurred_at timestamp [not null]
+  status varchar
+}
+
+Ref: shipment_events.(carrier, tracking) > shipments.(carrier, tracking)
+
+// Table with many columns to test vertical sizing.
+Table fat_table {
+  id integer [pk, increment]
+  col_01 varchar
+  col_02 varchar
+  col_03 varchar
+  col_04 varchar
+  col_05 varchar
+  col_06 varchar
+  col_07 varchar
+  col_08 varchar
+  col_09 varchar
+  col_10 varchar
+  col_11 varchar
+  col_12 varchar
+  col_13 varchar
+  col_14 varchar
+  col_15 varchar
+  col_16 varchar
+  col_17 varchar
+  col_18 varchar
+  col_19 varchar
+  col_20 varchar
+  note_very_long_column_name_for_width_test text
+}

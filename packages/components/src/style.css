@@ -1,0 +1,19 @@
+/* Shared CSS variables for <dbml-structure> and <dbml-diagram>.
+   Populated in later phases. */
+
+:where(dbml-structure, dbml-diagram) {
+  --dv-bg: #ffffff;
+  --dv-fg: #111827;
+  --dv-muted: #6b7280;
+  --dv-border: #e5e7eb;
+  --dv-accent: #2563eb;
+  --dv-table-bg: #ffffff;
+  --dv-table-header-bg: #f3f4f6;
+  --dv-edge: #94a3b8;
+  --dv-edge-hover: #2563eb;
+
+  display: block;
+  color: var(--dv-fg);
+  background: var(--dv-bg);
+  font: 13px/1.4 ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}

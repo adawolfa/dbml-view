@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>dbml-view</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>dbml-view</h1>
+      <nav class="tabs">
+        <button type="button" data-tab="structure">Structure</button>
+        <button type="button" data-tab="diagram">Diagram</button>
+        <button type="button" data-tab="split">Split</button>
+      </nav>
+    </header>
+    <main id="app">
+      <div class="dropzone" id="dropzone">
+        Drop a <code>.dbml</code> file here or click to choose one.
+        <input type="file" id="file-input" accept=".dbml,text/plain" hidden />
+      </div>
+    </main>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
