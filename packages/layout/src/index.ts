@@ -86,6 +86,9 @@ const EDGE_STUB = 24;
 /** Radius of the semicircular "hop" drawn where one edge crosses another. */
 const JUMP_RADIUS = 6;
 
+/** Radius of the quarter-circle arc inserted at every L-bend so turns read as turns, not crossings. */
+const CORNER_RADIUS = 8;
+
 /**
  * Crossings closer than this to a segment endpoint (a corner of an edge) are
  * ignored — they're either shared corners or non-crossings, never true X cuts.
@@ -158,25 +161,24 @@ export function layout(
     if (routed) edges.push(routed);
   }
 
-  const withJumps = applyJumpovers(edges);
+  const decorated = decorateEdges(edges);
 
   const bbox = computeBbox(tables);
 
-  return { tables, edges: withJumps, bbox };
+  return { tables, edges: decorated, bbox };
 }
 
 type Pt = { x: number; y: number };
+type Seg = { isH: boolean; dir: 1 | -1; len: number };
 
 /**
- * Where one routed edge's horizontal segment strictly crosses another's
- * vertical segment, replace a slice of the horizontal segment with a small
- * upward semicircle so the crossing reads as a "jump over" rather than an
- * ambiguous X. Only the horizontal side gets the bump — picking the same
- * orientation every time keeps the visual consistent across the diagram.
+ * Single post-processing pass over routed edges. Every L-bend gets a small
+ * quarter-circle arc (so turns look like turns, not crossings); horizontal
+ * segments that pass strictly over another edge's vertical segment get a
+ * semicircular "jump" so the crossing reads unambiguously. Picking a fixed
+ * jump orientation (toward smaller y) keeps the visual consistent.
  */
-function applyJumpovers(edges: RoutedEdge[]): RoutedEdge[] {
-  if (edges.length < 2) return edges;
-
+function decorateEdges(edges: RoutedEdge[]): RoutedEdge[] {
   const polylines = edges.map((e) => pathToPoints(e.path));
 
   type HSeg = { edgeIdx: number; segIdx: number; y: number; xMin: number; xMax: number };
@@ -229,20 +231,22 @@ function applyJumpovers(edges: RoutedEdge[]): RoutedEdge[] {
     }
   }
 
-  if (bumps.size === 0) return edges;
-
   return edges.map((edge, ei) => {
-    const segMap = bumps.get(ei);
     const pts = polylines[ei];
-    if (!segMap || !pts) return edge;
-    return { ...edge, path: rebuildPathWithBumps(pts, segMap, JUMP_RADIUS) };
+    if (!pts || pts.length < 2) return edge;
+    const segMap = bumps.get(ei) ?? new Map<number, number[]>();
+    return { ...edge, path: rebuildPath(pts, segMap, CORNER_RADIUS, JUMP_RADIUS) };
   });
 }
 
-/** Parse an M/H/V path string into a list of polyline points. */
+/**
+ * Parse an M/H/V path into polyline points. Adjacent duplicates are dropped so
+ * downstream segment indexing isn't thrown off by degenerate routes (e.g. when
+ * `fromY === toY` makes the V command a no-op).
+ */
 function pathToPoints(d: string): Pt[] {
   const tokens = d.trim().split(/\s+/);
-  const pts: Pt[] = [];
+  const raw: Pt[] = [];
   let cx = 0;
   let cy = 0;
   let i = 0;
@@ -251,72 +255,139 @@ function pathToPoints(d: string): Pt[] {
     if (cmd === 'M') {
       cx = Number(tokens[i++]);
       cy = Number(tokens[i++]);
-      pts.push({ x: cx, y: cy });
+      raw.push({ x: cx, y: cy });
     } else if (cmd === 'H') {
       cx = Number(tokens[i++]);
-      pts.push({ x: cx, y: cy });
+      raw.push({ x: cx, y: cy });
     } else if (cmd === 'V') {
       cy = Number(tokens[i++]);
-      pts.push({ x: cx, y: cy });
+      raw.push({ x: cx, y: cy });
     }
+  }
+  const pts: Pt[] = [];
+  for (const p of raw) {
+    const last = pts[pts.length - 1];
+    if (!last || last.x !== p.x || last.y !== p.y) pts.push(p);
   }
   return pts;
 }
 
 /**
- * Walk the polyline and emit a new path: horizontal segments with crossings
- * get an arc per crossing, every other segment is re-emitted as-is. Sweep flag
- * is chosen so the arc always bumps toward smaller y (visually "up") regardless
- * of whether the segment runs left-to-right or right-to-left.
+ * Walk the polyline and emit M / H / V plus arc commands for both corners and
+ * jump-overs. Each interior bend trims a tangent length off both meeting
+ * segments and stitches them with a quarter-circle arc; each crossing on a
+ * horizontal segment becomes a semicircular bump.
  */
-function rebuildPathWithBumps(
+function rebuildPath(
   pts: Pt[],
   bumps: Map<number, number[]>,
-  r: number,
+  cornerR: number,
+  jumpR: number,
 ): string {
-  const first = pts[0];
-  if (!first) return '';
-  const out: string[] = ['M', fmt(first.x), fmt(first.y)];
+  if (pts.length < 2) return '';
+
+  const segs: Seg[] = [];
   for (let i = 0; i < pts.length - 1; i++) {
-    const a = pts[i];
-    const b = pts[i + 1];
-    if (!a || !b) continue;
-    if (a.y === b.y && a.x !== b.x) {
-      const crossings = bumps.get(i);
-      if (!crossings || crossings.length === 0) {
-        out.push('H', fmt(b.x));
-        continue;
-      }
-      const ltr = b.x > a.x;
-      const sorted = [...crossings].sort((p, q) => (ltr ? p - q : q - p));
-      let cursorX = a.x;
-      for (const cx of sorted) {
-        if (ltr) {
-          const left = cx - r;
-          const right = cx + r;
-          if (left <= cursorX) continue; // overlapping bumps — drop this one
-          if (right >= b.x) continue; // bump would overrun the end
-          out.push('H', fmt(left));
-          out.push('A', fmt(r), fmt(r), '0', '0', '0', fmt(right), fmt(a.y));
-          cursorX = right;
-        } else {
-          const left = cx - r;
-          const right = cx + r;
-          if (right >= cursorX) continue;
-          if (left <= b.x) continue;
-          out.push('H', fmt(right));
-          out.push('A', fmt(r), fmt(r), '0', '0', '1', fmt(left), fmt(a.y));
-          cursorX = left;
-        }
-      }
-      out.push('H', fmt(b.x));
-    } else if (a.x === b.x && a.y !== b.y) {
-      out.push('V', fmt(b.y));
+    const a = pts[i]!;
+    const b = pts[i + 1]!;
+    if (a.y === b.y) {
+      segs.push({ isH: true, dir: b.x > a.x ? 1 : -1, len: Math.abs(b.x - a.x) });
     } else {
-      out.push('L', fmt(b.x), fmt(b.y));
+      segs.push({ isH: false, dir: b.y > a.y ? 1 : -1, len: Math.abs(b.y - a.y) });
     }
   }
+
+  // Trim each segment at any end that meets a perpendicular neighbor.
+  // The trim length matches between the two segments sharing a corner, so the
+  // arc radius is well-defined.
+  const trims: { start: number; end: number }[] = [];
+  for (let i = 0; i < segs.length; i++) {
+    let start = 0;
+    let end = 0;
+    if (i > 0 && segs[i - 1]!.isH !== segs[i]!.isH) {
+      start = Math.min(cornerR, segs[i]!.len / 2, segs[i - 1]!.len / 2);
+    }
+    if (i < segs.length - 1 && segs[i]!.isH !== segs[i + 1]!.isH) {
+      end = Math.min(cornerR, segs[i]!.len / 2, segs[i + 1]!.len / 2);
+    }
+    trims.push({ start, end });
+  }
+
+  const startPt = trimFromStart(pts[0]!, segs[0]!, trims[0]!.start);
+  const out: string[] = ['M', fmt(startPt.x), fmt(startPt.y)];
+
+  for (let i = 0; i < segs.length; i++) {
+    const seg = segs[i]!;
+    const a = trimFromStart(pts[i]!, seg, trims[i]!.start);
+    const b = trimFromEnd(pts[i + 1]!, seg, trims[i]!.end);
+
+    if (seg.isH) {
+      const crossings = bumps.get(i);
+      if (crossings && crossings.length > 0) {
+        emitHorizontalWithBumps(out, a, b, seg.dir > 0, crossings, jumpR);
+      } else {
+        out.push('H', fmt(b.x));
+      }
+    } else {
+      out.push('V', fmt(b.y));
+    }
+
+    if (i < segs.length - 1 && trims[i]!.end > 0) {
+      const nextSeg = segs[i + 1]!;
+      const nextStart = trimFromStart(pts[i + 1]!, nextSeg, trims[i + 1]!.start);
+      // Sweep flag = sign of the 2D cross product of (in-dir × out-dir).
+      // Positive = clockwise turn in SVG's y-down coordinates.
+      const inDx = seg.isH ? seg.dir : 0;
+      const inDy = seg.isH ? 0 : seg.dir;
+      const outDx = nextSeg.isH ? nextSeg.dir : 0;
+      const outDy = nextSeg.isH ? 0 : nextSeg.dir;
+      const sweep = inDx * outDy - inDy * outDx > 0 ? 1 : 0;
+      const r = trims[i]!.end;
+      out.push('A', fmt(r), fmt(r), '0', '0', String(sweep), fmt(nextStart.x), fmt(nextStart.y));
+    }
+  }
+
   return out.join(' ');
+}
+
+function trimFromStart(p: Pt, seg: Seg, t: number): Pt {
+  if (t === 0) return p;
+  return seg.isH ? { x: p.x + seg.dir * t, y: p.y } : { x: p.x, y: p.y + seg.dir * t };
+}
+
+function trimFromEnd(p: Pt, seg: Seg, t: number): Pt {
+  if (t === 0) return p;
+  return seg.isH ? { x: p.x - seg.dir * t, y: p.y } : { x: p.x, y: p.y - seg.dir * t };
+}
+
+function emitHorizontalWithBumps(
+  out: string[],
+  a: Pt,
+  b: Pt,
+  ltr: boolean,
+  crossings: number[],
+  r: number,
+): void {
+  const sorted = [...crossings].sort((p, q) => (ltr ? p - q : q - p));
+  let cursorX = a.x;
+  for (const cx of sorted) {
+    const left = cx - r;
+    const right = cx + r;
+    if (ltr) {
+      if (left <= cursorX) continue;
+      if (right >= b.x) continue;
+      out.push('H', fmt(left));
+      out.push('A', fmt(r), fmt(r), '0', '0', '0', fmt(right), fmt(a.y));
+      cursorX = right;
+    } else {
+      if (right >= cursorX) continue;
+      if (left <= b.x) continue;
+      out.push('H', fmt(right));
+      out.push('A', fmt(r), fmt(r), '0', '0', '1', fmt(left), fmt(a.y));
+      cursorX = left;
+    }
+  }
+  out.push('H', fmt(b.x));
 }
 
 function routeEdge(
