@@ -6,6 +6,7 @@ export {
   columnId,
   endpointTableId,
   findTable,
+  hasMultipleSchemas,
   allRefs,
 } from './types';
 
