@@ -346,17 +346,18 @@ function routeEdge(
   const toRow = toMeasure.rowOffsets.get(toColId);
   if (!fromRow || !toRow) return null;
 
+  const isSelf = fromId === toId;
   const fromCenterX = fromPos.x + fromPos.width / 2;
   const toCenterX = toPos.x + toPos.width / 2;
-  const fromSide: EdgeSide = toCenterX >= fromCenterX ? 'right' : 'left';
-  const toSide: EdgeSide = toCenterX >= fromCenterX ? 'left' : 'right';
+  // Self-refs always loop around the right edge of the table (see selfRefPath),
+  // so both endpoints attach to the right side.
+  const fromSide: EdgeSide = isSelf ? 'right' : toCenterX >= fromCenterX ? 'right' : 'left';
+  const toSide: EdgeSide = isSelf ? 'right' : toCenterX >= fromCenterX ? 'left' : 'right';
 
   const fromY = fromPos.y + fromRow.top + fromRow.height / 2;
   const toY = toPos.y + toRow.top + toRow.height / 2;
   const fromX = fromSide === 'right' ? fromPos.x + fromPos.width : fromPos.x;
   const toX = toSide === 'left' ? toPos.x : toPos.x + toPos.width;
-
-  const isSelf = fromId === toId;
   const path = isSelf
     ? selfRefPath(fromPos, fromY, toY)
     : orthogonalPath(fromX, fromY, fromSide, toX, toY, toSide);
