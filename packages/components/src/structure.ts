@@ -11,6 +11,7 @@ import {
   allRefs,
   columnId,
   endpointTableId,
+  hasMultipleSchemas,
   parseDbml,
   tableId,
 } from '@dbml-view/parser';
@@ -150,14 +151,18 @@ export class DbmlStructureElement extends HTMLElement {
     }
     const bySchema = groupBy(filtered, (t) => t.schemaName ?? DEFAULT_SCHEMA);
     const schemas = [...bySchema.keys()].sort();
+    const showSchemaHeaders = hasMultipleSchemas(this.database);
     container.innerHTML = schemas
       .map((schema) => {
         const tables = (bySchema.get(schema) ?? [])
           .slice()
           .sort((a, b) => a.name.localeCompare(b.name));
+        const header = showSchemaHeaders
+          ? `<h3 class="dv-schema-name">${escapeHtml(schema)}</h3>`
+          : '';
         return `
           <section class="dv-schema">
-            <h3 class="dv-schema-name">${escapeHtml(schema)}</h3>
+            ${header}
             <ul class="dv-table-list">
               ${tables
                 .map((t) => {
@@ -197,7 +202,11 @@ export class DbmlStructureElement extends HTMLElement {
       `;
       return;
     }
-    container.innerHTML = renderTableDetail(table, this.refsByTableId.get(tableId(table)) ?? []);
+    container.innerHTML = renderTableDetail(
+      table,
+      this.refsByTableId.get(tableId(table)) ?? [],
+      hasMultipleSchemas(this.database),
+    );
   }
 
   private selectTable(id: string | null): void {
@@ -238,7 +247,7 @@ const TEMPLATE = `
   <section class="dv-pane" data-detail></section>
 `;
 
-function renderTableDetail(table: Table, refs: RefEntry[]): string {
+function renderTableDetail(table: Table, refs: RefEntry[], showSchema: boolean): string {
   const id = tableId(table);
   const schema = table.schemaName ?? DEFAULT_SCHEMA;
   const note = table.note?.value ?? '';
@@ -261,9 +270,9 @@ function renderTableDetail(table: Table, refs: RefEntry[]): string {
 
   return `
     <header class="dv-detail-header">
-      <div class="dv-detail-schema">${escapeHtml(schema)}</div>
+      ${showSchema ? `<div class="dv-detail-schema">${escapeHtml(schema)}</div>` : ''}
       <h2 class="dv-detail-name">${escapeHtml(table.name)}</h2>
-      <code class="dv-detail-id">${escapeHtml(id)}</code>
+      <code class="dv-detail-id">${escapeHtml(showSchema ? id : table.name)}</code>
       ${note ? `<p class="dv-note">${escapeHtml(note)}</p>` : ''}
     </header>
 

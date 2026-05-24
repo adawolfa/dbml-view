@@ -58,6 +58,21 @@ export function findTable(db: Database, id: string): Table | undefined {
 }
 
 /**
+ * True when tables span more than one schema. When false, schema labels are
+ * noise (every table shows the same value — usually "public") and views should
+ * hide them.
+ */
+export function hasMultipleSchemas(db: Database): boolean {
+  const first = db.tables[0];
+  if (!first) return false;
+  const baseline = first.schemaName ?? DEFAULT_SCHEMA;
+  for (let i = 1; i < db.tables.length; i++) {
+    if ((db.tables[i]?.schemaName ?? DEFAULT_SCHEMA) !== baseline) return true;
+  }
+  return false;
+}
+
+/**
  * All FK refs in the database.
  *
  * `@dbml/parse` already promotes inline refs (`field type [ref: > t.f]`) into

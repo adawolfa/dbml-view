@@ -12,6 +12,7 @@ import {
   type Table,
   columnId,
   endpointTableId,
+  hasMultipleSchemas,
   parseDbml,
   tableId,
 } from '@dbml-view/parser';
@@ -157,9 +158,10 @@ export class DbmlDiagramElement extends HTMLElement {
     // initial flicker invisible — we hide the canvas until measurement is done.
     this.canvasEl.style.visibility = 'hidden';
     const measures = new Map<string, TableMeasure>();
+    const showSchema = hasMultipleSchemas(db);
     for (const table of db.tables) {
       const id = tableId(table);
-      const el = buildTableElement(table, refsForTable(db, id));
+      const el = buildTableElement(table, refsForTable(db, id), showSchema);
       el.dataset.tableId = id;
       this.nodesEl.appendChild(el);
       this.tableEls.set(id, el);
@@ -515,7 +517,7 @@ function endpointMarker(end: {
   return circle;
 }
 
-function buildTableElement(table: Table, refs: Ref[]): HTMLElement {
+function buildTableElement(table: Table, refs: Ref[], showSchema: boolean): HTMLElement {
   const id = tableId(table);
   const el = document.createElement('div');
   el.className = 'dv-table';
@@ -531,7 +533,7 @@ function buildTableElement(table: Table, refs: Ref[]): HTMLElement {
   }
   el.innerHTML = `
     <div class="dv-table-header">
-      <span class="dv-table-schema">${escapeHtml(schema)}</span>
+      ${showSchema ? `<span class="dv-table-schema">${escapeHtml(schema)}</span>` : ''}
       <span class="dv-table-name">${escapeHtml(table.name)}</span>
     </div>
     ${table.fields
