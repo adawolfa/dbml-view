@@ -456,7 +456,7 @@ function shiftEdge(edge: RoutedEdge, dx: number, dy: number): RoutedEdge {
   };
 }
 
-/** Shift an orthogonal path built from M/H/V commands. */
+/** Shift an orthogonal path built from M/H/V/A commands. */
 function shiftPath(d: string, dx: number, dy: number): string {
   const tokens = d.trim().split(/\s+/);
   const out: string[] = [];
@@ -478,6 +478,24 @@ function shiftPath(d: string, dx: number, dy: number): string {
       case 'V': {
         const y = Number(tokens[i++]);
         out.push('V', (y + dy).toFixed(1));
+        break;
+      }
+      case 'L': {
+        const x = Number(tokens[i++]);
+        const y = Number(tokens[i++]);
+        out.push('L', (x + dx).toFixed(1), (y + dy).toFixed(1));
+        break;
+      }
+      case 'A': {
+        // A rx ry x-axis-rotation large-arc-flag sweep-flag x y
+        const rx = tokens[i++];
+        const ry = tokens[i++];
+        const rot = tokens[i++];
+        const large = tokens[i++];
+        const sweep = tokens[i++];
+        const x = Number(tokens[i++]);
+        const y = Number(tokens[i++]);
+        out.push('A', rx!, ry!, rot!, large!, sweep!, (x + dx).toFixed(1), (y + dy).toFixed(1));
         break;
       }
       default:
