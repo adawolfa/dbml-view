@@ -520,6 +520,8 @@ dbml-diagram {
   position: relative;
   width: 100%;
   height: 100%;
+  /* Transparent gaps must pass through to the SVG below so edges can be hovered. */
+  pointer-events: none;
 }
 
 .dv-table {
@@ -527,6 +529,8 @@ dbml-diagram {
   top: 0;
   left: 0;
   box-sizing: border-box;
+  /* Re-enable pointer events here since the .dv-nodes parent disables them. */
+  pointer-events: auto;
   background: var(--dv-table-bg);
   border: 1px solid var(--dv-border);
   border-radius: 6px;
@@ -603,9 +607,16 @@ dbml-diagram {
 .dv-edge-group {
   color: var(--dv-edge);
   transition: color 120ms;
+  /* Parent <svg> sets pointer-events: none; opt edges back in so they can be hovered. */
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .dv-edge-group.is-related {
+  color: var(--dv-edge-hover);
+}
+
+.dv-edge-group.is-hovered {
   color: var(--dv-edge-hover);
 }
 
@@ -620,8 +631,24 @@ dbml-diagram {
   stroke-width: 2;
 }
 
+.dv-edge-group.is-hovered .dv-edge {
+  stroke-width: 2.75;
+}
+
+/* Wide invisible stroke gives the thin edge a practical hover target. */
+.dv-edge-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14;
+  pointer-events: stroke;
+}
+
 .dv-marker,
 .dv-arrow {
   fill: currentColor;
   stroke: currentColor;
+}
+
+.dv-row.is-edge-endpoint {
+  background: var(--dv-accent-soft);
 }
