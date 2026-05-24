@@ -83,6 +83,15 @@ const DEFAULTS: Required<LayoutOptions> = {
 /** Horizontal gap between a table's edge and the first jog of an edge. */
 const EDGE_STUB = 24;
 
+/** Radius of the semicircular "hop" drawn where one edge crosses another. */
+const JUMP_RADIUS = 6;
+
+/**
+ * Crossings closer than this to a segment endpoint (a corner of an edge) are
+ * ignored — they're either shared corners or non-crossings, never true X cuts.
+ */
+const CROSSING_EPSILON = 0.5;
+
 export function layout(
   db: Database,
   measures: Map<string, TableMeasure>,
@@ -149,9 +158,165 @@ export function layout(
     if (routed) edges.push(routed);
   }
 
+  const withJumps = applyJumpovers(edges);
+
   const bbox = computeBbox(tables);
 
-  return { tables, edges, bbox };
+  return { tables, edges: withJumps, bbox };
+}
+
+type Pt = { x: number; y: number };
+
+/**
+ * Where one routed edge's horizontal segment strictly crosses another's
+ * vertical segment, replace a slice of the horizontal segment with a small
+ * upward semicircle so the crossing reads as a "jump over" rather than an
+ * ambiguous X. Only the horizontal side gets the bump — picking the same
+ * orientation every time keeps the visual consistent across the diagram.
+ */
+function applyJumpovers(edges: RoutedEdge[]): RoutedEdge[] {
+  if (edges.length < 2) return edges;
+
+  const polylines = edges.map((e) => pathToPoints(e.path));
+
+  type HSeg = { edgeIdx: number; segIdx: number; y: number; xMin: number; xMax: number };
+  type VSeg = { edgeIdx: number; x: number; yMin: number; yMax: number };
+  const hSegs: HSeg[] = [];
+  const vSegs: VSeg[] = [];
+
+  for (let ei = 0; ei < polylines.length; ei++) {
+    const pts = polylines[ei];
+    if (!pts) continue;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i];
+      const b = pts[i + 1];
+      if (!a || !b) continue;
+      if (a.y === b.y && a.x !== b.x) {
+        hSegs.push({
+          edgeIdx: ei,
+          segIdx: i,
+          y: a.y,
+          xMin: Math.min(a.x, b.x),
+          xMax: Math.max(a.x, b.x),
+        });
+      } else if (a.x === b.x && a.y !== b.y) {
+        vSegs.push({
+          edgeIdx: ei,
+          x: a.x,
+          yMin: Math.min(a.y, b.y),
+          yMax: Math.max(a.y, b.y),
+        });
+      }
+    }
+  }
+
+  // edgeIdx → segIdx → list of crossing x-coordinates on that horizontal segment.
+  const bumps = new Map<number, Map<number, number[]>>();
+
+  for (const h of hSegs) {
+    for (const v of vSegs) {
+      if (v.edgeIdx === h.edgeIdx) continue;
+      if (v.x <= h.xMin + CROSSING_EPSILON || v.x >= h.xMax - CROSSING_EPSILON) continue;
+      if (h.y <= v.yMin + CROSSING_EPSILON || h.y >= v.yMax - CROSSING_EPSILON) continue;
+      let segMap = bumps.get(h.edgeIdx);
+      if (!segMap) {
+        segMap = new Map();
+        bumps.set(h.edgeIdx, segMap);
+      }
+      const list = segMap.get(h.segIdx) ?? [];
+      list.push(v.x);
+      segMap.set(h.segIdx, list);
+    }
+  }
+
+  if (bumps.size === 0) return edges;
+
+  return edges.map((edge, ei) => {
+    const segMap = bumps.get(ei);
+    const pts = polylines[ei];
+    if (!segMap || !pts) return edge;
+    return { ...edge, path: rebuildPathWithBumps(pts, segMap, JUMP_RADIUS) };
+  });
+}
+
+/** Parse an M/H/V path string into a list of polyline points. */
+function pathToPoints(d: string): Pt[] {
+  const tokens = d.trim().split(/\s+/);
+  const pts: Pt[] = [];
+  let cx = 0;
+  let cy = 0;
+  let i = 0;
+  while (i < tokens.length) {
+    const cmd = tokens[i++];
+    if (cmd === 'M') {
+      cx = Number(tokens[i++]);
+      cy = Number(tokens[i++]);
+      pts.push({ x: cx, y: cy });
+    } else if (cmd === 'H') {
+      cx = Number(tokens[i++]);
+      pts.push({ x: cx, y: cy });
+    } else if (cmd === 'V') {
+      cy = Number(tokens[i++]);
+      pts.push({ x: cx, y: cy });
+    }
+  }
+  return pts;
+}
+
+/**
+ * Walk the polyline and emit a new path: horizontal segments with crossings
+ * get an arc per crossing, every other segment is re-emitted as-is. Sweep flag
+ * is chosen so the arc always bumps toward smaller y (visually "up") regardless
+ * of whether the segment runs left-to-right or right-to-left.
+ */
+function rebuildPathWithBumps(
+  pts: Pt[],
+  bumps: Map<number, number[]>,
+  r: number,
+): string {
+  const first = pts[0];
+  if (!first) return '';
+  const out: string[] = ['M', fmt(first.x), fmt(first.y)];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i];
+    const b = pts[i + 1];
+    if (!a || !b) continue;
+    if (a.y === b.y && a.x !== b.x) {
+      const crossings = bumps.get(i);
+      if (!crossings || crossings.length === 0) {
+        out.push('H', fmt(b.x));
+        continue;
+      }
+      const ltr = b.x > a.x;
+      const sorted = [...crossings].sort((p, q) => (ltr ? p - q : q - p));
+      let cursorX = a.x;
+      for (const cx of sorted) {
+        if (ltr) {
+          const left = cx - r;
+          const right = cx + r;
+          if (left <= cursorX) continue; // overlapping bumps — drop this one
+          if (right >= b.x) continue; // bump would overrun the end
+          out.push('H', fmt(left));
+          out.push('A', fmt(r), fmt(r), '0', '0', '0', fmt(right), fmt(a.y));
+          cursorX = right;
+        } else {
+          const left = cx - r;
+          const right = cx + r;
+          if (right >= cursorX) continue;
+          if (left <= b.x) continue;
+          out.push('H', fmt(right));
+          out.push('A', fmt(r), fmt(r), '0', '0', '1', fmt(left), fmt(a.y));
+          cursorX = left;
+        }
+      }
+      out.push('H', fmt(b.x));
+    } else if (a.x === b.x && a.y !== b.y) {
+      out.push('V', fmt(b.y));
+    } else {
+      out.push('L', fmt(b.x), fmt(b.y));
+    }
+  }
+  return out.join(' ');
 }
 
 function routeEdge(
