@@ -11,8 +11,8 @@
       <h1>dbml-view</h1>
       <nav class="tabs" id="tabs">
         <button type="button" data-tab="structure" class="is-active">Structure</button>
-        <button type="button" data-tab="diagram" disabled title="Coming in phase 3">Diagram</button>
-        <button type="button" data-tab="split" disabled title="Coming in phase 3">Split</button>
+        <button type="button" data-tab="diagram">Diagram</button>
+        <button type="button" data-tab="split">Split</button>
       </nav>
       <div class="app-header-actions">
         <span id="status" class="status"></span>
@@ -31,8 +31,15 @@
         <p>Drop a <code>.dbml</code> file here or click <strong>Open .dbml…</strong>.</p>
         <p class="dropzone-hint">Or load a sample from the header.</p>
       </div>
-      <section id="view-structure" hidden>
+      <section id="view-structure" class="view view-single" hidden>
         <dbml-structure id="structure"></dbml-structure>
+      </section>
+      <section id="view-diagram" class="view view-single" hidden>
+        <dbml-diagram id="diagram"></dbml-diagram>
+      </section>
+      <section id="view-split" class="view view-split" hidden>
+        <dbml-structure id="structure-split"></dbml-structure>
+        <dbml-diagram id="diagram-split"></dbml-diagram>
       </section>
     </main>
     <script type="module" src="./src/main.ts"></script>

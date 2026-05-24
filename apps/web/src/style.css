@@ -103,6 +103,16 @@ body {
   min-height: 0;
 }
 
+.view-split {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) 2fr;
+  gap: 0.75rem;
+}
+
+.view-split > * {
+  min-height: 0;
+}
+
 .dropzone {
   display: flex;
   align-items: center;

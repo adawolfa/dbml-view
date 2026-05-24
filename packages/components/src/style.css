@@ -298,3 +298,185 @@ dbml-structure {
   color: var(--dv-muted);
   font-size: 0.75rem;
 }
+
+/* ---- <dbml-diagram> ---- */
+
+dbml-diagram {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 320px;
+  border: 1px solid var(--dv-border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+.dv-diagram-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.4rem 0.5rem;
+  background: #fff;
+  border-bottom: 1px solid var(--dv-border);
+  flex-shrink: 0;
+}
+
+.dv-diagram-toolbar button {
+  border: 1px solid var(--dv-border);
+  background: #fff;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8rem;
+  min-width: 2rem;
+}
+
+.dv-diagram-toolbar button:hover {
+  border-color: var(--dv-accent);
+  color: var(--dv-accent);
+}
+
+.dv-diagram-status {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--dv-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.dv-diagram-status .dv-error {
+  color: #b91c1c;
+  margin-left: 0.5rem;
+}
+
+.dv-diagram-viewport {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  cursor: grab;
+  background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+.dv-diagram-viewport.is-panning {
+  cursor: grabbing;
+}
+
+.dv-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.dv-edges {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.dv-nodes {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.dv-table {
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  background: var(--dv-table-bg);
+  border: 1px solid var(--dv-border);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  min-width: 200px;
+  max-width: 320px;
+  cursor: pointer;
+  transition: box-shadow 120ms, border-color 120ms;
+}
+
+.dv-table.is-hovered {
+  border-color: var(--dv-accent);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.18);
+  z-index: 2;
+}
+
+.dv-table.is-selected {
+  border-color: var(--dv-accent);
+  box-shadow: 0 0 0 2px var(--dv-accent-soft), 0 4px 12px rgba(37, 99, 235, 0.2);
+  z-index: 2;
+}
+
+.dv-table-header {
+  padding: 0.4rem 0.6rem;
+  background: var(--dv-table-header-bg);
+  border-bottom: 1px solid var(--dv-border);
+  font-weight: 600;
+}
+
+.dv-table-schema {
+  display: block;
+  font-size: 0.65rem;
+  color: var(--dv-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.dv-table-name {
+  font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
+}
+
+.dv-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.25rem 0.6rem;
+  border-top: 1px solid #f1f5f9;
+  font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.dv-row-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dv-row-type {
+  color: #6d28d9;
+  font-size: 11px;
+}
+
+.dv-row-flags {
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.dv-edge {
+  fill: none;
+  stroke: var(--dv-edge);
+  stroke-width: 1.5;
+  transition: stroke 120ms, stroke-width 120ms;
+}
+
+.dv-edge.is-related {
+  stroke: var(--dv-edge-hover);
+  stroke-width: 2;
+}
+
+.dv-marker {
+  fill: var(--dv-edge);
+  stroke: var(--dv-edge);
+}

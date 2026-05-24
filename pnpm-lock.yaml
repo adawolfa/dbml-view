@@ -49,7 +49,7 @@ importers:
   packages/parser:
     dependencies:
       '@dbml/parse':
-        specifier: ^3.11.4
+        specifier: ^3.14.1
         version: 3.14.1
 
 packages:
