@@ -43,7 +43,7 @@ export class DbmlDiagramElement extends HTMLElement {
   private viewport: Viewport = { scale: 1, tx: 0, ty: 0 };
   private lastLayout: LayoutResult | null = null;
   private tableEls = new Map<string, HTMLElement>();
-  private edgeEls = new Map<string, SVGPathElement>();
+  private edgeEls = new Map<string, SVGGElement>();
   private edgesByTable = new Map<string, Set<string>>();
   private hoveredTableId: string | null = null;
   private selectedTableId: string | null = null;
@@ -205,18 +205,22 @@ export class DbmlDiagramElement extends HTMLElement {
     this.edgesEl.setAttribute('viewBox', `0 0 ${canvasWidth} ${canvasHeight}`);
     for (const edge of result.edges) {
       const shifted = shiftEdge(edge, offsetX, offsetY);
+      const group = document.createElementNS(SVG_NS, 'g');
+      group.setAttribute('class', 'dv-edge-group');
+      group.dataset.edgeId = edge.id;
+      group.dataset.fromTable = edge.from.tableId;
+      group.dataset.toTable = edge.to.tableId;
       const path = document.createElementNS(SVG_NS, 'path');
       path.setAttribute('d', shifted.path);
       path.setAttribute('class', 'dv-edge');
-      path.dataset.edgeId = edge.id;
-      path.dataset.fromTable = edge.from.tableId;
-      path.dataset.toTable = edge.to.tableId;
-      this.edgesEl.appendChild(path);
+      group.appendChild(path);
       const fromMarker = endpointMarker(shifted.from);
-      const toMarker = endpointMarker(shifted.to);
-      if (fromMarker) this.edgesEl.appendChild(fromMarker);
-      if (toMarker) this.edgesEl.appendChild(toMarker);
-      this.edgeEls.set(edge.id, path);
+      if (fromMarker) group.appendChild(fromMarker);
+      // Directional arrow at the `to` end replaces the cardinality glyph there
+      // so the relationship's direction reads at a glance.
+      group.appendChild(directionArrow(shifted.to));
+      this.edgesEl.appendChild(group);
+      this.edgeEls.set(edge.id, group);
       track(this.edgesByTable, edge.from.tableId, edge.id);
       track(this.edgesByTable, edge.to.tableId, edge.id);
     }
@@ -445,8 +449,9 @@ const EXPORT_CSS = `
 .dv-row { display: grid; grid-template-columns: 1fr auto auto; gap: 0.5rem; padding: 0.25rem 0.6rem; border-top: 1px solid #f1f5f9; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
 .dv-row-flags { color: #94a3b8; font-size: 10px; }
 .dv-row-type { color: #6d28d9; font-size: 11px; }
-.dv-edge { fill: none; stroke: #94a3b8; stroke-width: 1.5; }
-.dv-marker { fill: #94a3b8; stroke: #94a3b8; }
+.dv-edge-group { color: #94a3b8; }
+.dv-edge { fill: none; stroke: currentColor; stroke-width: 1.5; }
+.dv-marker, .dv-arrow { fill: currentColor; stroke: currentColor; }
 `;
 
 function shiftEdge(edge: RoutedEdge, dx: number, dy: number): RoutedEdge {
@@ -487,6 +492,22 @@ function shiftPath(d: string, dx: number, dy: number): string {
     }
   }
   return out.join(' ');
+}
+
+/**
+ * Directional arrowhead at the `to` endpoint: tip on the table border, base
+ * extending back along the edge. Makes the relationship direction obvious.
+ */
+function directionArrow(end: { side: 'left' | 'right'; x: number; y: number }): SVGElement {
+  const dir = end.side === 'left' ? 1 : -1; // positive points into the table
+  const baseX = end.x - dir * 9;
+  const tri = document.createElementNS(SVG_NS, 'polygon');
+  tri.setAttribute(
+    'points',
+    `${end.x},${end.y} ${baseX},${end.y - 4} ${baseX},${end.y + 4}`,
+  );
+  tri.setAttribute('class', 'dv-arrow');
+  return tri;
 }
 
 /**
