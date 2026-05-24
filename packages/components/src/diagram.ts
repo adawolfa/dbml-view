@@ -46,6 +46,7 @@ export class DbmlDiagramElement extends HTMLElement {
   private edgeEls = new Map<string, SVGGElement>();
   private edgesByTable = new Map<string, Set<string>>();
   private hoveredTableId: string | null = null;
+  private hoveredEdgeId: string | null = null;
   private selectedTableId: string | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private intersectionObserver: IntersectionObserver | null = null;
@@ -210,6 +211,14 @@ export class DbmlDiagramElement extends HTMLElement {
       group.dataset.edgeId = edge.id;
       group.dataset.fromTable = edge.from.tableId;
       group.dataset.toTable = edge.to.tableId;
+      group.dataset.fromColumn = edge.from.columnId;
+      group.dataset.toColumn = edge.to.columnId;
+      // Invisible wide stroke under the visible line — gives the edge a practical
+      // hover target (the 1.5px visible stroke alone is far too thin to grab).
+      const hit = document.createElementNS(SVG_NS, 'path');
+      hit.setAttribute('d', shifted.path);
+      hit.setAttribute('class', 'dv-edge-hit');
+      group.appendChild(hit);
       const path = document.createElementNS(SVG_NS, 'path');
       path.setAttribute('d', shifted.path);
       path.setAttribute('class', 'dv-edge');
@@ -219,6 +228,8 @@ export class DbmlDiagramElement extends HTMLElement {
       // Directional arrow at the `to` end replaces the cardinality glyph there
       // so the relationship's direction reads at a glance.
       group.appendChild(directionArrow(shifted.to));
+      group.addEventListener('mouseenter', () => this.setHoveredEdge(edge.id));
+      group.addEventListener('mouseleave', () => this.setHoveredEdge(null));
       this.edgesEl.appendChild(group);
       this.edgeEls.set(edge.id, group);
       track(this.edgesByTable, edge.from.tableId, edge.id);
@@ -354,6 +365,35 @@ export class DbmlDiagramElement extends HTMLElement {
     this.applyViewport();
   }
 
+  private setHoveredEdge(id: string | null): void {
+    if (this.hoveredEdgeId === id) return;
+    if (this.hoveredEdgeId) {
+      const prev = this.edgeEls.get(this.hoveredEdgeId);
+      if (prev) {
+        prev.classList.remove('is-hovered');
+        const fromCol = prev.dataset.fromColumn;
+        const toCol = prev.dataset.toColumn;
+        if (fromCol) this.nodesEl.querySelector(`[data-column-id="${cssEscape(fromCol)}"]`)?.classList.remove('is-edge-endpoint');
+        if (toCol) this.nodesEl.querySelector(`[data-column-id="${cssEscape(toCol)}"]`)?.classList.remove('is-edge-endpoint');
+      }
+    }
+    this.hoveredEdgeId = id;
+    if (id) {
+      const next = this.edgeEls.get(id);
+      if (next) {
+        // SVG has no z-index — paint order is DOM order. Re-appending to the
+        // end of the edges layer pulls this edge over the cluster of overlapping
+        // siblings so the highlight isn't hidden under another line.
+        this.edgesEl.appendChild(next);
+        next.classList.add('is-hovered');
+        const fromCol = next.dataset.fromColumn;
+        const toCol = next.dataset.toColumn;
+        if (fromCol) this.nodesEl.querySelector(`[data-column-id="${cssEscape(fromCol)}"]`)?.classList.add('is-edge-endpoint');
+        if (toCol) this.nodesEl.querySelector(`[data-column-id="${cssEscape(toCol)}"]`)?.classList.add('is-edge-endpoint');
+      }
+    }
+  }
+
   private setHovered(id: string | null): void {
     if (this.hoveredTableId) {
       const prev = this.tableEls.get(this.hoveredTableId);
@@ -451,6 +491,7 @@ const EXPORT_CSS = `
 .dv-row-type { color: #6d28d9; font-size: 11px; }
 .dv-edge-group { color: #94a3b8; }
 .dv-edge { fill: none; stroke: currentColor; stroke-width: 1.5; }
+.dv-edge-hit { fill: none; stroke: transparent; stroke-width: 14; }
 .dv-marker, .dv-arrow { fill: currentColor; stroke: currentColor; }
 `;
 
@@ -632,6 +673,10 @@ function escapeHtml(value: string): string {
 
 function escapeAttr(value: string): string {
   return escapeHtml(value);
+}
+
+function cssEscape(value: string): string {
+  return typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(value) : value.replace(/["\\]/g, '\\$&');
 }
 
 if (!customElements.get(DbmlDiagramElement.tagName)) {
