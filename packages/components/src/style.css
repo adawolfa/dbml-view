@@ -62,51 +62,183 @@ dbml-structure {
   outline-offset: -1px;
 }
 
-.dv-schema {
-  padding: 0.35rem 0;
-}
+/* --- Tree --- */
 
-.dv-schema-name {
-  margin: 0;
-  padding: 0.25rem 0.75rem;
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--dv-muted);
-}
-
-.dv-table-list {
+.dv-tree,
+.dv-tree-children {
   list-style: none;
   padding: 0;
   margin: 0;
 }
 
-.dv-table-link {
+.dv-tree-children {
+  /* Indent each level by the chevron width. */
+  padding-left: 0.85rem;
+  position: relative;
+}
+
+.dv-tree-children::before {
+  content: "";
+  position: absolute;
+  left: 0.4rem;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--dv-border);
+}
+
+.dv-tree-node {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.25rem 0.75rem;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.2rem 0.5rem 0.2rem 0.25rem;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font: inherit;
   color: var(--dv-fg);
-  text-decoration: none;
+  cursor: pointer;
   border-left: 2px solid transparent;
 }
 
-.dv-table-link:hover {
+.dv-tree-node:hover {
   background: var(--dv-accent-soft);
 }
 
-.dv-table-link.is-active {
+.dv-tree-chevron {
+  display: inline-block;
+  width: 0.85rem;
+  color: var(--dv-muted);
+  font-size: 0.7rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.dv-tree-count {
+  margin-left: auto;
+  font-size: 0.7rem;
+  color: var(--dv-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.dv-tree-node-group {
+  font-weight: 600;
+}
+
+.dv-tree-group-kind {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--dv-muted);
+  background: var(--dv-table-header-bg);
+  padding: 0.05rem 0.3rem;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.dv-tree-group-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dv-tree-node-table .dv-tree-table-name {
+  font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dv-tree-node-table.is-active {
   background: var(--dv-accent-soft);
   border-left-color: var(--dv-accent);
   font-weight: 500;
 }
 
-.dv-table-meta {
-  font-size: 0.7rem;
+.dv-tree-section {
+  padding: 0.2rem 0.5rem 0.1rem 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  pointer-events: none;
+}
+
+.dv-tree-section-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: var(--dv-muted);
-  font-variant-numeric: tabular-nums;
+  padding-left: 0.85rem;
+}
+
+.dv-tree-node-column {
+  padding-left: 1.1rem;
+  font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-size: 12px;
+}
+
+.dv-tree-column-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dv-tree-column-type {
+  margin-left: auto;
+  color: #6d28d9;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.dv-tree-flag {
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  border-radius: 3px;
+  padding: 0 0.25rem;
+  flex-shrink: 0;
+}
+
+.dv-tree-flag-pk {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.dv-tree-node-column.is-active {
+  background: var(--dv-accent-soft);
+  border-left-color: var(--dv-accent);
+}
+
+.dv-tree-node-relation {
+  padding-left: 1.1rem;
+  font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-size: 12px;
+  color: var(--dv-fg);
+}
+
+.dv-tree-rel-arrow {
+  color: var(--dv-muted);
+  width: 0.9rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.dv-tree-rel-target {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--dv-accent);
+}
+
+.dv-tree-rel-fields {
+  margin-left: auto;
+  color: var(--dv-muted);
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 .dv-pane {
@@ -203,6 +335,10 @@ dbml-structure {
 
 .dv-columns tbody tr:last-child td {
   border-bottom: none;
+}
+
+.dv-columns tbody tr.is-highlighted td {
+  background: var(--dv-accent-soft);
 }
 
 .dv-col-name {
