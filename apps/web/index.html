@@ -9,17 +9,31 @@
   <body>
     <header class="app-header">
       <h1>dbml-view</h1>
-      <nav class="tabs">
-        <button type="button" data-tab="structure">Structure</button>
-        <button type="button" data-tab="diagram">Diagram</button>
-        <button type="button" data-tab="split">Split</button>
+      <nav class="tabs" id="tabs">
+        <button type="button" data-tab="structure" class="is-active">Structure</button>
+        <button type="button" data-tab="diagram" disabled title="Coming in phase 3">Diagram</button>
+        <button type="button" data-tab="split" disabled title="Coming in phase 3">Split</button>
       </nav>
+      <div class="app-header-actions">
+        <span id="status" class="status"></span>
+        <div class="sample-picker">
+          <span class="sample-label">Samples:</span>
+          <button type="button" data-sample="small.dbml">small</button>
+          <button type="button" data-sample="medium.dbml">medium</button>
+          <button type="button" data-sample="edge-cases.dbml">edge-cases</button>
+        </div>
+        <button type="button" id="open-button">Open .dbml…</button>
+        <input type="file" id="file-input" accept=".dbml,text/plain" hidden />
+      </div>
     </header>
     <main id="app">
       <div class="dropzone" id="dropzone">
-        Drop a <code>.dbml</code> file here or click to choose one.
-        <input type="file" id="file-input" accept=".dbml,text/plain" hidden />
+        <p>Drop a <code>.dbml</code> file here or click <strong>Open .dbml…</strong>.</p>
+        <p class="dropzone-hint">Or load a sample from the header.</p>
       </div>
+      <section id="view-structure" hidden>
+        <dbml-structure id="structure"></dbml-structure>
+      </section>
     </main>
     <script type="module" src="./src/main.ts"></script>
   </body>

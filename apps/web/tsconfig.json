@@ -1,11 +1,9 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "noEmit": true
+    "noEmit": true,
+    "types": ["vite/client"]
   },
   "include": ["src/**/*", "vite.config.ts"],
-  "references": [
-    { "path": "../../packages/parser" },
-    { "path": "../../packages/components" }
-  ]
+  "references": [{ "path": "../../packages/parser" }, { "path": "../../packages/components" }]
 }

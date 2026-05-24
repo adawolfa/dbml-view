@@ -14,3 +14,4 @@ apps/desktop/src-tauri/gen/
 # IDE
 .idea/
 .vscode/
+.claude/

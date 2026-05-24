@@ -1,26 +1,33 @@
-// Stub — Phase 1.
-// Thin wrapper around `@dbml/parse` (v3.14.1).
-//
-// API (verified in node_modules/@dbml/parse/dist/src/index.d.ts):
-//   import { Compiler, type Database, CompileError } from '@dbml/parse';
-//   const c = new Compiler();
-//   c.setSource(src);
-//   const db: Database | undefined = c.parse.rawDb();
-//   const errors: readonly CompileError[] = c.parse.errors();
-//
-// We re-export `Database` (and other model types) as `ParsedDatabase`,
-// `parseDbml(src)` returns a discriminated ok/error union.
+export { parseDbml, type ParseError, type ParseResult } from './parse';
 
-export type ParseError = {
-  message: string;
-  line?: number;
-  column?: number;
-};
+export {
+  DEFAULT_SCHEMA,
+  tableId,
+  columnId,
+  endpointTableId,
+  findTable,
+  allRefs,
+} from './types';
 
-export type ParseResult<T> =
-  | { ok: true; db: T }
-  | { ok: false; errors: ParseError[] };
-
-export function parseDbml(_src: string): ParseResult<unknown> {
-  throw new Error('parseDbml: not implemented (Phase 1)');
-}
+export type {
+  Database,
+  Table,
+  Column,
+  ColumnType,
+  Index,
+  InlineRef,
+  Ref,
+  RefEndpoint,
+  RefEndpointPair,
+  RelationCardinality,
+  Enum,
+  EnumField,
+  TableGroup,
+  TableGroupField,
+  Alias,
+  TablePartial,
+  TablePartialInjection,
+  Project,
+  Note,
+  TokenPosition,
+} from './types';

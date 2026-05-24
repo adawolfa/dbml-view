@@ -1,5 +1,4 @@
-/* Shared CSS variables for <dbml-structure> and <dbml-diagram>.
-   Populated in later phases. */
+/* Shared CSS variables for <dbml-structure> and <dbml-diagram>. */
 
 :where(dbml-structure, dbml-diagram) {
   --dv-bg: #ffffff;
@@ -7,6 +6,7 @@
   --dv-muted: #6b7280;
   --dv-border: #e5e7eb;
   --dv-accent: #2563eb;
+  --dv-accent-soft: #eff6ff;
   --dv-table-bg: #ffffff;
   --dv-table-header-bg: #f3f4f6;
   --dv-edge: #94a3b8;
@@ -15,5 +15,286 @@
   display: block;
   color: var(--dv-fg);
   background: var(--dv-bg);
-  font: 13px/1.4 ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font: 13px / 1.4 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* ---- <dbml-structure> ---- */
+
+dbml-structure {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) 1fr;
+  gap: 0;
+  height: 100%;
+  min-height: 320px;
+  border: 1px solid var(--dv-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.dv-rail {
+  border-right: 1px solid var(--dv-border);
+  background: #fafafa;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.dv-search {
+  position: sticky;
+  top: 0;
+  background: #fafafa;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--dv-border);
+  z-index: 1;
+}
+
+.dv-search input {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--dv-border);
+  border-radius: 4px;
+  font: inherit;
+  background: #fff;
+}
+
+.dv-search input:focus {
+  outline: 2px solid var(--dv-accent);
+  outline-offset: -1px;
+}
+
+.dv-schema {
+  padding: 0.35rem 0;
+}
+
+.dv-schema-name {
+  margin: 0;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--dv-muted);
+}
+
+.dv-table-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.dv-table-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  color: var(--dv-fg);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+}
+
+.dv-table-link:hover {
+  background: var(--dv-accent-soft);
+}
+
+.dv-table-link.is-active {
+  background: var(--dv-accent-soft);
+  border-left-color: var(--dv-accent);
+  font-weight: 500;
+}
+
+.dv-table-meta {
+  font-size: 0.7rem;
+  color: var(--dv-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.dv-pane {
+  padding: 1rem 1.25rem;
+  overflow: auto;
+}
+
+.dv-empty {
+  color: var(--dv-muted);
+  padding: 1rem 0;
+}
+
+.dv-error {
+  color: #b91c1c;
+}
+
+.dv-error h2 {
+  font-size: 1rem;
+  margin: 0 0 0.5rem;
+}
+
+.dv-error ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.dv-error-pos {
+  display: inline-block;
+  min-width: 3.5rem;
+  font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
+  color: #ef4444;
+}
+
+.dv-detail-header {
+  margin-bottom: 1rem;
+}
+
+.dv-detail-schema {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--dv-muted);
+}
+
+.dv-detail-name {
+  margin: 0.1rem 0 0.25rem;
+  font-size: 1.25rem;
+}
+
+.dv-detail-id {
+  font-size: 0.75rem;
+  color: var(--dv-muted);
+}
+
+.dv-note {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.75rem;
+  background: #fffbeb;
+  border-left: 3px solid #f59e0b;
+  border-radius: 2px;
+  color: #78350f;
+}
+
+.dv-section-title {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--dv-muted);
+}
+
+.dv-columns {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.dv-columns thead th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--dv-muted);
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--dv-border);
+}
+
+.dv-columns tbody td {
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--dv-border);
+  vertical-align: top;
+}
+
+.dv-columns tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.dv-col-name {
+  font-weight: 500;
+  font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
+}
+
+.dv-col-type {
+  font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
+  color: #6d28d9;
+}
+
+.dv-col-flags {
+  white-space: nowrap;
+}
+
+.dv-col-default,
+.dv-col-note {
+  color: var(--dv-muted);
+}
+
+.dv-badge {
+  display: inline-block;
+  padding: 0.05rem 0.35rem;
+  margin-right: 0.25rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  border-radius: 3px;
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.dv-badge-pk {
+  background: #fef3c7;
+  color: #92400e;
+}
+.dv-badge-fk {
+  background: #dbeafe;
+  color: #1e40af;
+}
+.dv-badge-unique {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+.dv-badge-auto {
+  background: #d1fae5;
+  color: #065f46;
+}
+.dv-badge-not-null {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.dv-indexes,
+.dv-refs {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.dv-indexes li,
+.dv-refs li {
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--dv-border);
+}
+
+.dv-indexes li:last-child,
+.dv-refs li:last-child {
+  border-bottom: none;
+}
+
+.dv-refs code {
+  font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-size: 0.8rem;
+}
+
+.dv-refs a {
+  color: var(--dv-accent);
+  text-decoration: none;
+}
+
+.dv-refs a:hover {
+  text-decoration: underline;
+}
+
+.dv-ref-arrow {
+  margin: 0 0.5rem;
+  color: var(--dv-muted);
+}
+
+.dv-muted {
+  color: var(--dv-muted);
+  font-size: 0.75rem;
 }

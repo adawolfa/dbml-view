@@ -9,12 +9,22 @@
   box-sizing: border-box;
 }
 
-html, body {
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
   height: 100%;
   margin: 0;
   background: var(--app-bg);
   color: var(--app-fg);
-  font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font: 14px / 1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
 }
 
 .app-header {
@@ -32,27 +42,65 @@ html, body {
   font-weight: 600;
 }
 
+.app-header-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.status {
+  color: #6b7280;
+  font-size: 0.85rem;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .tabs {
   display: flex;
   gap: 0.25rem;
 }
 
-.tabs button {
+.tabs button,
+#open-button {
   border: 1px solid var(--app-border);
   background: #fff;
-  padding: 0.25rem 0.75rem;
+  padding: 0.3rem 0.75rem;
   border-radius: 4px;
   cursor: pointer;
   font: inherit;
 }
 
-.tabs button:hover {
+.tabs button:hover:not([disabled]),
+#open-button:hover {
   border-color: var(--app-accent);
   color: var(--app-accent);
 }
 
+.tabs button.is-active {
+  background: var(--app-accent);
+  border-color: var(--app-accent);
+  color: #fff;
+}
+
+.tabs button[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 #app {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   padding: 1rem;
+  min-height: 0;
+}
+
+#app > section {
+  flex: 1;
+  min-height: 0;
 }
 
 .dropzone {
@@ -62,15 +110,57 @@ html, body {
   flex-direction: column;
   gap: 0.5rem;
   min-height: 240px;
+  flex: 1;
   border: 2px dashed var(--app-border);
   border-radius: 8px;
   background: #fff;
   cursor: pointer;
   color: #6b7280;
+  padding: 2rem;
+  text-align: center;
 }
 
 .dropzone.is-over {
   border-color: var(--app-accent);
   color: var(--app-accent);
   background: #eff6ff;
+}
+
+.dropzone p {
+  margin: 0;
+}
+
+.sample-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding-right: 0.75rem;
+  border-right: 1px solid var(--app-border);
+}
+
+.sample-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-right: 0.25rem;
+}
+
+.sample-picker button {
+  border: 1px solid var(--app-border);
+  background: #fff;
+  padding: 0.2rem 0.55rem;
+  border-radius: 3px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--app-fg);
+}
+
+.sample-picker button:hover:not([disabled]) {
+  border-color: var(--app-accent);
+  color: var(--app-accent);
+}
+
+.sample-picker button[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
