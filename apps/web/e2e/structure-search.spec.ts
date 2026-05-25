@@ -16,6 +16,19 @@ test('search icon is rendered inside the input shell', async ({ page }) => {
   await expect(structure.locator('.dv-search .dv-search-icon')).toBeVisible();
 });
 
+test('search icon hides while typing and reappears once the input is cleared', async ({ page }) => {
+  await page.goto('/');
+  await loadSample(page, 'small');
+  const structure = page.locator('#structure');
+  const search = structure.locator('[data-search]');
+  const icon = structure.locator('.dv-search .dv-search-icon');
+  await expect(icon).toBeVisible();
+  await search.fill('users');
+  await expect(icon).toBeHidden();
+  await search.fill('');
+  await expect(icon).toBeVisible();
+});
+
 test('fuzzy/word search matches non-contiguous characters', async ({ page }) => {
   await page.goto('/');
   await loadSample(page, 'medium');
@@ -74,7 +87,7 @@ test('first match is pre-highlighted; arrows move the active cursor', async ({ p
   );
 });
 
-test('Enter activates the current match (selects the table) without clearing the query', async ({
+test('Enter activates the current match, clears the query, and blurs the input', async ({
   page,
 }) => {
   await page.goto('/');
@@ -86,9 +99,14 @@ test('Enter activates the current match (selects the table) without clearing the
   // Step down to shop.order_items, then commit.
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
+  // Selection happened (hash updated)…
   await expect(page).toHaveURL(/#table:.*order_items/);
-  // Query is preserved so the user can keep navigating.
-  await expect(search).toHaveValue('ord');
+  // …and the search field cleared + lost focus so typing somewhere else doesn't
+  // re-trigger a search.
+  await expect(search).toHaveValue('');
+  await expect(search).not.toBeFocused();
+  // Icon comes back since the placeholder is shown again.
+  await expect(structure.locator('.dv-search .dv-search-icon')).toBeVisible();
 });
 
 test('Escape clears the search and hides the clear button', async ({ page }) => {
