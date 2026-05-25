@@ -677,6 +677,17 @@ dbml-diagram {
   background: var(--dv-toolbar-pressed-bg);
 }
 
+.dv-diagram-toolbar-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dv-diagram-toolbar-icon-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
 .dv-diagram-status {
   margin-left: auto;
   font-size: 0.75rem;
