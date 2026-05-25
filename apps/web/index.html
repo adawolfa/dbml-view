@@ -6,7 +6,7 @@
     <title>dbml-view</title>
     <link rel="stylesheet" href="./src/style.css" />
     <script>
-      // Set initial theme before paint to avoid FOUC.
+      // Set initial theme and font before paint to avoid FOUC.
       (function () {
         try {
           var stored = localStorage.getItem('dbml-view:theme');
@@ -20,6 +20,12 @@
         } catch (e) {
           document.documentElement.setAttribute('data-theme', 'light');
         }
+        try {
+          var font = localStorage.getItem('dbml-view:font');
+          if (font === 'proportional') {
+            document.documentElement.setAttribute('data-font', 'proportional');
+          }
+        } catch (e) {}
       })();
     </script>
   </head>
@@ -113,6 +119,11 @@
           <select id="lang-select" class="settings-select">
             <option value="en">English</option>
             <option value="cs">Čeština</option>
+          </select>
+          <label class="settings-label" id="font-select-label" for="font-select">Font</label>
+          <select id="font-select" class="settings-select">
+            <option value="mono">Cascadia Code</option>
+            <option value="proportional">Aptos</option>
           </select>
         </div>
       </div>
