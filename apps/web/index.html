@@ -25,22 +25,46 @@
   </head>
   <body>
     <header class="app-header">
-      <button type="button" id="file-button" class="file-button" title="Open .dbml file">
-        <svg
-          class="file-button-icon"
-          viewBox="0 0 20 20"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-          stroke-linejoin="round"
-          aria-hidden="true"
+      <div class="file-group">
+        <button type="button" id="file-button" class="file-button" title="Open .dbml file">
+          <svg
+            class="file-button-icon"
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path
+              d="M2.5 6A1.5 1.5 0 0 1 4 4.5h3.172a1.5 1.5 0 0 1 1.06.44l1.06 1.06a1.5 1.5 0 0 0 1.06.44H16A1.5 1.5 0 0 1 17.5 8v6A1.5 1.5 0 0 1 16 15.5H4A1.5 1.5 0 0 1 2.5 14V6Z"
+            />
+          </svg>
+          <span class="file-button-label" id="file-button-label">Open</span>
+        </button>
+        <button
+          type="button"
+          id="file-dropdown-trigger"
+          class="file-dropdown-trigger"
+          aria-label="Load sample"
+          aria-expanded="false"
+          aria-haspopup="menu"
         >
-          <path
-            d="M2.5 6A1.5 1.5 0 0 1 4 4.5h3.172a1.5 1.5 0 0 1 1.06.44l1.06 1.06a1.5 1.5 0 0 0 1.06.44H16A1.5 1.5 0 0 1 17.5 8v6A1.5 1.5 0 0 1 16 15.5H4A1.5 1.5 0 0 1 2.5 14V6Z"
-          />
-        </svg>
-        <span class="file-button-label" id="file-button-label">Open</span>
-      </button>
+          <svg
+            class="file-dropdown-chevron"
+            viewBox="0 0 12 12"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M2 4l4 4 4-4" />
+          </svg>
+        </button>
+        <div id="file-dropdown" class="file-dropdown" role="menu" hidden></div>
+      </div>
       <nav class="view-toggles" id="view-toggles">
         <button type="button" data-view="structure" class="is-active" aria-pressed="true">
           Structure
@@ -51,13 +75,6 @@
         <button type="button" data-view="diagram" aria-pressed="false">Diagram</button>
       </nav>
       <div class="app-header-actions">
-        <div class="sample-picker">
-          <span class="sample-label">Samples:</span>
-          <button type="button" data-sample="small.dbml">small</button>
-          <button type="button" data-sample="medium.dbml">medium</button>
-          <button type="button" data-sample="edge-cases.dbml">edge-cases</button>
-          <button type="button" data-sample="large.dbml">large</button>
-        </div>
         <span id="status" class="status"></span>
       </div>
       <button
