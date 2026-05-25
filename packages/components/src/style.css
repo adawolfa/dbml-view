@@ -545,6 +545,8 @@ dbml-diagram {
   background-color: var(--dv-canvas-bg);
   background-image: radial-gradient(#d2d0ce 1px, transparent 1px);
   background-size: 16px 16px;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .dv-diagram-viewport.is-panning {
