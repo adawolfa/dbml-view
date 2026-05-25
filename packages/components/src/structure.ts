@@ -36,11 +36,13 @@ export class DbmlStructureElement extends HTMLElement {
   private expandedTables = new Set<string>();
   private rendered = false;
   private hashListener = (): void => this.syncFromHash();
+  private splitterDrag: { pointerId: number; startX: number; startWidth: number } | null = null;
 
   connectedCallback(): void {
     if (!this.rendered) {
       this.classList.add('dv-structure');
       this.innerHTML = TEMPLATE;
+      this.applyStoredRailWidth();
       this.wireEvents();
       this.rendered = true;
     }
@@ -123,6 +125,96 @@ export class DbmlStructureElement extends HTMLElement {
         this.selectTable(link.dataset.jumpTable ?? null);
       }
     });
+
+    this.wireSplitter();
+  }
+
+  private wireSplitter(): void {
+    const splitter = this.querySelector<HTMLElement>('[data-splitter]');
+    if (!splitter) return;
+
+    splitter.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
+      const rail = this.querySelector<HTMLElement>('.dv-rail');
+      if (!rail) return;
+      event.preventDefault();
+      splitter.setPointerCapture(event.pointerId);
+      splitter.classList.add('is-dragging');
+      this.splitterDrag = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startWidth: rail.getBoundingClientRect().width,
+      };
+    });
+
+    splitter.addEventListener('pointermove', (event) => {
+      const drag = this.splitterDrag;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      const next = clamp(drag.startWidth + (event.clientX - drag.startX), RAIL_MIN_PX, RAIL_MAX_PX);
+      this.setRailWidth(next);
+    });
+
+    const end = (event: PointerEvent): void => {
+      const drag = this.splitterDrag;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      this.splitterDrag = null;
+      splitter.classList.remove('is-dragging');
+      if (splitter.hasPointerCapture(event.pointerId)) {
+        splitter.releasePointerCapture(event.pointerId);
+      }
+      this.persistRailWidth();
+    };
+    splitter.addEventListener('pointerup', end);
+    splitter.addEventListener('pointercancel', end);
+
+    splitter.addEventListener('keydown', (event) => {
+      const rail = this.querySelector<HTMLElement>('.dv-rail');
+      if (!rail) return;
+      const step = event.shiftKey ? 32 : 8;
+      const current = rail.getBoundingClientRect().width;
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        this.setRailWidth(clamp(current - step, RAIL_MIN_PX, RAIL_MAX_PX));
+        this.persistRailWidth();
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        this.setRailWidth(clamp(current + step, RAIL_MIN_PX, RAIL_MAX_PX));
+        this.persistRailWidth();
+      }
+    });
+
+    splitter.addEventListener('dblclick', () => {
+      this.setRailWidth(RAIL_DEFAULT_PX);
+      this.persistRailWidth();
+    });
+  }
+
+  private setRailWidth(px: number): void {
+    this.style.setProperty('--dv-rail-width', `${Math.round(px)}px`);
+  }
+
+  private applyStoredRailWidth(): void {
+    let width = RAIL_DEFAULT_PX;
+    try {
+      const stored = localStorage.getItem(RAIL_WIDTH_LS_KEY);
+      const parsed = stored !== null ? Number.parseInt(stored, 10) : NaN;
+      if (Number.isFinite(parsed) && parsed > 0) {
+        width = clamp(parsed, RAIL_MIN_PX, RAIL_MAX_PX);
+      }
+    } catch {
+      // ignore
+    }
+    this.setRailWidth(width);
+  }
+
+  private persistRailWidth(): void {
+    const value = this.style.getPropertyValue('--dv-rail-width');
+    if (!value) return;
+    try {
+      localStorage.setItem(RAIL_WIDTH_LS_KEY, value.replace('px', '').trim());
+    } catch {
+      // ignore
+    }
   }
 
   private renderAll(): void {
@@ -459,8 +551,14 @@ const TEMPLATE = `
     </label>
     <nav data-tree></nav>
   </aside>
+  <div class="dv-splitter" data-splitter role="separator" aria-orientation="vertical" tabindex="0"></div>
   <section class="dv-pane" data-detail></section>
 `;
+
+const RAIL_WIDTH_LS_KEY = 'dbml-view:structure-rail-width';
+const RAIL_MIN_PX = 180;
+const RAIL_MAX_PX = 520;
+const RAIL_DEFAULT_PX = 260;
 
 /**
  * Group tables for the tree. Tables in a `TableGroup` go under that group;
@@ -719,6 +817,10 @@ function escapeHtml(value: string): string {
 
 function escapeAttr(value: string): string {
   return escapeHtml(value);
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
 if (!customElements.get(DbmlStructureElement.tagName)) {
