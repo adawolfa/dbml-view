@@ -43,7 +43,6 @@ export class DbmlStructureElement extends HTMLElement {
   private refsByTableId = new Map<string, RefEntry[]>();
   private expandedGroups = new Set<string>();
   private expandedTables = new Set<string>();
-  private expandedEnums = new Set<string>();
   private rendered = false;
 
   connectedCallback(): void {
@@ -121,7 +120,7 @@ export class DbmlStructureElement extends HTMLElement {
         this.toggleGroup(id);
       } else if (kind === 'table') {
         const id = node.dataset.tableId ?? '';
-        this.activateTable(id);
+        this.selectTableNoExpand(id);
       } else if (kind === 'column') {
         const id = node.dataset.tableId ?? '';
         const col = node.dataset.column ?? '';
@@ -131,8 +130,16 @@ export class DbmlStructureElement extends HTMLElement {
         this.selectTable(target);
       } else if (kind === 'enum') {
         const id = node.dataset.enumId ?? '';
-        this.activateEnum(id);
+        this.selectEnum(id);
       }
+    });
+
+    tree?.addEventListener('dblclick', (event) => {
+      const node = (event.target as HTMLElement).closest<HTMLElement>('[data-node="table"]');
+      if (!node) return;
+      event.preventDefault();
+      const id = node.dataset.tableId ?? '';
+      this.toggleTableExpansion(id);
     });
   }
 
@@ -148,7 +155,6 @@ export class DbmlStructureElement extends HTMLElement {
     const matchingTables = new Set<string>();
     const matchingColumns = new Map<string, Set<string>>();
     const matchingEnums = new Set<string>();
-    const matchingEnumValues = new Map<string, Set<string>>();
     if (q !== '') {
       for (const group of groups) {
         for (const table of group.tables) {
@@ -172,9 +178,6 @@ export class DbmlStructureElement extends HTMLElement {
           const valueMatches = en.values.filter((v) => v.name.toLowerCase().includes(q));
           if (enumMatches || valueMatches.length > 0) {
             matchingEnums.add(eId);
-            if (!enumMatches) {
-              matchingEnumValues.set(eId, new Set(valueMatches.map((v) => v.name)));
-            }
           }
         }
       }
@@ -196,9 +199,7 @@ export class DbmlStructureElement extends HTMLElement {
         const tablesHtml = visibleTables
           .map((t) => this.renderTreeTable(t, q, matchingColumns, matchingTables))
           .join('');
-        const enumsHtml = visibleEnums
-          .map((e) => this.renderTreeEnum(e, q, matchingEnumValues))
-          .join('');
+        const enumsHtml = visibleEnums.map((e) => this.renderTreeEnum(e)).join('');
         // Single-schema DB: drop the redundant schema-group wrapper and show
         // tables + enums directly. TableGroups still get their wrapper either way.
         if (group.kind === 'schema' && !showSchemaHeaders) {
@@ -328,39 +329,9 @@ export class DbmlStructureElement extends HTMLElement {
     `;
   }
 
-  private renderTreeEnum(en: Enum, q: string, matchingValues: Map<string, Set<string>>): string {
+  private renderTreeEnum(en: Enum): string {
     const id = enumId(en);
-    const isSearching = q !== '';
-    const expanded = isSearching || this.expandedEnums.has(id);
     const active = this.selection.kind === 'enum' && this.selection.enumId === id;
-    const chevron = expanded ? '▾' : '▸';
-
-    const valuesToShow = (() => {
-      if (!isSearching) return en.values;
-      const set = matchingValues.get(id);
-      if (!set) return en.values;
-      return en.values.filter((v) => set.has(v.name));
-    })();
-
-    const childrenHtml = expanded
-      ? `
-        <ul class="dv-tree-children">
-          ${valuesToShow
-            .map(
-              (v) => `
-            <li>
-              <span class="dv-tree-node dv-tree-node-enum-value">
-                <span class="dv-tree-enum-value-name">${escapeHtml(v.name)}</span>
-                ${v.note ? `<span class="dv-tree-enum-value-note" title="${escapeAttr(v.note.value)}">${escapeHtml(v.note.value)}</span>` : ''}
-              </span>
-            </li>
-          `,
-            )
-            .join('')}
-        </ul>
-      `
-      : '';
-
     return `
       <li class="dv-tree-enum${active ? ' is-active' : ''}">
         <button
@@ -368,14 +339,11 @@ export class DbmlStructureElement extends HTMLElement {
           class="dv-tree-node dv-tree-node-enum${active ? ' is-active' : ''}"
           data-node="enum"
           data-enum-id="${escapeAttr(id)}"
-          aria-expanded="${expanded}"
         >
-          <span class="dv-tree-chevron">${chevron}</span>
           <span class="dv-tree-enum-kind" title="Enum">enum</span>
           <span class="dv-tree-enum-name">${escapeHtml(en.name)}</span>
           <span class="dv-tree-count">${en.values.length}</span>
         </button>
-        ${childrenHtml}
       </li>
     `;
   }
@@ -410,29 +378,28 @@ export class DbmlStructureElement extends HTMLElement {
     this.renderTree();
   }
 
-  private activateTable(id: string): void {
-    // Clicking a table selects it (and expands it if not yet expanded). If
-    // already selected, the click toggles its expansion — convenient for
-    // collapsing a noisy fat_table without losing the selection.
-    if (this.selection.kind === 'table' && this.selection.tableId === id) {
-      if (this.expandedTables.has(id)) this.expandedTables.delete(id);
-      else this.expandedTables.add(id);
-      this.renderTree();
+  /** Single click on a table node: select it (notifies detail) without expanding.
+   *  If the table is already selected, toggle its expansion instead. */
+  private selectTableNoExpand(id: string): void {
+    if (
+      this.selection.kind === 'table' &&
+      this.selection.tableId === id &&
+      this.selection.columnName === undefined
+    ) {
+      this.toggleTableExpansion(id);
       return;
     }
-    this.expandedTables.add(id);
-    this.selectTable(id);
+    this.selection = { kind: 'table', tableId: id };
+    this.autoExpandGroupForSelection();
+    this.renderTree();
+    this.notify();
   }
 
-  private activateEnum(id: string): void {
-    if (this.selection.kind === 'enum' && this.selection.enumId === id) {
-      if (this.expandedEnums.has(id)) this.expandedEnums.delete(id);
-      else this.expandedEnums.add(id);
-      this.renderTree();
-      return;
-    }
-    this.expandedEnums.add(id);
-    this.selectEnum(id);
+  /** Double click on a table node: toggle its expansion in the tree. */
+  private toggleTableExpansion(id: string): void {
+    if (this.expandedTables.has(id)) this.expandedTables.delete(id);
+    else this.expandedTables.add(id);
+    this.renderTree();
   }
 
   private activateColumn(tId: string, columnName: string): void {
@@ -452,13 +419,17 @@ export class DbmlStructureElement extends HTMLElement {
   }
 
   private selectEnum(id: string): void {
-    this.expandedEnums.add(id);
+    if (this.selection.kind === 'enum' && this.selection.enumId === id) return;
     this.selection = { kind: 'enum', enumId: id };
-    this.autoExpandForSelection();
+    this.autoExpandGroupForSelection();
     this.renderTree();
     this.notify();
   }
 
+  /**
+   * Expands the containing group AND the item itself. Used for external
+   * navigation (diagram click, URL hash) so the tree reveals the selection.
+   */
   private autoExpandForSelection(): void {
     if (!this.database) return;
     const sel = this.selection;
@@ -471,8 +442,32 @@ export class DbmlStructureElement extends HTMLElement {
         }
       }
     } else if (sel.kind === 'enum') {
-      this.expandedEnums.add(sel.enumId);
       for (const group of buildTree(this.database)) {
+        if (group.enums.some((e) => enumId(e) === sel.enumId)) {
+          this.expandedGroups.add(group.id);
+          break;
+        }
+      }
+    }
+  }
+
+  /**
+   * Expands only the containing group (not the item itself). Used for
+   * user-initiated tree clicks where expansion is intentionally separate.
+   */
+  private autoExpandGroupForSelection(): void {
+    if (!this.database) return;
+    const sel = this.selection;
+    const groups = buildTree(this.database);
+    if (sel.kind === 'table') {
+      for (const group of groups) {
+        if (group.tables.some((t) => tableId(t) === sel.tableId)) {
+          this.expandedGroups.add(group.id);
+          break;
+        }
+      }
+    } else if (sel.kind === 'enum') {
+      for (const group of groups) {
         if (group.enums.some((e) => enumId(e) === sel.enumId)) {
           this.expandedGroups.add(group.id);
           break;
