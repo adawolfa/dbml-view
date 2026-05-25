@@ -19,4 +19,5 @@ apps/web/.playwright/
 # IDE
 .idea/
 .vscode/
-.claude/
+.claude/*
+!.claude/launch.json

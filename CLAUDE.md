@@ -28,6 +28,12 @@ Run from the repo root.
 
 When working outside the main worktree (e.g. in `.claude/worktrees/*`), `pnpm dev` already uses a random OS-assigned port by default — no extra flags needed.
 
+## Preview server config (`.claude/launch.json`)
+
+The Claude Preview MCP reads `.claude/launch.json` to start the dev server. This file is **deliberately pinned to `port: 0` with no `--port` arg**, so each session/worktree gets an OS-assigned free port and concurrent agents never collide.
+
+**Do not edit `.claude/launch.json` to set a fixed port.** If `preview_start` fails, the cause is not the port — read the actual error. The MCP discovers the real port from Vite's stdout. The file is now tracked in git so any rewrite shows up in `git status`; revert it.
+
 ## Conventions
 
 - **Toolchain:** Biome for lint + format, Vite for the app, pnpm workspaces. No ESLint/Prettier/webpack — keep it single-tool. (See user memory: prefer lean toolchains.)
