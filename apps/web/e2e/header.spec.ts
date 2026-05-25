@@ -56,7 +56,7 @@ test.describe('file group', () => {
     await page.locator('#file-dropdown-trigger').click();
     const items = page.locator('#file-dropdown .file-dropdown-item');
     const names = (await items.allTextContents()).map((s) => s.trim()).sort();
-    expect(names).toEqual(['edge-cases', 'large', 'medium', 'small', 'tablegroup']);
+    expect(names).toEqual(['colors', 'edge-cases', 'large', 'medium', 'small', 'tablegroup']);
   });
 
   test('outside click closes the samples dropdown', async ({ page }) => {

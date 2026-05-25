@@ -82,6 +82,8 @@ export type RoutedEdge = {
   to: RoutedEdgeEndpoint;
   /** SVG path data, orthogonal with bends. */
   path: string;
+  /** Explicit color from the DBML (`Ref [color: '#…']`), or null when unset. */
+  color: string | null;
 };
 
 export type LayoutResult = {
@@ -607,6 +609,7 @@ type RawRoute = {
   midX: number;
   isSelf: boolean;
   selfTable: PositionedTable | null;
+  color: string | null;
 };
 
 function computeRawRoute(
@@ -683,6 +686,7 @@ function computeRawRoute(
     midX,
     isSelf,
     selfTable: isSelf ? fromPos : null,
+    color: entry.ref.color ?? null,
   };
 }
 
@@ -691,7 +695,7 @@ function rawToRoutedEdge(r: RawRoute): RoutedEdge {
     r.isSelf && r.selfTable
       ? selfRefPath(r.selfTable, r.from.y, r.to.y)
       : orthogonalPathFromMid(r.from.x, r.from.y, r.midX, r.to.x, r.to.y);
-  return { id: r.id, from: r.from, to: r.to, path };
+  return { id: r.id, from: r.from, to: r.to, path, color: r.color };
 }
 
 function columnIdFromEndpoint(endpoint: RefEndpoint, name: string): string {

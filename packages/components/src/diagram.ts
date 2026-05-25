@@ -223,6 +223,10 @@ export class DbmlDiagramElement extends HTMLElement {
       const id = tableId(table);
       const el = buildTableElement(table, refsForTable(db, id), showSchema, this.hideNonRelational);
       el.dataset.tableId = id;
+      if (table.headerColor) {
+        el.style.setProperty('--dv-table-header-color', table.headerColor);
+        el.classList.add('has-header-color');
+      }
       this.nodesEl.appendChild(el);
       this.tableEls.set(id, el);
     }
@@ -365,12 +369,15 @@ export class DbmlDiagramElement extends HTMLElement {
     for (const edge of edges) {
       const shifted = shiftEdge(edge, dx, dy);
       const group = document.createElementNS(SVG_NS, 'g');
-      group.setAttribute('class', 'dv-edge-group');
+      group.setAttribute('class', edge.color ? 'dv-edge-group has-color' : 'dv-edge-group');
       group.dataset.edgeId = edge.id;
       group.dataset.fromTable = edge.from.tableId;
       group.dataset.toTable = edge.to.tableId;
       group.dataset.fromColumn = edge.from.columnId;
       group.dataset.toColumn = edge.to.columnId;
+      if (edge.color) {
+        group.style.setProperty('--dv-edge-color', edge.color);
+      }
       // Invisible wide stroke under the visible line — gives the edge a practical
       // hover target (the 1.5px visible stroke alone is far too thin to grab).
       const hit = document.createElementNS(SVG_NS, 'path');
@@ -1141,6 +1148,8 @@ function makeTemplate(): string {
 const EXPORT_CSS = `
 .dv-table { position: absolute; box-sizing: border-box; background: #fff; border: 1px solid #d1d5db; font: 13px / 1.4 ui-sans-serif, system-ui, sans-serif; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
 .dv-table-header { padding: 0.4rem 0.6rem; background: #f3f4f6; border-bottom: 1px solid #d1d5db; font-weight: 600; }
+.dv-table.has-header-color > .dv-table-header { background: color-mix(in srgb, var(--dv-table-header-color) 22%, #f3f4f6); border-bottom-color: color-mix(in srgb, var(--dv-table-header-color) 60%, #d1d5db); }
+.dv-table.has-header-color > .dv-table-header .dv-table-name { color: color-mix(in srgb, var(--dv-table-header-color) 75%, #242424); }
 .dv-table-schema { font-size: 0.65rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em; display: block; }
 .dv-row { display: grid; grid-template-columns: 1fr auto auto; gap: 0.5rem; padding: 0.25rem 0.6rem; border-top: 1px solid #f1f5f9; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
 .dv-row-flags { color: #94a3b8; font-size: 10px; }
@@ -1148,6 +1157,7 @@ const EXPORT_CSS = `
 .dv-group { position: absolute; top: 0; left: 0; box-sizing: border-box; background: rgba(148, 163, 184, 0.07); border: 1px dashed rgba(148, 163, 184, 0.6); border-radius: 6px; }
 .dv-group-label { position: absolute; top: 4px; left: 8px; padding: 0.1rem 0.45rem; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #475569; background: #f1f5f9; border: 1px solid rgba(148, 163, 184, 0.5); border-radius: 4px; }
 .dv-edge-group { color: #94a3b8; }
+.dv-edge-group.has-color { color: var(--dv-edge-color); }
 .dv-edge { fill: none; stroke: currentColor; stroke-width: 1.5; }
 .dv-edge-hit { fill: none; stroke: transparent; stroke-width: 14; }
 .dv-marker, .dv-arrow { fill: currentColor; stroke: currentColor; }
