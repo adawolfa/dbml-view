@@ -266,6 +266,59 @@ dbml-structure {
   white-space: nowrap;
 }
 
+.dv-tree-node-enum .dv-tree-enum-name {
+  font-family: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dv-tree-enum-kind {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--dv-muted);
+  background: var(--dv-table-header-bg);
+  padding: 0.05rem 0.3rem;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.dv-tree-node-enum.is-active {
+  background: var(--dv-accent-soft);
+  border-left-color: var(--dv-accent);
+  color: var(--dv-accent-hover);
+  font-weight: 600;
+}
+
+.dv-tree-node-enum.is-active:hover {
+  background: var(--dv-accent-soft);
+}
+
+.dv-tree-node-enum-value {
+  padding-left: 1.1rem;
+  font-family: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-size: 12px;
+  cursor: default;
+}
+
+.dv-tree-enum-value-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dv-tree-enum-value-note {
+  margin-left: auto;
+  color: var(--dv-muted);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 60%;
+}
+
 .dv-pane {
   padding: 1rem 1.25rem;
   overflow: auto;
@@ -316,6 +369,35 @@ dbml-structure {
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--dv-fg);
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.dv-detail-kind {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--dv-muted);
+  background: var(--dv-table-header-bg);
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+}
+
+.dv-col-type-enum {
+  color: #8764b8;
+  text-decoration: none;
+  border-bottom: 1px dashed currentColor;
+}
+
+.dv-col-type-enum:hover {
+  color: var(--dv-accent-hover);
+}
+
+.dv-empty-inline {
+  margin: 0.5rem 0;
+  color: var(--dv-muted);
 }
 
 .dv-detail-id {
