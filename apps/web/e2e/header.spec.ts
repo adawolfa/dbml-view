@@ -86,8 +86,24 @@ test.describe('file group', () => {
     await loadSample(page, 'small');
     await expect(page.locator('#dropzone')).toBeHidden();
     await expect(page.locator('#views')).toBeVisible();
-    // The Open button's label is replaced with the file name.
+    // small.dbml has no Project block — falls back to the filename.
     await expect(page.locator('#file-button-label')).toHaveText('small.dbml');
+  });
+
+  test('project name from DBML is used as the button label and page title', async ({ page }) => {
+    await page.goto('/');
+    await loadSample(page, 'medium'); // contains: Project shop { ... }
+    await expect(page.locator('#file-button-label')).toHaveText('shop');
+    expect(await page.title()).toBe('shop');
+  });
+
+  test('file without a project block falls back to filename in label and title', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    await loadSample(page, 'small'); // no Project block
+    await expect(page.locator('#file-button-label')).toHaveText('small.dbml');
+    expect(await page.title()).toBe('small.dbml');
   });
 
   test('uploading a file via the hidden input loads its contents', async ({ page }) => {
@@ -98,10 +114,23 @@ test.describe('file group', () => {
       buffer: Buffer.from('Table inline_demo {\n  id integer [pk]\n  label varchar\n}\n'),
     });
     await expect(page.locator('#dropzone')).toBeHidden();
+    // No Project block → falls back to the filename.
     await expect(page.locator('#file-button-label')).toHaveText('inline.dbml');
     await expect(
       page.locator('#structure [data-node="table"]', { hasText: 'inline_demo' }),
     ).toBeVisible();
+  });
+
+  test('uploading a file with a project block shows the project name', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('#file-input').setInputFiles({
+      name: 'my_schema.dbml',
+      mimeType: 'text/plain',
+      buffer: Buffer.from('Project my_app {}\nTable demo {\n  id integer [pk]\n}\n'),
+    });
+    await expect(page.locator('#dropzone')).toBeHidden();
+    await expect(page.locator('#file-button-label')).toHaveText('my_app');
+    expect(await page.title()).toBe('my_app');
   });
 });
 
