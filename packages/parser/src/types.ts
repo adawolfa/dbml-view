@@ -62,7 +62,10 @@ export function findEnum(db: Database, id: string): Enum | undefined {
  * treating a column type with no schema as belonging to the default schema —
  * same convention DBML uses for unqualified enum references.
  */
-export function columnUsesEnum(column: Pick<Column, 'type'>, en: Pick<Enum, 'name' | 'schemaName'>): boolean {
+export function columnUsesEnum(
+  column: Pick<Column, 'type'>,
+  en: Pick<Enum, 'name' | 'schemaName'>,
+): boolean {
   if (column.type.type_name !== en.name) return false;
   const enumSchema = en.schemaName ?? DEFAULT_SCHEMA;
   const colSchema = column.type.schemaName ?? DEFAULT_SCHEMA;

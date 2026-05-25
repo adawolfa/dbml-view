@@ -456,10 +456,7 @@ function routeEdge(
 }
 
 function columnIdFromEndpoint(endpoint: RefEndpoint, name: string): string {
-  return columnId(
-    { name: endpoint.tableName, schemaName: endpoint.schemaName ?? null },
-    { name },
-  );
+  return columnId({ name: endpoint.tableName, schemaName: endpoint.schemaName ?? null }, { name });
 }
 
 /**
@@ -485,12 +482,9 @@ function orthogonalPath(
   } else {
     midX = (fromStubX + toStubX) / 2;
   }
-  return [
-    `M ${fmt(fromX)} ${fmt(fromY)}`,
-    `H ${fmt(midX)}`,
-    `V ${fmt(toY)}`,
-    `H ${fmt(toX)}`,
-  ].join(' ');
+  return [`M ${fmt(fromX)} ${fmt(fromY)}`, `H ${fmt(midX)}`, `V ${fmt(toY)}`, `H ${fmt(toX)}`].join(
+    ' ',
+  );
 }
 
 /** Self-ref: U-shape that exits the right edge, swings out, and re-enters the right edge. */
@@ -511,10 +505,10 @@ function fmt(n: number): string {
 
 function computeBbox(tables: PositionedTable[]): Rect {
   if (tables.length === 0) return { x: 0, y: 0, width: 0, height: 0 };
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
   for (const t of tables) {
     if (t.x < minX) minX = t.x;
     if (t.y < minY) minY = t.y;

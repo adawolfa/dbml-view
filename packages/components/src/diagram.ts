@@ -3,7 +3,7 @@
 // Pipeline: build table DOM → measure off-screen → packages/layout →
 // move tables into the canvas + draw edges → pan/zoom + toolbar.
 
-import { layout, type LayoutResult, type RoutedEdge, type TableMeasure } from '@dbml-view/layout';
+import { type LayoutResult, type RoutedEdge, type TableMeasure, layout } from '@dbml-view/layout';
 import {
   type Column,
   DEFAULT_SCHEMA,
@@ -375,8 +375,14 @@ export class DbmlDiagramElement extends HTMLElement {
         prev.classList.remove('is-hovered');
         const fromCol = prev.dataset.fromColumn;
         const toCol = prev.dataset.toColumn;
-        if (fromCol) this.nodesEl.querySelector(`[data-column-id="${cssEscape(fromCol)}"]`)?.classList.remove('is-edge-endpoint');
-        if (toCol) this.nodesEl.querySelector(`[data-column-id="${cssEscape(toCol)}"]`)?.classList.remove('is-edge-endpoint');
+        if (fromCol)
+          this.nodesEl
+            .querySelector(`[data-column-id="${cssEscape(fromCol)}"]`)
+            ?.classList.remove('is-edge-endpoint');
+        if (toCol)
+          this.nodesEl
+            .querySelector(`[data-column-id="${cssEscape(toCol)}"]`)
+            ?.classList.remove('is-edge-endpoint');
       }
     }
     this.hoveredEdgeId = id;
@@ -390,8 +396,14 @@ export class DbmlDiagramElement extends HTMLElement {
         next.classList.add('is-hovered');
         const fromCol = next.dataset.fromColumn;
         const toCol = next.dataset.toColumn;
-        if (fromCol) this.nodesEl.querySelector(`[data-column-id="${cssEscape(fromCol)}"]`)?.classList.add('is-edge-endpoint');
-        if (toCol) this.nodesEl.querySelector(`[data-column-id="${cssEscape(toCol)}"]`)?.classList.add('is-edge-endpoint');
+        if (fromCol)
+          this.nodesEl
+            .querySelector(`[data-column-id="${cssEscape(fromCol)}"]`)
+            ?.classList.add('is-edge-endpoint');
+        if (toCol)
+          this.nodesEl
+            .querySelector(`[data-column-id="${cssEscape(toCol)}"]`)
+            ?.classList.add('is-edge-endpoint');
       }
     }
   }
@@ -563,10 +575,7 @@ function directionArrow(end: { side: 'left' | 'right'; x: number; y: number }): 
   const dir = end.side === 'left' ? 1 : -1; // positive points into the table
   const baseX = end.x - dir * 9;
   const tri = document.createElementNS(SVG_NS, 'polygon');
-  tri.setAttribute(
-    'points',
-    `${end.x},${end.y} ${baseX},${end.y - 4} ${baseX},${end.y + 4}`,
-  );
+  tri.setAttribute('points', `${end.x},${end.y} ${baseX},${end.y - 4} ${baseX},${end.y + 4}`);
   tri.setAttribute('class', 'dv-arrow');
   return tri;
 }
@@ -610,17 +619,17 @@ function buildTableElement(table: Table, refs: Ref[], showSchema: boolean): HTML
   for (const ref of refs) {
     const [a, b] = ref.endpoints;
     if (!a || !b) continue;
-    if (a.relation === '*' && endpointTableId(a) === selfId) for (const f of a.fieldNames) fkColumns.add(f);
-    if (b.relation === '*' && endpointTableId(b) === selfId) for (const f of b.fieldNames) fkColumns.add(f);
+    if (a.relation === '*' && endpointTableId(a) === selfId)
+      for (const f of a.fieldNames) fkColumns.add(f);
+    if (b.relation === '*' && endpointTableId(b) === selfId)
+      for (const f of b.fieldNames) fkColumns.add(f);
   }
   el.innerHTML = `
     <div class="dv-table-header">
       ${showSchema ? `<span class="dv-table-schema">${escapeHtml(schema)}</span>` : ''}
       <span class="dv-table-name">${escapeHtml(table.name)}</span>
     </div>
-    ${table.fields
-      .map((c) => renderRow(table, c, pkColumns, fkColumns))
-      .join('')}
+    ${table.fields.map((c) => renderRow(table, c, pkColumns, fkColumns)).join('')}
   `;
   return el;
 }
@@ -678,7 +687,9 @@ function escapeAttr(value: string): string {
 }
 
 function cssEscape(value: string): string {
-  return typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(value) : value.replace(/["\\]/g, '\\$&');
+  return typeof CSS !== 'undefined' && CSS.escape
+    ? CSS.escape(value)
+    : value.replace(/["\\]/g, '\\$&');
 }
 
 if (!customElements.get(DbmlDiagramElement.tagName)) {
