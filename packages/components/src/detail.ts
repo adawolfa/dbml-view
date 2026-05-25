@@ -17,6 +17,8 @@ import {
   tableId,
 } from '@dbml-view/parser';
 
+import { t } from '@dbml-view/i18n';
+
 import {
   type RefEntry,
   type Selection,
@@ -138,7 +140,7 @@ export class DbmlDetailElement extends HTMLElement {
     if (!container) return;
     container.innerHTML = `
       <div class="dv-error">
-        <h2>Couldn't parse this DBML</h2>
+        <h2>${escapeHtml(t('detail.error.heading'))}</h2>
         <ul>
           ${errors
             .map(
@@ -155,7 +157,7 @@ export class DbmlDetailElement extends HTMLElement {
     const container = this.querySelector('[data-detail]');
     if (!container) return;
     if (!this.database) {
-      container.innerHTML = '<div class="dv-empty">No DBML loaded.</div>';
+      container.innerHTML = `<div class="dv-empty">${escapeHtml(t('detail.empty.no_dbml'))}</div>`;
       return;
     }
     const sel = this.selection;
@@ -186,12 +188,22 @@ export class DbmlDetailElement extends HTMLElement {
     }
     const tableCount = this.database.tables.length;
     const enumCount = this.database.enums.length;
-    const parts = [`${tableCount} table${tableCount === 1 ? '' : 's'}`];
-    if (enumCount > 0) parts.push(`${enumCount} enum${enumCount === 1 ? '' : 's'}`);
+    const tableLabel =
+      tableCount === 1
+        ? t('detail.count.table', { count: tableCount })
+        : t('detail.count.tables', { count: tableCount });
+    const parts = [tableLabel];
+    if (enumCount > 0) {
+      const enumLabel =
+        enumCount === 1
+          ? t('detail.count.enum', { count: enumCount })
+          : t('detail.count.enums', { count: enumCount });
+      parts.push(enumLabel);
+    }
     container.innerHTML = `
       <div class="dv-empty">
-        <p>Pick a table or enum from the list.</p>
-        <p>${parts.join(', ')} in this schema.</p>
+        <p>${escapeHtml(t('detail.empty.pick_item'))}</p>
+        <p>${escapeHtml(t('detail.empty.schema_info', { parts: parts.join(', ') }))}</p>
       </div>
     `;
   }
@@ -244,10 +256,10 @@ function renderTableDetail(
       ${note ? `<p class="dv-note">${escapeHtml(note)}</p>` : ''}
     </header>
 
-    <h3 class="dv-section-title">Columns</h3>
+    <h3 class="dv-section-title">${escapeHtml(t('detail.section.columns'))}</h3>
     <table class="dv-columns">
       <thead>
-        <tr><th>Name</th><th>Type</th><th>Flags</th><th>Default</th><th>Note</th></tr>
+        <tr><th>${escapeHtml(t('detail.col.name'))}</th><th>${escapeHtml(t('detail.col.type'))}</th><th>${escapeHtml(t('detail.col.flags'))}</th><th>${escapeHtml(t('detail.col.default'))}</th><th>${escapeHtml(t('detail.col.note'))}</th></tr>
       </thead>
       <tbody>
         ${table.fields
@@ -261,7 +273,7 @@ function renderTableDetail(
     ${
       table.indexes.length > 0
         ? `
-      <h3 class="dv-section-title">Indexes</h3>
+      <h3 class="dv-section-title">${escapeHtml(t('detail.section.indexes'))}</h3>
       <ul class="dv-indexes">
         ${table.indexes.map(renderIndexItem).join('')}
       </ul>
@@ -269,8 +281,8 @@ function renderTableDetail(
         : ''
     }
 
-    ${renderRefSection('References out', outgoing, table)}
-    ${renderRefSection('References in', incoming, table)}
+    ${renderRefSection(t('detail.section.refs_out'), outgoing, table)}
+    ${renderRefSection(t('detail.section.refs_in'), incoming, table)}
   `;
 }
 
@@ -281,16 +293,16 @@ function renderEnumDetail(en: Enum, usages: EnumUsage[], showSchema: boolean): s
     <header class="dv-detail-header">
       ${showSchema ? `<div class="dv-detail-schema">${escapeHtml(schema)}</div>` : ''}
       <h2 class="dv-detail-name">
-        <span class="dv-detail-kind">enum</span>
+        <span class="dv-detail-kind">${escapeHtml(t('detail.enum.kind'))}</span>
         ${escapeHtml(en.name)}
       </h2>
       <code class="dv-detail-id">${escapeHtml(showSchema ? id : en.name)}</code>
     </header>
 
-    <h3 class="dv-section-title">Values</h3>
+    <h3 class="dv-section-title">${escapeHtml(t('detail.section.values'))}</h3>
     <table class="dv-columns">
       <thead>
-        <tr><th>Name</th><th>Note</th></tr>
+        <tr><th>${escapeHtml(t('detail.col.name'))}</th><th>${escapeHtml(t('detail.col.note'))}</th></tr>
       </thead>
       <tbody>
         ${en.values
@@ -308,9 +320,9 @@ function renderEnumDetail(en: Enum, usages: EnumUsage[], showSchema: boolean): s
 
     ${
       usages.length === 0
-        ? '<p class="dv-muted dv-empty-inline">Not referenced by any column.</p>'
+        ? `<p class="dv-muted dv-empty-inline">${escapeHtml(t('detail.enum.not_referenced'))}</p>`
         : `
-          <h3 class="dv-section-title">Used by</h3>
+          <h3 class="dv-section-title">${escapeHtml(t('detail.section.used_by'))}</h3>
           <ul class="dv-refs">
             ${usages
               .map((u) => {
@@ -339,12 +351,13 @@ function renderColumnRow(
 ): string {
   const isPk = pks.has(column.name);
   const isFk = fks.has(column.name);
-  const flags: string[] = [];
-  if (isPk) flags.push('PK');
-  if (isFk) flags.push('FK');
-  if (column.unique) flags.push('UNIQUE');
-  if (column.increment) flags.push('AUTO');
-  if (column.not_null) flags.push('NOT NULL');
+  // css: stable class suffix; label: translated display text.
+  const flags: Array<{ css: string; label: string }> = [];
+  if (isPk) flags.push({ css: 'pk', label: t('detail.flag.pk') });
+  if (isFk) flags.push({ css: 'fk', label: t('detail.flag.fk') });
+  if (column.unique) flags.push({ css: 'unique', label: t('detail.flag.unique') });
+  if (column.increment) flags.push({ css: 'auto', label: t('detail.flag.auto') });
+  if (column.not_null) flags.push({ css: 'not-null', label: t('detail.flag.not_null') });
   const def = column.dbdefault
     ? column.dbdefault.type === 'expression'
       ? `\`${String(column.dbdefault.value)}\``
@@ -360,7 +373,7 @@ function renderColumnRow(
     <tr id="${escapeAttr(id)}"${highlighted ? ' class="is-highlighted"' : ''}>
       <td class="dv-col-name">${escapeHtml(column.name)}</td>
       <td class="dv-col-type">${typeCell}</td>
-      <td class="dv-col-flags">${flags.map((f) => `<span class="dv-badge dv-badge-${f.toLowerCase().replace(/[^a-z]/g, '-')}">${f}</span>`).join('')}</td>
+      <td class="dv-col-flags">${flags.map((f) => `<span class="dv-badge dv-badge-${f.css}">${escapeHtml(f.label)}</span>`).join('')}</td>
       <td class="dv-col-default">${escapeHtml(def)}</td>
       <td class="dv-col-note">${escapeHtml(column.note?.value ?? '')}</td>
     </tr>

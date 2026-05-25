@@ -26,6 +26,9 @@ importers:
       '@dbml-view/components':
         specifier: workspace:*
         version: link:../../packages/components
+      '@dbml-view/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
       '@dbml-view/parser':
         specifier: workspace:*
         version: link:../../packages/parser
@@ -39,12 +42,17 @@ importers:
 
   packages/components:
     dependencies:
+      '@dbml-view/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       '@dbml-view/layout':
         specifier: workspace:*
         version: link:../layout
       '@dbml-view/parser':
         specifier: workspace:*
         version: link:../parser
+
+  packages/i18n: {}
 
   packages/layout:
     dependencies:

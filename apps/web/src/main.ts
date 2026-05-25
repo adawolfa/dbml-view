@@ -11,6 +11,7 @@ import type {
   DbmlStructureElement,
   Selection,
 } from '@dbml-view/components';
+import { t } from '@dbml-view/i18n';
 import { parseDbml } from '@dbml-view/parser';
 
 const LS_KEY = 'dbml-view:last-source';
@@ -63,6 +64,10 @@ const panelWidths: Record<View, number> = {
 };
 let hasSource = false;
 let currentSelection: Selection = { kind: 'none' };
+
+// Apply translations to the static HTML elements that can't be reached from
+// component render methods (view toggles, file button initial state, dropzone).
+initTranslations();
 
 fileButton.addEventListener('click', () => fileInput.click());
 
@@ -132,7 +137,7 @@ async function loadUrl(url: string, label: string): Promise<void> {
     const source = await response.text();
     applySource(source, label);
   } catch (err) {
-    status.textContent = `Couldn't load ${label}: ${(err as Error).message}`;
+    status.textContent = t('app.error.load_url', { label, message: (err as Error).message });
   }
 }
 
@@ -229,7 +234,10 @@ function layoutPanels(): void {
   // When the structure panel is the only visible panel it would stretch to the
   // full window width, which looks odd for a narrow tree. Mark it so CSS can
   // cap its width; clear the flag whenever other panels are alongside it.
-  viewSections.structure.classList.toggle('is-solo', visible.length === 1 && visible[0] === 'structure');
+  viewSections.structure.classList.toggle(
+    'is-solo',
+    visible.length === 1 && visible[0] === 'structure',
+  );
 
   // Reset widths on all sections, then apply per visible panel.
   for (const v of VIEWS) {
@@ -382,6 +390,33 @@ function effectivelyVisible(view: View): boolean {
   return activeViews.has(view) && (view !== 'detail' || currentSelection.kind !== 'none');
 }
 
+function initTranslations(): void {
+  // File button — title is overwritten with the filename once a file is loaded;
+  // this sets the initial "no file" state.
+  fileButton.title = t('app.file_button.title');
+  fileButtonLabel.textContent = t('app.file_button.label');
+
+  // View toggle button labels.
+  for (const button of togglesEl.querySelectorAll<HTMLButtonElement>('[data-view]')) {
+    const view = button.dataset.view;
+    if (view === 'structure') button.textContent = t('app.view.structure');
+    else if (view === 'detail') button.textContent = t('app.view.detail');
+    else if (view === 'diagram') button.textContent = t('app.view.diagram');
+  }
+
+  // Samples label.
+  const sampleLabelEl = document.querySelector('.sample-label');
+  if (sampleLabelEl) sampleLabelEl.textContent = t('app.samples.label');
+
+  // Dropzone — the prompt uses a {extension} placeholder so translators can
+  // reorder the phrase; we substitute a <code> element here.
+  const dropzoneP1 = dropzone.querySelector('p:not(.dropzone-hint)');
+  const dropzoneHint = dropzone.querySelector('.dropzone-hint');
+  if (dropzoneP1)
+    dropzoneP1.innerHTML = t('app.dropzone.prompt', { extension: '<code>.dbml</code>' });
+  if (dropzoneHint) dropzoneHint.textContent = t('app.dropzone.hint');
+}
+
 function mustGet<T extends HTMLElement>(id: string): T {
   const el = document.getElementById(id);
   if (!el) throw new Error(`Bootstrap: missing #${id}`);
@@ -411,7 +446,7 @@ function effectiveTheme(): Theme {
 function applyTheme(): void {
   const theme = effectiveTheme();
   document.documentElement.setAttribute('data-theme', theme);
-  const label = theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme';
+  const label = theme === 'dark' ? t('app.theme.switch_to_light') : t('app.theme.switch_to_dark');
   themeToggle.title = label;
   themeToggle.setAttribute('aria-label', label);
 }
@@ -525,7 +560,7 @@ async function bootstrap(): Promise<void> {
   try {
     const stored = localStorage.getItem(LS_KEY);
     const storedName = localStorage.getItem(LS_NAME_KEY);
-    if (stored) applySource(stored, storedName ?? '(previous)');
+    if (stored) applySource(stored, storedName ?? t('app.previous_file'));
   } catch {
     // ignore
   }

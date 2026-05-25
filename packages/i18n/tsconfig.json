@@ -6,6 +6,5 @@
     "composite": true,
     "tsBuildInfoFile": "./dist/.tsbuildinfo"
   },
-  "include": ["src/**/*"],
-  "references": [{ "path": "../i18n" }, { "path": "../parser" }, { "path": "../layout" }]
+  "include": ["src/**/*"]
 }

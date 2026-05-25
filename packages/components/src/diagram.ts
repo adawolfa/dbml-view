@@ -3,6 +3,7 @@
 // Pipeline: build table DOM → measure off-screen → packages/layout →
 // move tables into the canvas + draw edges → pan/zoom + toolbar.
 
+import { t } from '@dbml-view/i18n';
 import {
   type LayoutResult,
   type PositionedTable,
@@ -72,7 +73,7 @@ export class DbmlDiagramElement extends HTMLElement {
   connectedCallback(): void {
     if (!this.rendered) {
       this.classList.add('dv-diagram');
-      this.innerHTML = TEMPLATE;
+      this.innerHTML = makeTemplate();
       this.viewportEl = this.querySelector<HTMLElement>('[data-viewport]')!;
       this.canvasEl = this.querySelector<HTMLElement>('[data-canvas]')!;
       this.nodesEl = this.querySelector<HTMLElement>('[data-nodes]')!;
@@ -397,7 +398,9 @@ export class DbmlDiagramElement extends HTMLElement {
       const dx = (event.clientX - startClientX) / scale;
       const dy = (event.clientY - startClientY) / scale;
       if (!active) {
-        if (Math.hypot(event.clientX - startClientX, event.clientY - startClientY) < DRAG_THRESHOLD) {
+        if (
+          Math.hypot(event.clientX - startClientX, event.clientY - startClientY) < DRAG_THRESHOLD
+        ) {
           return;
         }
         active = true;
@@ -600,7 +603,7 @@ export class DbmlDiagramElement extends HTMLElement {
     this.canvasEl.style.visibility = 'hidden';
     this.nodesEl.innerHTML = '';
     while (this.edgesEl.firstChild) this.edgesEl.removeChild(this.edgesEl.firstChild);
-    this.statusEl.textContent = 'No tables to draw.';
+    this.statusEl.textContent = t('diagram.empty');
   }
 
   /** Export the current diagram as a standalone SVG document. Triggers a download. */
@@ -622,7 +625,7 @@ export class DbmlDiagramElement extends HTMLElement {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'diagram.svg';
+    a.download = t('diagram.export.filename');
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -630,22 +633,24 @@ export class DbmlDiagramElement extends HTMLElement {
   }
 }
 
-const TEMPLATE = `
-  <div class="dv-diagram-toolbar" data-toolbar>
-    <button type="button" data-act="zoom-in" title="Zoom in">+</button>
-    <button type="button" data-act="zoom-out" title="Zoom out">−</button>
-    <button type="button" data-act="fit" title="Fit to screen">Fit</button>
-    <button type="button" data-act="reset" title="Reset zoom">1:1</button>
-    <button type="button" data-act="export-svg" title="Export SVG">SVG</button>
-    <span class="dv-diagram-status" data-status></span>
-  </div>
-  <div class="dv-diagram-viewport" data-viewport>
-    <div class="dv-canvas" data-canvas>
-      <svg class="dv-edges" data-edges xmlns="${SVG_NS}"></svg>
-      <div class="dv-nodes" data-nodes></div>
+function makeTemplate(): string {
+  return `
+    <div class="dv-diagram-toolbar" data-toolbar>
+      <button type="button" data-act="zoom-in" title="${escapeAttr(t('diagram.toolbar.zoom_in.title'))}">${escapeHtml(t('diagram.toolbar.zoom_in.label'))}</button>
+      <button type="button" data-act="zoom-out" title="${escapeAttr(t('diagram.toolbar.zoom_out.title'))}">${escapeHtml(t('diagram.toolbar.zoom_out.label'))}</button>
+      <button type="button" data-act="fit" title="${escapeAttr(t('diagram.toolbar.fit.title'))}">${escapeHtml(t('diagram.toolbar.fit.label'))}</button>
+      <button type="button" data-act="reset" title="${escapeAttr(t('diagram.toolbar.reset.title'))}">${escapeHtml(t('diagram.toolbar.reset.label'))}</button>
+      <button type="button" data-act="export-svg" title="${escapeAttr(t('diagram.toolbar.export_svg.title'))}">${escapeHtml(t('diagram.toolbar.export_svg.label'))}</button>
+      <span class="dv-diagram-status" data-status></span>
     </div>
-  </div>
-`;
+    <div class="dv-diagram-viewport" data-viewport>
+      <div class="dv-canvas" data-canvas>
+        <svg class="dv-edges" data-edges xmlns="${SVG_NS}"></svg>
+        <div class="dv-nodes" data-nodes></div>
+      </div>
+    </div>
+  `;
+}
 
 const EXPORT_CSS = `
 .dv-table { position: absolute; box-sizing: border-box; background: #fff; border: 1px solid #d1d5db; font: 13px / 1.4 ui-sans-serif, system-ui, sans-serif; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }

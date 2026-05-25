@@ -16,6 +16,8 @@ import {
   tableId,
 } from '@dbml-view/parser';
 
+import { t } from '@dbml-view/i18n';
+
 import {
   type RefEntry,
   type Selection,
@@ -48,7 +50,7 @@ export class DbmlStructureElement extends HTMLElement {
   connectedCallback(): void {
     if (!this.rendered) {
       this.classList.add('dv-structure');
-      this.innerHTML = TEMPLATE;
+      this.innerHTML = makeTemplate();
       this.wireEvents();
       this.rendered = true;
     }
@@ -147,7 +149,7 @@ export class DbmlStructureElement extends HTMLElement {
     const container = this.querySelector('[data-tree]');
     if (!container) return;
     if (!this.database) {
-      container.innerHTML = '<p class="dv-empty">No DBML loaded.</p>';
+      container.innerHTML = `<p class="dv-empty">${escapeHtml(t('structure.empty.no_dbml'))}</p>`;
       return;
     }
     const groups = buildTree(this.database);
@@ -182,7 +184,7 @@ export class DbmlStructureElement extends HTMLElement {
         }
       }
       if (matchingTables.size === 0 && matchingEnums.size === 0) {
-        container.innerHTML = '<p class="dv-empty">No matches.</p>';
+        container.innerHTML = `<p class="dv-empty">${escapeHtml(t('structure.empty.no_matches'))}</p>`;
         return;
       }
     }
@@ -220,7 +222,7 @@ export class DbmlStructureElement extends HTMLElement {
               aria-expanded="${groupOpen}"
             >
               <span class="dv-tree-chevron">${chevron}</span>
-              <span class="dv-tree-group-kind">${group.kind === 'tablegroup' ? 'Group' : 'Schema'}</span>
+              <span class="dv-tree-group-kind">${escapeHtml(group.kind === 'tablegroup' ? t('structure.group.kind.tablegroup') : t('structure.group.kind.schema'))}</span>
               <span class="dv-tree-group-name">${escapeHtml(group.label)}</span>
               <span class="dv-tree-count">${childCount}</span>
             </button>
@@ -266,7 +268,7 @@ export class DbmlStructureElement extends HTMLElement {
       ? `
         <ul class="dv-tree-children">
           <li class="dv-tree-section">
-            <span class="dv-tree-section-label">Columns</span>
+            <span class="dv-tree-section-label">${escapeHtml(t('structure.section.columns'))}</span>
             <span class="dv-tree-count">${colsToShow.length}</span>
           </li>
           ${colsToShow.map((c) => this.renderTreeColumn(table, c)).join('')}
@@ -275,7 +277,7 @@ export class DbmlStructureElement extends HTMLElement {
               ? ''
               : `
                 <li class="dv-tree-section">
-                  <span class="dv-tree-section-label">Relations</span>
+                  <span class="dv-tree-section-label">${escapeHtml(t('structure.section.relations'))}</span>
                   <span class="dv-tree-count">${refsToShow.length}</span>
                 </li>
                 ${refsToShow.map((r) => this.renderTreeRelation(table, r)).join('')}
@@ -310,7 +312,7 @@ export class DbmlStructureElement extends HTMLElement {
       this.selection.tableId === id &&
       this.selection.columnName === column.name;
     const pk = column.pk
-      ? '<span class="dv-tree-flag dv-tree-flag-pk" title="Primary key">PK</span>'
+      ? `<span class="dv-tree-flag dv-tree-flag-pk" title="${escapeAttr(t('structure.pk.title'))}">${escapeHtml(t('detail.flag.pk'))}</span>`
       : '';
     return `
       <li>
@@ -340,7 +342,7 @@ export class DbmlStructureElement extends HTMLElement {
           data-node="enum"
           data-enum-id="${escapeAttr(id)}"
         >
-          <span class="dv-tree-enum-kind" title="Enum">enum</span>
+          <span class="dv-tree-enum-kind" title="${escapeAttr(t('structure.enum.title'))}">${escapeHtml(t('structure.enum.label'))}</span>
           <span class="dv-tree-enum-name">${escapeHtml(en.name)}</span>
           <span class="dv-tree-count">${en.values.length}</span>
         </button>
@@ -501,12 +503,14 @@ export class DbmlStructureElement extends HTMLElement {
   }
 }
 
-const TEMPLATE = `
-  <label class="dv-search">
-    <input type="search" placeholder="Search tables / columns…" data-search />
-  </label>
-  <nav class="dv-tree-wrap" data-tree></nav>
-`;
+function makeTemplate(): string {
+  return `
+    <label class="dv-search">
+      <input type="search" placeholder="${escapeAttr(t('structure.search.placeholder'))}" data-search />
+    </label>
+    <nav class="dv-tree-wrap" data-tree></nav>
+  `;
+}
 
 function selectionEquals(a: Selection, b: Selection): boolean {
   if (a.kind !== b.kind) return false;

@@ -1,6 +1,7 @@
 {
   "files": [],
   "references": [
+    { "path": "./packages/i18n" },
     { "path": "./packages/parser" },
     { "path": "./packages/layout" },
     { "path": "./packages/components" }

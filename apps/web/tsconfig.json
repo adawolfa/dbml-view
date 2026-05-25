@@ -5,5 +5,9 @@
     "types": ["vite/client"]
   },
   "include": ["src/**/*", "vite.config.ts"],
-  "references": [{ "path": "../../packages/parser" }, { "path": "../../packages/components" }]
+  "references": [
+    { "path": "../../packages/i18n" },
+    { "path": "../../packages/parser" },
+    { "path": "../../packages/components" }
+  ]
 }
