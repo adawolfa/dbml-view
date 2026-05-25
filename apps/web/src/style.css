@@ -208,23 +208,33 @@ body {
   background: var(--app-neutral-hover);
 }
 
-/* View toggle buttons — independent on/off, at least one always on. */
+/* View toggle button group — segmented, independent on/off, at least one always on. */
 .view-toggles {
-  display: flex;
-  gap: 0.25rem;
+  display: inline-flex;
+  height: 30px;
+  border: 1px solid var(--app-border-strong);
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--app-surface);
 }
 
 .view-toggles button {
-  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: none;
   background: transparent;
-  padding: 0 0.85rem;
-  height: 30px;
+  padding: 0 0.75rem;
   cursor: pointer;
   font: inherit;
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--app-fg);
-  transition: background 80ms ease, border-color 80ms ease, color 80ms ease;
+  transition: background 80ms ease, color 80ms ease;
+}
+
+.view-toggles button + button {
+  border-left: 1px solid var(--app-border);
 }
 
 .view-toggles button:hover:not(.is-active):not([disabled]) {
@@ -233,18 +243,28 @@ body {
 
 .view-toggles button.is-active {
   background: var(--app-accent-soft);
-  border-color: var(--app-accent-soft);
   color: var(--app-accent);
 }
 
 .view-toggles button.is-active:hover {
   background: var(--app-accent-soft-hover);
-  border-color: var(--app-accent-soft-hover);
+}
+
+.view-toggles button:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: -2px;
+  z-index: 1;
 }
 
 .view-toggles button[disabled] {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.view-toggle-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 
 #app {

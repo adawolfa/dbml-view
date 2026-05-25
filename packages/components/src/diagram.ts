@@ -1023,7 +1023,7 @@ function makeTemplate(): string {
     <div class="dv-diagram-toolbar" data-toolbar>
       <button type="button" data-act="zoom-in" title="${escapeAttr(t('diagram.toolbar.zoom_in.title'))}">${escapeHtml(t('diagram.toolbar.zoom_in.label'))}</button>
       <button type="button" data-act="zoom-out" title="${escapeAttr(t('diagram.toolbar.zoom_out.title'))}">${escapeHtml(t('diagram.toolbar.zoom_out.label'))}</button>
-      <button type="button" data-act="fit" title="${escapeAttr(t('diagram.toolbar.fit.title'))}">${escapeHtml(t('diagram.toolbar.fit.label'))}</button>
+      <button type="button" data-act="fit" class="dv-diagram-toolbar-icon-btn" title="${escapeAttr(t('diagram.toolbar.fit.title'))}" aria-label="${escapeAttr(t('diagram.toolbar.fit.title'))}"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 6V3.5a1 1 0 0 1 1-1H6M10 2.5h2.5a1 1 0 0 1 1 1V6M13.5 10v2.5a1 1 0 0 1-1 1H10M6 13.5H3.5a1 1 0 0 1-1-1V10"/></svg></button>
       <button type="button" data-act="reset" title="${escapeAttr(t('diagram.toolbar.reset.title'))}">${escapeHtml(t('diagram.toolbar.reset.label'))}</button>
       <button type="button" data-act="export-svg" title="${escapeAttr(t('diagram.toolbar.export_svg.title'))}">${escapeHtml(t('diagram.toolbar.export_svg.label'))}</button>
       <span class="dv-diagram-status" data-status></span>

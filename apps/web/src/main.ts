@@ -297,6 +297,7 @@ function renderViews(): void {
     button.classList.toggle('is-active', on);
     button.setAttribute('aria-pressed', on ? 'true' : 'false');
   }
+  updateDetailToggle();
   if (!hasSource) {
     viewsEl.hidden = true;
     dropzone.hidden = false;
@@ -487,13 +488,16 @@ function initTranslations(): void {
   fileButton.title = t('app.file_button.title');
   fileButtonLabel.textContent = t('app.file_button.label');
 
-  // View toggle button labels.
+  // View toggle button labels (icon stays untouched; only the <span data-label> is set).
   for (const button of togglesEl.querySelectorAll<HTMLButtonElement>('[data-view]')) {
     const view = button.dataset.view;
-    if (view === 'structure') button.textContent = t('app.view.structure');
-    else if (view === 'detail') button.textContent = t('app.view.detail');
-    else if (view === 'diagram') button.textContent = t('app.view.diagram');
+    const label = button.querySelector<HTMLElement>('[data-label]');
+    if (!label) continue;
+    if (view === 'structure') label.textContent = t('app.view.structure');
+    else if (view === 'detail') label.textContent = t('app.view.detail.table');
+    else if (view === 'diagram') label.textContent = t('app.view.diagram');
   }
+  updateDetailToggle();
 
   // Samples label.
   const sampleLabelEl = document.querySelector('.sample-label');
@@ -527,6 +531,23 @@ function initTranslations(): void {
   fontPropBtn.title = propLabel;
 
   langSelect.setAttribute('aria-label', t('app.settings.language.label'));
+}
+
+/**
+ * The Detail toggle shows "Table" with a table icon by default; when the user
+ * is viewing an enum it swaps to "Enum" with the enum icon. Driven by
+ * currentSelection — call whenever it changes.
+ */
+function updateDetailToggle(): void {
+  const button = togglesEl.querySelector<HTMLButtonElement>('button[data-view="detail"]');
+  if (!button) return;
+  const label = button.querySelector<HTMLElement>('[data-label]');
+  const tableIcon = button.querySelector<HTMLElement>('[data-icon="table"]');
+  const enumIcon = button.querySelector<HTMLElement>('[data-icon="enum"]');
+  const isEnum = currentSelection.kind === 'enum';
+  if (label) label.textContent = t(isEnum ? 'app.view.detail.enum' : 'app.view.detail.table');
+  if (tableIcon) tableIcon.hidden = isEnum;
+  if (enumIcon) enumIcon.hidden = !isEnum;
 }
 
 function mustGet<T extends HTMLElement>(id: string): T {
