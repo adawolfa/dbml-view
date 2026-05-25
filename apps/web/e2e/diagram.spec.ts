@@ -124,6 +124,40 @@ test('FK-only toggle hides non-relationship columns and re-layout', async ({ pag
   await expect(ordersRows).toHaveCount(5);
 });
 
+test('groups-toggle button is visible only when the DBML uses table groups', async ({ page }) => {
+  // The medium sample has a 'commerce' TableGroup — button must be visible.
+  const toggle = page.locator('#diagram button[data-act="groups-toggle"]');
+  await expect(toggle).toBeVisible();
+  await expect(toggle).toHaveAttribute('title', 'Hide group containers');
+
+  // The small sample has no TableGroups — button must be absent from the UI.
+  await loadSample(page, 'small');
+  await expect(page.locator('#diagram .dv-table').first()).toBeVisible();
+  await expect(toggle).not.toBeVisible();
+});
+
+test('groups-toggle hides and restores group container elements', async ({ page }) => {
+  const toggle = page.locator('#diagram button[data-act="groups-toggle"]');
+  // .dv-group elements have explicit JS-set dimensions so toBeVisible() is meaningful.
+  const firstGroup = page.locator('#diagram .dv-group').first();
+
+  // Default: toggle is unpressed and the group hull is visible.
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(firstGroup).toBeVisible();
+
+  // Press to hide: .dv-groups gets display:none, taking all group hulls with it.
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(toggle).toHaveClass(/is-active/);
+  await expect(firstGroup).not.toBeVisible();
+
+  // Press again to restore: groups reappear, toggle resets.
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(toggle).not.toHaveClass(/is-active/);
+  await expect(firstGroup).toBeVisible();
+});
+
 test('panning the canvas via background drag changes the viewport translation', async ({
   page,
 }) => {

@@ -50,6 +50,7 @@ export const en = {
   'diagram.toolbar.export_svg.title': 'Export SVG',
   'diagram.toolbar.cols.toggle.label': 'FK only',
   'diagram.toolbar.cols.toggle.title': 'Hide columns that are not part of any relationship',
+  'diagram.toolbar.groups.toggle.title': 'Hide group containers',
   'diagram.empty': 'No tables to draw.',
   'diagram.export.filename': 'diagram.svg',
 

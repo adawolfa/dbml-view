@@ -87,6 +87,7 @@ export class DbmlDiagramElement extends HTMLElement {
   /** Monotonic counter to discard async layout results that finished after a newer relayout was scheduled. */
   private layoutToken = 0;
   private hideNonRelational = false;
+  private hideGroups = false;
 
   connectedCallback(): void {
     if (!this.rendered) {
@@ -262,6 +263,9 @@ export class DbmlDiagramElement extends HTMLElement {
     }
 
     this.renderGroups(result.groups);
+    // Re-apply the current hide state after a relayout and sync the toggle button.
+    this.groupsEl.hidden = this.hideGroups;
+    this.updateGroupsToggle();
     this.renderEdges(result.edges, canvasWidth, canvasHeight);
 
     this.canvasEl.style.visibility = 'visible';
@@ -524,9 +528,13 @@ export class DbmlDiagramElement extends HTMLElement {
         case 'cols-toggle':
           this.toggleRelationalFilter();
           break;
+        case 'groups-toggle':
+          this.toggleGroupVisibility();
+          break;
       }
     });
     this.updateColsToggle();
+    this.updateGroupsToggle();
   }
 
   private toggleRelationalFilter(): void {
@@ -540,6 +548,24 @@ export class DbmlDiagramElement extends HTMLElement {
     if (!btn) return;
     btn.classList.toggle('is-active', this.hideNonRelational);
     btn.setAttribute('aria-pressed', this.hideNonRelational ? 'true' : 'false');
+  }
+
+  private toggleGroupVisibility(): void {
+    this.hideGroups = !this.hideGroups;
+    this.groupsEl.hidden = this.hideGroups;
+    this.updateGroupsToggle();
+  }
+
+  /** Show the toggle button only when the current layout has at least one group; sync pressed state. */
+  private updateGroupsToggle(): void {
+    const btn = this.toolbarEl.querySelector<HTMLButtonElement>(
+      'button[data-act="groups-toggle"]',
+    );
+    if (!btn) return;
+    const hasGroups = this.groups.length > 0;
+    btn.hidden = !hasGroups;
+    btn.classList.toggle('is-active', this.hideGroups);
+    btn.setAttribute('aria-pressed', this.hideGroups ? 'true' : 'false');
   }
 
   /**
@@ -1011,6 +1037,12 @@ export class DbmlDiagramElement extends HTMLElement {
     this.nodesEl.innerHTML = '';
     while (this.edgesEl.firstChild) this.edgesEl.removeChild(this.edgesEl.firstChild);
     this.statusEl.textContent = t('diagram.empty');
+    // No tables means no groups — hide the toggle button.
+    this.groups = [];
+    this.groupEls.clear();
+    this.groupsEl.innerHTML = '';
+    this.groupsEl.hidden = false;
+    this.updateGroupsToggle();
   }
 
   /** Export the current diagram as a standalone SVG document. Triggers a download. */
@@ -1055,6 +1087,7 @@ function makeTemplate(): string {
       <button type="button" data-act="export-svg" title="${escapeAttr(t('diagram.toolbar.export_svg.title'))}">${escapeHtml(t('diagram.toolbar.export_svg.label'))}</button>
       <span class="dv-diagram-toolbar-sep" aria-hidden="true"></span>
       <button type="button" data-act="cols-toggle" class="dv-diagram-toolbar-icon-btn" aria-pressed="false" title="${escapeAttr(t('diagram.toolbar.cols.toggle.title'))}" aria-label="${escapeAttr(t('diagram.toolbar.cols.toggle.title'))}"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 9.5a3.18 3.18 0 0 0 4.5 0l1.5-1.5a3.18 3.18 0 0 0-4.5-4.5L7 4.5"/><path d="M9.5 6.5a3.18 3.18 0 0 0-4.5 0l-1.5 1.5a3.18 3.18 0 0 0 4.5 4.5L9 11.5"/></svg></button>
+      <button type="button" data-act="groups-toggle" class="dv-diagram-toolbar-icon-btn" aria-pressed="false" hidden title="${escapeAttr(t('diagram.toolbar.groups.toggle.title'))}" aria-label="${escapeAttr(t('diagram.toolbar.groups.toggle.title'))}"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="2" stroke-dasharray="3 2"/></svg></button>
       <span class="dv-diagram-status" data-status></span>
     </div>
     <div class="dv-diagram-viewport" data-viewport>
