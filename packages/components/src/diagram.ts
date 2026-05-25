@@ -27,7 +27,7 @@ import {
   parseDbml,
   tableId,
 } from '@dbml-view/parser';
-import type { HoverState } from './shared';
+import { type HoverState, prefersReducedMotion } from './shared';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const MIN_SCALE = 0.15;
@@ -1060,7 +1060,7 @@ export class DbmlDiagramElement extends HTMLElement {
       this.panTo(vw / 2 - (cx + cw / 2) * scale, vh / 2 - (cy + ch / 2) * scale);
     }
 
-    if (options.pulse) {
+    if (options.pulse && !prefersReducedMotion()) {
       const el = this.tableEls.get(id);
       if (el) {
         el.classList.remove('is-revealed');
@@ -1075,9 +1075,13 @@ export class DbmlDiagramElement extends HTMLElement {
 
   /** Smoothly pan to (newTx, newTy) via a temporary CSS transition on the canvas. */
   private panTo(newTx: number, newTy: number): void {
-    this.canvasEl.classList.add('is-panning-to');
     this.viewport.tx = newTx;
     this.viewport.ty = newTy;
+    if (prefersReducedMotion()) {
+      this.applyViewport();
+      return;
+    }
+    this.canvasEl.classList.add('is-panning-to');
     this.applyViewport();
     this.canvasEl.addEventListener(
       'transitionend',

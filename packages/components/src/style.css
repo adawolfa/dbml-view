@@ -1164,11 +1164,14 @@ dbml-diagram {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* `transition: none` (vs. shortening duration) is deliberate: the CSS
+   * `transition-property` default is `all`, so setting only duration enables
+   * transitions on every property where none existed before — that turned every
+   * JS-driven canvas transform into a (tiny) transition and broke fast panning. */
   *,
   *::before,
   *::after {
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
+    transition: none !important;
+    animation: none !important;
   }
 }
