@@ -4,10 +4,8 @@
   "version": "0.0.0",
   "identifier": "cz.klva.dbml-view",
   "build": {
-    "beforeDevCommand": "pnpm --filter @dbml-view/web dev",
     "beforeBuildCommand": "pnpm --filter @dbml-view/web build",
-    "frontendDist": "../../web/dist",
-    "devUrl": "http://localhost:5173"
+    "frontendDist": "../../web/dist"
   },
   "app": {
     "windows": [

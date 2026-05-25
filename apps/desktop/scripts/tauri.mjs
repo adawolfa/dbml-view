@@ -5,49 +5,20 @@
  *  1. Windows MSVC toolchain — sources vcvars64.bat before invoking Tauri so
  *     cargo can find the x64 linker libraries (avoids LNK1104: msvcrt.lib).
  *
- *  2. Random-port Vite for `tauri dev` — starts the Vite dev server as a
- *     child process on an OS-assigned free port (port:0 in vite.config.ts),
- *     discovers the actual URL from Vite's stdout, then injects it into the
- *     Tauri invocation via `--config` so the webview loads the right address.
- *     This avoids hardcoding a port that may already be in use and removes the
- *     need for tauri.conf.json's beforeDevCommand to start Vite at all.
+ *  2. `tauri dev` build step — runs `pnpm --filter @dbml-view/web build`
+ *     synchronously first, then launches `tauri dev --features custom-protocol`
+ *     so the webview serves the built dist/ via the custom URI scheme, exactly
+ *     like a release build.  No dev server is involved.
+ *
+ * For fast UI iteration use the browser (`pnpm dev`); restart `pnpm desktop dev`
+ * whenever you want to verify something in the actual Tauri window.
  */
 
-import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { existsSync, unlinkSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 const args = process.argv.slice(2);
-
-// ── Vite launcher ────────────────────────────────────────────────────────────
-
-/**
- * Spawn `pnpm --filter @dbml-view/web dev`, tee its stdout to the terminal,
- * and resolve once Vite announces the local URL it is listening on.
- */
-function startVite() {
-  return new Promise((resolve, reject) => {
-    const proc = spawn('pnpm', ['--filter', '@dbml-view/web', 'dev'], {
-      // pipe stdout so we can scan it; inherit stderr so errors show directly
-      stdio: ['ignore', 'pipe', 'inherit'],
-      shell: true,
-    });
-
-    let buf = '';
-    proc.stdout.on('data', (chunk) => {
-      process.stdout.write(chunk); // tee to terminal
-      buf += chunk.toString();
-      // Vite prints "  ➜  Local:   http://localhost:XXXX/"
-      const m = buf.match(/Local:\s+(http:\/\/localhost:\d+)/);
-      if (m) resolve({ url: m[1], proc });
-    });
-
-    proc.on('exit', (code) => {
-      reject(new Error(`Vite exited early with code ${code}`));
-    });
-  });
-}
 
 // ── Windows MSVC toolchain lookup ────────────────────────────────────────────
 
@@ -104,61 +75,18 @@ function runTauri(tauriArgs) {
 
 // ── main ─────────────────────────────────────────────────────────────────────
 
-async function main() {
-  if (args[0] === 'dev') {
-    // 1. Start Vite on an OS-assigned random port.
-    const { url, proc: viteProc } = await startVite();
+if (args[0] === 'dev') {
+  // Build the web app so dist/ is ready before Tauri starts.
+  const build = spawnSync('pnpm', ['--filter', '@dbml-view/web', 'build'], {
+    stdio: 'inherit',
+    shell: true,
+  });
+  if ((build.status ?? 1) !== 0) process.exit(build.status ?? 1);
 
-    // 2. Kill Vite when this process exits (normal exit, Ctrl-C, or SIGTERM).
-    const killVite = () => {
-      try {
-        viteProc.kill();
-      } catch {}
-    };
-    process.on('exit', killVite);
-    process.on('SIGINT', () => {
-      killVite();
-      process.exit(0);
-    });
-    process.on('SIGTERM', () => {
-      killVite();
-      process.exit(0);
-    });
-
-    // 3. Write a temporary config override that:
-    //    - sets devUrl to the port Vite actually chose
-    //    - clears beforeDevCommand so Tauri doesn't spawn a second Vite
-    //    Using a file avoids quoting JSON on the Windows command line.
-    const tmpConfig = join(tmpdir(), `tauri-dev-${Date.now()}.json`);
-    writeFileSync(
-      tmpConfig,
-      JSON.stringify({ build: { devUrl: url, beforeDevCommand: '' } }),
-    );
-    process.on('exit', () => {
-      try {
-        unlinkSync(tmpConfig);
-      } catch {}
-    });
-
-    // 4. Run tauri dev.
-    //    --no-dev-server-wait: Vite is already listening, no need to poll.
-    //    --config <file>: merge our overrides on top of tauri.conf.json.
-    const tauriArgs = [
-      'dev',
-      '--no-dev-server-wait',
-      '--config',
-      tmpConfig,
-      ...args.slice(1), // forward any extra flags (e.g. --release, --features)
-    ];
-
-    process.exit(runTauri(tauriArgs));
-  } else {
-    // build, info, plugin, … — pass straight through.
-    process.exit(runTauri(args));
-  }
+  // custom-protocol serves dist/ via tauri:// (same as release; no dev server).
+  // tauri dev normally strips this feature via --no-default-features, so we
+  // re-add it explicitly.
+  process.exit(runTauri(['dev', '--features', 'custom-protocol', ...args.slice(1)]));
+} else {
+  process.exit(runTauri(args));
 }
-
-main().catch((e) => {
-  console.error(e.message);
-  process.exit(1);
-});
