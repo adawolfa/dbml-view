@@ -2,9 +2,11 @@
 // into the structure, detail, and diagram components. Owns the URL hash,
 // cross-component selection wiring, and the resizable three-panel layout.
 
-import '@dbml-view/components';
 import '@dbml-view/components/style.css';
 
+import {
+  register as registerComponents,
+} from '@dbml-view/components';
 import type {
   DbmlDetailElement,
   DbmlDiagramElement,
@@ -76,10 +78,14 @@ const panelWidths: Record<View, number> = {
 let hasSource = false;
 let currentSelection: Selection = { kind: 'none' };
 
-// Bootstrap locale before applying translations so all t() calls use the right
-// locale from the start.
+// Bootstrap locale before registering components so that connectedCallback()
+// (triggered by customElements.define) already sees the correct locale.
 const activeLocale: Locale = storedLocale() ?? 'en';
 if (activeLocale === 'cs') setLocale(cs);
+
+// Register custom elements now — the side-effect import no longer auto-registers
+// them, so we do it explicitly after setLocale() above.
+registerComponents();
 
 // Apply translations to the static HTML elements that can't be reached from
 // component render methods (view toggles, file button initial state, dropzone).

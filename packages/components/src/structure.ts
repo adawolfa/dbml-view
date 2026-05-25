@@ -688,6 +688,8 @@ function cssEscape(value: string): string {
 // Re-export for consumers that want to type their wiring.
 export type { HoverState, Selection, TreeGroup } from './shared';
 
-if (!customElements.get(DbmlStructureElement.tagName)) {
-  customElements.define(DbmlStructureElement.tagName, DbmlStructureElement);
+export function registerStructureElement(): void {
+  if (!customElements.get(DbmlStructureElement.tagName)) {
+    customElements.define(DbmlStructureElement.tagName, DbmlStructureElement);
+  }
 }
