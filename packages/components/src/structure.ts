@@ -1,17 +1,14 @@
-// <dbml-structure source="…"> — left-rail tree (group → table → columns/relations),
-// right-pane detail. Vanilla DOM (no shadow root, so consumer CSS can theme it
-// via the :where(dbml-structure) variable block in style.css).
+// <dbml-structure source="…"> — left-rail tree (group → table → columns/relations).
+// The detail pane was split out into <dbml-detail>; this element now only owns
+// the tree + search and emits selection-change events that the app shell wires
+// to <dbml-detail> (and the URL hash).
 
 import {
   type Column,
   DEFAULT_SCHEMA,
   type Database,
   type Enum,
-  type Ref,
   type Table,
-  allRefs,
-  columnId,
-  columnUsesEnum,
   endpointTableId,
   enumId,
   hasMultipleSchemas,
@@ -19,16 +16,19 @@ import {
   tableId,
 } from '@dbml-view/parser';
 
-type RefDirection = 'outgoing' | 'incoming';
-type RefEntry = { ref: Ref; direction: RefDirection };
-type TreeGroup = {
-  id: string;
-  label: string;
-  kind: 'tablegroup' | 'schema';
-  tables: Table[];
-  enums: Enum[];
-};
-type EnumUsage = { table: Table; column: Column };
+import {
+  type RefEntry,
+  type Selection,
+  type TreeGroup,
+  buildTree,
+  escapeAttr,
+  escapeHtml,
+  formatColumnType,
+  indexRefsByTable,
+  otherEndpointOf,
+  relationArrow,
+  selfEndpoint,
+} from './shared';
 
 export class DbmlStructureElement extends HTMLElement {
   static readonly tagName = 'dbml-structure';
@@ -38,37 +38,27 @@ export class DbmlStructureElement extends HTMLElement {
   }
 
   private database: Database | null = null;
-  private selectedTableId: string | null = null;
-  private selectedColumnName: string | null = null;
-  private selectedEnumId: string | null = null;
+  private selection: Selection = { kind: 'none' };
   private searchQuery = '';
   private refsByTableId = new Map<string, RefEntry[]>();
   private expandedGroups = new Set<string>();
   private expandedTables = new Set<string>();
   private expandedEnums = new Set<string>();
   private rendered = false;
-  private hashListener = (): void => this.syncFromHash();
-  private splitterDrag: { pointerId: number; startX: number; startWidth: number } | null = null;
 
   connectedCallback(): void {
     if (!this.rendered) {
       this.classList.add('dv-structure');
       this.innerHTML = TEMPLATE;
-      this.applyStoredRailWidth();
       this.wireEvents();
       this.rendered = true;
     }
-    window.addEventListener('hashchange', this.hashListener);
     const source = this.getAttribute('source');
     if (source !== null && this.database === null) {
       this.source = source;
     } else {
-      this.renderAll();
+      this.renderTree();
     }
-  }
-
-  disconnectedCallback(): void {
-    window.removeEventListener('hashchange', this.hashListener);
   }
 
   attributeChangedCallback(name: string, _old: string | null, value: string | null): void {
@@ -77,13 +67,13 @@ export class DbmlStructureElement extends HTMLElement {
     }
   }
 
-  /** Parse the DBML string and re-render. Invalid input renders the error list. */
+  /** Parse the DBML string and re-render. Invalid input clears the tree. */
   set source(value: string) {
     const result = parseDbml(value);
     if (!result.ok) {
       this.database = null;
       this.refsByTableId.clear();
-      this.renderError(result.errors);
+      this.renderTree();
       return;
     }
     this.setDatabase(result.db);
@@ -96,8 +86,21 @@ export class DbmlStructureElement extends HTMLElement {
     // Expand all groups by default; tables and enums stay collapsed until selected.
     this.expandedGroups = new Set(buildTree(db).map((g) => g.id));
     if (!this.rendered) return;
-    this.renderAll();
-    this.syncFromHash();
+    this.renderTree();
+  }
+
+  /**
+   * Sync the tree's highlight + auto-expansion to an externally-driven
+   * selection (hash navigation, diagram clicks, …). Does NOT emit
+   * selection-change — only `notify()` should do that.
+   */
+  setSelection(selection: Selection): void {
+    if (selectionEquals(this.selection, selection)) return;
+    this.selection = selection;
+    this.autoExpandForSelection();
+    if (!this.rendered) return;
+    this.renderTree();
+    this.scrollSelectionIntoView();
   }
 
   private wireEvents(): void {
@@ -131,137 +134,6 @@ export class DbmlStructureElement extends HTMLElement {
         this.activateEnum(id);
       }
     });
-
-    const detail = this.querySelector<HTMLElement>('[data-detail]');
-    detail?.addEventListener('click', (event) => {
-      const target = event.target as HTMLElement;
-      const tableLink = target.closest<HTMLAnchorElement>('a[data-jump-table]');
-      if (tableLink) {
-        event.preventDefault();
-        this.selectTable(tableLink.dataset.jumpTable ?? null);
-        return;
-      }
-      const enumLink = target.closest<HTMLAnchorElement>('a[data-jump-enum]');
-      if (enumLink) {
-        event.preventDefault();
-        this.selectEnum(enumLink.dataset.jumpEnum ?? null);
-      }
-    });
-
-    this.wireSplitter();
-  }
-
-  private wireSplitter(): void {
-    const splitter = this.querySelector<HTMLElement>('[data-splitter]');
-    if (!splitter) return;
-
-    splitter.addEventListener('pointerdown', (event) => {
-      if (event.button !== 0) return;
-      const rail = this.querySelector<HTMLElement>('.dv-rail');
-      if (!rail) return;
-      event.preventDefault();
-      splitter.setPointerCapture(event.pointerId);
-      splitter.classList.add('is-dragging');
-      this.splitterDrag = {
-        pointerId: event.pointerId,
-        startX: event.clientX,
-        startWidth: rail.getBoundingClientRect().width,
-      };
-    });
-
-    splitter.addEventListener('pointermove', (event) => {
-      const drag = this.splitterDrag;
-      if (!drag || drag.pointerId !== event.pointerId) return;
-      const next = clamp(drag.startWidth + (event.clientX - drag.startX), RAIL_MIN_PX, RAIL_MAX_PX);
-      this.setRailWidth(next);
-    });
-
-    const end = (event: PointerEvent): void => {
-      const drag = this.splitterDrag;
-      if (!drag || drag.pointerId !== event.pointerId) return;
-      this.splitterDrag = null;
-      splitter.classList.remove('is-dragging');
-      if (splitter.hasPointerCapture(event.pointerId)) {
-        splitter.releasePointerCapture(event.pointerId);
-      }
-      this.persistRailWidth();
-    };
-    splitter.addEventListener('pointerup', end);
-    splitter.addEventListener('pointercancel', end);
-
-    splitter.addEventListener('keydown', (event) => {
-      const rail = this.querySelector<HTMLElement>('.dv-rail');
-      if (!rail) return;
-      const step = event.shiftKey ? 32 : 8;
-      const current = rail.getBoundingClientRect().width;
-      if (event.key === 'ArrowLeft') {
-        event.preventDefault();
-        this.setRailWidth(clamp(current - step, RAIL_MIN_PX, RAIL_MAX_PX));
-        this.persistRailWidth();
-      } else if (event.key === 'ArrowRight') {
-        event.preventDefault();
-        this.setRailWidth(clamp(current + step, RAIL_MIN_PX, RAIL_MAX_PX));
-        this.persistRailWidth();
-      }
-    });
-
-    splitter.addEventListener('dblclick', () => {
-      this.setRailWidth(RAIL_DEFAULT_PX);
-      this.persistRailWidth();
-    });
-  }
-
-  private setRailWidth(px: number): void {
-    this.style.setProperty('--dv-rail-width', `${Math.round(px)}px`);
-  }
-
-  private applyStoredRailWidth(): void {
-    let width = RAIL_DEFAULT_PX;
-    try {
-      const stored = localStorage.getItem(RAIL_WIDTH_LS_KEY);
-      const parsed = stored !== null ? Number.parseInt(stored, 10) : NaN;
-      if (Number.isFinite(parsed) && parsed > 0) {
-        width = clamp(parsed, RAIL_MIN_PX, RAIL_MAX_PX);
-      }
-    } catch {
-      // ignore
-    }
-    this.setRailWidth(width);
-  }
-
-  private persistRailWidth(): void {
-    const value = this.style.getPropertyValue('--dv-rail-width');
-    if (!value) return;
-    try {
-      localStorage.setItem(RAIL_WIDTH_LS_KEY, value.replace('px', '').trim());
-    } catch {
-      // ignore
-    }
-  }
-
-  private renderAll(): void {
-    this.renderTree();
-    this.renderDetail();
-  }
-
-  private renderError(errors: { line: number; column: number; message: string }[]): void {
-    const detail = this.querySelector('[data-detail]');
-    const tree = this.querySelector('[data-tree]');
-    if (tree) tree.innerHTML = '';
-    if (!detail) return;
-    detail.innerHTML = `
-      <div class="dv-error">
-        <h2>Couldn't parse this DBML</h2>
-        <ul>
-          ${errors
-            .map(
-              (e) =>
-                `<li><span class="dv-error-pos">${e.line}:${e.column}</span> ${escapeHtml(e.message)}</li>`,
-            )
-            .join('')}
-        </ul>
-      </div>
-    `;
   }
 
   private renderTree(): void {
@@ -316,13 +188,9 @@ export class DbmlStructureElement extends HTMLElement {
     const html = groups
       .map((group) => {
         const visibleTables =
-          q === ''
-            ? group.tables
-            : group.tables.filter((t) => matchingTables.has(tableId(t)));
+          q === '' ? group.tables : group.tables.filter((t) => matchingTables.has(tableId(t)));
         const visibleEnums =
-          q === ''
-            ? group.enums
-            : group.enums.filter((e) => matchingEnums.has(enumId(e)));
+          q === '' ? group.enums : group.enums.filter((e) => matchingEnums.has(enumId(e)));
         if (visibleTables.length === 0 && visibleEnums.length === 0) return '';
         const childCount = visibleTables.length + visibleEnums.length;
         const tablesHtml = visibleTables
@@ -372,7 +240,7 @@ export class DbmlStructureElement extends HTMLElement {
     const id = tableId(table);
     const isSearching = q !== '';
     const expanded = isSearching || this.expandedTables.has(id);
-    const active = id === this.selectedTableId;
+    const active = this.selection.kind === 'table' && this.selection.tableId === id;
     const chevron = expanded ? '▾' : '▸';
 
     // Which columns to show under this table: when searching, only matches
@@ -436,8 +304,13 @@ export class DbmlStructureElement extends HTMLElement {
 
   private renderTreeColumn(table: Table, column: Column): string {
     const id = tableId(table);
-    const active = id === this.selectedTableId && this.selectedColumnName === column.name;
-    const pk = column.pk ? '<span class="dv-tree-flag dv-tree-flag-pk" title="Primary key">PK</span>' : '';
+    const active =
+      this.selection.kind === 'table' &&
+      this.selection.tableId === id &&
+      this.selection.columnName === column.name;
+    const pk = column.pk
+      ? '<span class="dv-tree-flag dv-tree-flag-pk" title="Primary key">PK</span>'
+      : '';
     return `
       <li>
         <button
@@ -455,15 +328,11 @@ export class DbmlStructureElement extends HTMLElement {
     `;
   }
 
-  private renderTreeEnum(
-    en: Enum,
-    q: string,
-    matchingValues: Map<string, Set<string>>,
-  ): string {
+  private renderTreeEnum(en: Enum, q: string, matchingValues: Map<string, Set<string>>): string {
     const id = enumId(en);
     const isSearching = q !== '';
     const expanded = isSearching || this.expandedEnums.has(id);
-    const active = id === this.selectedEnumId;
+    const active = this.selection.kind === 'enum' && this.selection.enumId === id;
     const chevron = expanded ? '▾' : '▸';
 
     const valuesToShow = (() => {
@@ -476,14 +345,18 @@ export class DbmlStructureElement extends HTMLElement {
     const childrenHtml = expanded
       ? `
         <ul class="dv-tree-children">
-          ${valuesToShow.map((v) => `
+          ${valuesToShow
+            .map(
+              (v) => `
             <li>
               <span class="dv-tree-node dv-tree-node-enum-value">
                 <span class="dv-tree-enum-value-name">${escapeHtml(v.name)}</span>
                 ${v.note ? `<span class="dv-tree-enum-value-note" title="${escapeAttr(v.note.value)}">${escapeHtml(v.note.value)}</span>` : ''}
               </span>
             </li>
-          `).join('')}
+          `,
+            )
+            .join('')}
         </ul>
       `
       : '';
@@ -531,47 +404,6 @@ export class DbmlStructureElement extends HTMLElement {
     `;
   }
 
-  private renderDetail(): void {
-    const container = this.querySelector('[data-detail]');
-    if (!container) return;
-    if (!this.database) {
-      container.innerHTML = '<div class="dv-empty">No DBML loaded.</div>';
-      return;
-    }
-    if (this.selectedEnumId !== null) {
-      const en = this.database.enums.find((e) => enumId(e) === this.selectedEnumId);
-      if (en) {
-        container.innerHTML = renderEnumDetail(
-          en,
-          findEnumUsages(this.database, en),
-          hasMultipleSchemas(this.database),
-        );
-        return;
-      }
-    }
-    const table = this.database.tables.find((t) => tableId(t) === this.selectedTableId);
-    if (!table) {
-      const tableCount = this.database.tables.length;
-      const enumCount = this.database.enums.length;
-      const parts = [`${tableCount} table${tableCount === 1 ? '' : 's'}`];
-      if (enumCount > 0) parts.push(`${enumCount} enum${enumCount === 1 ? '' : 's'}`);
-      container.innerHTML = `
-        <div class="dv-empty">
-          <p>Pick a table or enum from the list.</p>
-          <p>${parts.join(', ')} in this schema.</p>
-        </div>
-      `;
-      return;
-    }
-    container.innerHTML = renderTableDetail(
-      table,
-      this.refsByTableId.get(tableId(table)) ?? [],
-      this.selectedColumnName,
-      hasMultipleSchemas(this.database),
-      this.database.enums,
-    );
-  }
-
   private toggleGroup(id: string): void {
     if (this.expandedGroups.has(id)) this.expandedGroups.delete(id);
     else this.expandedGroups.add(id);
@@ -582,7 +414,7 @@ export class DbmlStructureElement extends HTMLElement {
     // Clicking a table selects it (and expands it if not yet expanded). If
     // already selected, the click toggles its expansion — convenient for
     // collapsing a noisy fat_table without losing the selection.
-    if (id === this.selectedTableId) {
+    if (this.selection.kind === 'table' && this.selection.tableId === id) {
       if (this.expandedTables.has(id)) this.expandedTables.delete(id);
       else this.expandedTables.add(id);
       this.renderTree();
@@ -593,7 +425,7 @@ export class DbmlStructureElement extends HTMLElement {
   }
 
   private activateEnum(id: string): void {
-    if (id === this.selectedEnumId) {
+    if (this.selection.kind === 'enum' && this.selection.enumId === id) {
       if (this.expandedEnums.has(id)) this.expandedEnums.delete(id);
       else this.expandedEnums.add(id);
       this.renderTree();
@@ -604,479 +436,100 @@ export class DbmlStructureElement extends HTMLElement {
   }
 
   private activateColumn(tId: string, columnName: string): void {
-    this.selectedColumnName = columnName;
-    if (tId !== this.selectedTableId) {
-      this.expandedTables.add(tId);
-      this.selectTable(tId);
-    } else {
-      this.renderTree();
-      this.renderDetail();
-    }
-    this.scrollColumnIntoView(tId, columnName);
-  }
-
-  private scrollColumnIntoView(tId: string, columnName: string): void {
-    const id = `${tId}.${columnName}`;
-    const escaped = (window.CSS && CSS.escape) ? CSS.escape(id) : id;
-    const row = this.querySelector(`#${escaped}`);
-    row?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }
-
-  private selectTable(id: string | null): void {
-    if (id === this.selectedTableId && this.selectedEnumId === null) {
-      // Same table — only re-render if the column changed.
-      this.renderTree();
-      this.renderDetail();
-      return;
-    }
-    this.selectedEnumId = null;
-    this.selectedTableId = id;
-    if (id === null) this.selectedColumnName = null;
-    if (id) {
-      // Auto-expand the table and its owning group so the selection is visible
-      // (e.g. when jumping in via a relation click or a hash deep-link).
-      this.expandedTables.add(id);
-      if (this.database) {
-        for (const group of buildTree(this.database)) {
-          if (group.tables.some((t) => tableId(t) === id)) {
-            this.expandedGroups.add(group.id);
-            break;
-          }
-        }
-      }
-      const targetHash = `#table:${encodeURIComponent(id)}`;
-      if (window.location.hash !== targetHash) {
-        history.replaceState(null, '', targetHash);
-      }
-    }
+    this.expandedTables.add(tId);
+    this.selection = { kind: 'table', tableId: tId, columnName };
+    this.autoExpandForSelection();
     this.renderTree();
-    this.renderDetail();
-    this.dispatchEvent(
-      new CustomEvent('table-selected', { detail: { tableId: id }, bubbles: true }),
-    );
+    this.notify();
   }
 
-  private selectEnum(id: string | null): void {
-    if (id === this.selectedEnumId) {
-      this.renderTree();
-      this.renderDetail();
-      return;
-    }
-    this.selectedTableId = null;
-    this.selectedColumnName = null;
-    this.selectedEnumId = id;
-    if (id) {
-      this.expandedEnums.add(id);
-      if (this.database) {
-        for (const group of buildTree(this.database)) {
-          if (group.enums.some((e) => enumId(e) === id)) {
-            this.expandedGroups.add(group.id);
-            break;
-          }
-        }
-      }
-      const targetHash = `#enum:${encodeURIComponent(id)}`;
-      if (window.location.hash !== targetHash) {
-        history.replaceState(null, '', targetHash);
-      }
-    }
+  private selectTable(id: string): void {
+    this.expandedTables.add(id);
+    this.selection = { kind: 'table', tableId: id };
+    this.autoExpandForSelection();
     this.renderTree();
-    this.renderDetail();
-    this.dispatchEvent(
-      new CustomEvent('enum-selected', { detail: { enumId: id }, bubbles: true }),
-    );
+    this.notify();
   }
 
-  private syncFromHash(): void {
+  private selectEnum(id: string): void {
+    this.expandedEnums.add(id);
+    this.selection = { kind: 'enum', enumId: id };
+    this.autoExpandForSelection();
+    this.renderTree();
+    this.notify();
+  }
+
+  private autoExpandForSelection(): void {
     if (!this.database) return;
-    const hash = window.location.hash;
-    const tableMatch = /^#table:(.+)$/.exec(hash);
-    if (tableMatch) {
-      const id = decodeURIComponent(tableMatch[1] ?? '');
-      if (this.database.tables.some((t) => tableId(t) === id)) {
-        this.selectTable(id);
+    const sel = this.selection;
+    if (sel.kind === 'table') {
+      this.expandedTables.add(sel.tableId);
+      for (const group of buildTree(this.database)) {
+        if (group.tables.some((t) => tableId(t) === sel.tableId)) {
+          this.expandedGroups.add(group.id);
+          break;
+        }
       }
-      return;
-    }
-    const enumMatch = /^#enum:(.+)$/.exec(hash);
-    if (enumMatch) {
-      const id = decodeURIComponent(enumMatch[1] ?? '');
-      if (this.database.enums.some((e) => enumId(e) === id)) {
-        this.selectEnum(id);
+    } else if (sel.kind === 'enum') {
+      this.expandedEnums.add(sel.enumId);
+      for (const group of buildTree(this.database)) {
+        if (group.enums.some((e) => enumId(e) === sel.enumId)) {
+          this.expandedGroups.add(group.id);
+          break;
+        }
       }
     }
+  }
+
+  private scrollSelectionIntoView(): void {
+    const sel = this.selection;
+    let target: HTMLElement | null = null;
+    if (sel.kind === 'table') {
+      target = this.querySelector<HTMLElement>(
+        `[data-node="table"][data-table-id="${cssEscape(sel.tableId)}"]`,
+      );
+    } else if (sel.kind === 'enum') {
+      target = this.querySelector<HTMLElement>(
+        `[data-node="enum"][data-enum-id="${cssEscape(sel.enumId)}"]`,
+      );
+    }
+    target?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  private notify(): void {
+    this.dispatchEvent(
+      new CustomEvent<Selection>('selection-change', {
+        detail: this.selection,
+        bubbles: true,
+      }),
+    );
   }
 }
 
 const TEMPLATE = `
-  <aside class="dv-rail">
-    <label class="dv-search">
-      <input type="search" placeholder="Search tables / columns…" data-search />
-    </label>
-    <nav data-tree></nav>
-  </aside>
-  <div class="dv-splitter" data-splitter role="separator" aria-orientation="vertical" tabindex="0"></div>
-  <section class="dv-pane" data-detail></section>
+  <label class="dv-search">
+    <input type="search" placeholder="Search tables / columns…" data-search />
+  </label>
+  <nav class="dv-tree-wrap" data-tree></nav>
 `;
 
-const RAIL_WIDTH_LS_KEY = 'dbml-view:structure-rail-width';
-const RAIL_MIN_PX = 180;
-const RAIL_MAX_PX = 520;
-const RAIL_DEFAULT_PX = 260;
-
-/**
- * Group tables + enums for the tree. Tables in a `TableGroup` go under that
- * group; everything else falls back to a synthetic per-schema group, with
- * enums always living under their schema (TableGroups don't claim enums).
- * Stable ordering: real groups first (alphabetical), then schema groups
- * (alphabetical).
- */
-function buildTree(db: Database): TreeGroup[] {
-  const claimed = new Set<string>();
-  const groups: TreeGroup[] = [];
-
-  for (const tg of db.tableGroups) {
-    const tables: Table[] = [];
-    for (const ref of tg.tables) {
-      const id = `${ref.schemaName ?? DEFAULT_SCHEMA}.${ref.name}`;
-      const table = db.tables.find((t) => tableId(t) === id);
-      if (table && !claimed.has(id)) {
-        tables.push(table);
-        claimed.add(id);
-      }
-    }
-    if (tables.length === 0) continue;
-    const label = tg.name ?? '(unnamed group)';
-    groups.push({
-      id: `tg:${tg.schemaName ?? DEFAULT_SCHEMA}.${label}`,
-      label,
-      kind: 'tablegroup',
-      tables: tables.slice().sort((a, b) => a.name.localeCompare(b.name)),
-      enums: [],
-    });
+function selectionEquals(a: Selection, b: Selection): boolean {
+  if (a.kind !== b.kind) return false;
+  if (a.kind === 'table' && b.kind === 'table') {
+    return a.tableId === b.tableId && (a.columnName ?? null) === (b.columnName ?? null);
   }
-  groups.sort((a, b) => a.label.localeCompare(b.label));
-
-  const schemas = new Set<string>();
-  const tablesBySchema = new Map<string, Table[]>();
-  for (const t of db.tables) {
-    const schema = t.schemaName ?? DEFAULT_SCHEMA;
-    schemas.add(schema);
-    if (claimed.has(tableId(t))) continue;
-    push(tablesBySchema, schema, t);
+  if (a.kind === 'enum' && b.kind === 'enum') {
+    return a.enumId === b.enumId;
   }
-  const enumsBySchema = new Map<string, Enum[]>();
-  for (const e of db.enums) {
-    const schema = e.schemaName ?? DEFAULT_SCHEMA;
-    schemas.add(schema);
-    push(enumsBySchema, schema, e);
-  }
-
-  const schemaGroups: TreeGroup[] = [...schemas]
-    .map((schema) => ({
-      id: `sc:${schema}`,
-      label: schema,
-      kind: 'schema' as const,
-      tables: (tablesBySchema.get(schema) ?? [])
-        .slice()
-        .sort((a, b) => a.name.localeCompare(b.name)),
-      enums: (enumsBySchema.get(schema) ?? [])
-        .slice()
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    }))
-    .filter((g) => g.tables.length > 0 || g.enums.length > 0)
-    .sort((a, b) => a.label.localeCompare(b.label));
-
-  return [...groups, ...schemaGroups];
+  return true;
 }
 
-function findEnumUsages(db: Database, en: Enum): EnumUsage[] {
-  const out: EnumUsage[] = [];
-  for (const table of db.tables) {
-    for (const column of table.fields) {
-      if (columnUsesEnum(column, en)) {
-        out.push({ table, column });
-      }
-    }
-  }
-  return out;
+function cssEscape(value: string): string {
+  return window.CSS && CSS.escape ? CSS.escape(value) : value.replace(/"/g, '\\"');
 }
 
-/** Pick the endpoint that isn't `selfEnd`. Works for self-refs since we
- * compare by identity, not table id. */
-function otherEndpointOf(ref: Ref, selfEnd: Ref['endpoints'][number]): Ref['endpoints'][number] {
-  const [a, b] = ref.endpoints;
-  return a === selfEnd ? b : a;
-}
-
-function selfEndpoint(
-  ref: Ref,
-  selfId: string,
-  direction: RefDirection,
-): Ref['endpoints'][number] {
-  const [a, b] = ref.endpoints;
-  const aIsSelf = endpointTableId(a) === selfId;
-  const bIsSelf = endpointTableId(b) === selfId;
-  if (aIsSelf && bIsSelf) {
-    const want = direction === 'outgoing' ? '*' : '1';
-    return a.relation === want ? a : b;
-  }
-  return aIsSelf ? a : b;
-}
-
-function renderTableDetail(
-  table: Table,
-  refs: RefEntry[],
-  highlightedColumn: string | null,
-  showSchema: boolean,
-  enums: Enum[],
-): string {
-  const id = tableId(table);
-  const schema = table.schemaName ?? DEFAULT_SCHEMA;
-  const note = table.note?.value ?? '';
-  const pkColumns = new Set(table.fields.filter((c) => c.pk).map((c) => c.name));
-  const outgoing = refs.filter((r) => r.direction === 'outgoing');
-  const incoming = refs.filter((r) => r.direction === 'incoming');
-  const selfId = id;
-  const fkColumns = new Set<string>();
-  for (const { ref } of outgoing) {
-    // The FK-holder side is the endpoint with cardinality `*`. For self-refs
-    // both endpoints match the table id, so prefer the `*` side over `find()`'s
-    // first match (which is target-first for promoted inline refs).
-    const [a, b] = ref.endpoints;
-    const candidate =
-      (endpointTableId(a) === selfId && a.relation === '*' ? a : null) ??
-      (endpointTableId(b) === selfId && b.relation === '*' ? b : null) ??
-      (endpointTableId(a) === selfId ? a : b);
-    for (const name of candidate.fieldNames) fkColumns.add(name);
-  }
-
-  return `
-    <header class="dv-detail-header">
-      ${showSchema ? `<div class="dv-detail-schema">${escapeHtml(schema)}</div>` : ''}
-      <h2 class="dv-detail-name">${escapeHtml(table.name)}</h2>
-      <code class="dv-detail-id">${escapeHtml(showSchema ? id : table.name)}</code>
-      ${note ? `<p class="dv-note">${escapeHtml(note)}</p>` : ''}
-    </header>
-
-    <h3 class="dv-section-title">Columns</h3>
-    <table class="dv-columns">
-      <thead>
-        <tr><th>Name</th><th>Type</th><th>Flags</th><th>Default</th><th>Note</th></tr>
-      </thead>
-      <tbody>
-        ${table.fields
-          .map((c) => renderColumnRow(table, c, pkColumns, fkColumns, c.name === highlightedColumn, enums))
-          .join('')}
-      </tbody>
-    </table>
-
-    ${
-      table.indexes.length > 0
-        ? `
-      <h3 class="dv-section-title">Indexes</h3>
-      <ul class="dv-indexes">
-        ${table.indexes.map(renderIndexItem).join('')}
-      </ul>
-    `
-        : ''
-    }
-
-    ${renderRefSection('References out', outgoing, table)}
-    ${renderRefSection('References in', incoming, table)}
-  `;
-}
-
-function renderEnumDetail(en: Enum, usages: EnumUsage[], showSchema: boolean): string {
-  const id = enumId(en);
-  const schema = en.schemaName ?? DEFAULT_SCHEMA;
-  return `
-    <header class="dv-detail-header">
-      ${showSchema ? `<div class="dv-detail-schema">${escapeHtml(schema)}</div>` : ''}
-      <h2 class="dv-detail-name">
-        <span class="dv-detail-kind">enum</span>
-        ${escapeHtml(en.name)}
-      </h2>
-      <code class="dv-detail-id">${escapeHtml(showSchema ? id : en.name)}</code>
-    </header>
-
-    <h3 class="dv-section-title">Values</h3>
-    <table class="dv-columns">
-      <thead>
-        <tr><th>Name</th><th>Note</th></tr>
-      </thead>
-      <tbody>
-        ${en.values
-          .map(
-            (v) => `
-              <tr>
-                <td class="dv-col-name">${escapeHtml(v.name)}</td>
-                <td class="dv-col-note">${escapeHtml(v.note?.value ?? '')}</td>
-              </tr>
-            `,
-          )
-          .join('')}
-      </tbody>
-    </table>
-
-    ${
-      usages.length === 0
-        ? '<p class="dv-muted dv-empty-inline">Not referenced by any column.</p>'
-        : `
-          <h3 class="dv-section-title">Used by</h3>
-          <ul class="dv-refs">
-            ${usages
-              .map((u) => {
-                const tId = tableId(u.table);
-                const label = `${u.table.name}.${u.column.name}`;
-                return `
-                  <li>
-                    <a href="#table:${encodeURIComponent(tId)}" data-jump-table="${escapeAttr(tId)}"><code>${escapeHtml(label)}</code></a>
-                  </li>
-                `;
-              })
-              .join('')}
-          </ul>
-        `
-    }
-  `;
-}
-
-function renderColumnRow(
-  table: Table,
-  column: Column,
-  pks: Set<string>,
-  fks: Set<string>,
-  highlighted: boolean,
-  enums: Enum[],
-): string {
-  const isPk = pks.has(column.name);
-  const isFk = fks.has(column.name);
-  const flags: string[] = [];
-  if (isPk) flags.push('PK');
-  if (isFk) flags.push('FK');
-  if (column.unique) flags.push('UNIQUE');
-  if (column.increment) flags.push('AUTO');
-  if (column.not_null) flags.push('NOT NULL');
-  const def = column.dbdefault
-    ? column.dbdefault.type === 'expression'
-      ? `\`${String(column.dbdefault.value)}\``
-      : String(column.dbdefault.value)
-    : '';
-  const id = columnId(table, column);
-  const enumMatch = enums.find((e) => columnUsesEnum(column, e));
-  const typeText = formatColumnType(column);
-  const typeCell = enumMatch
-    ? `<a href="#enum:${encodeURIComponent(enumId(enumMatch))}" data-jump-enum="${escapeAttr(enumId(enumMatch))}" class="dv-col-type-enum">${escapeHtml(typeText)}</a>`
-    : escapeHtml(typeText);
-  return `
-    <tr id="${escapeAttr(id)}"${highlighted ? ' class="is-highlighted"' : ''}>
-      <td class="dv-col-name">${escapeHtml(column.name)}</td>
-      <td class="dv-col-type">${typeCell}</td>
-      <td class="dv-col-flags">${flags.map((f) => `<span class="dv-badge dv-badge-${f.toLowerCase().replace(/[^a-z]/g, '-')}">${f}</span>`).join('')}</td>
-      <td class="dv-col-default">${escapeHtml(def)}</td>
-      <td class="dv-col-note">${escapeHtml(column.note?.value ?? '')}</td>
-    </tr>
-  `;
-}
-
-function formatColumnType(column: Column): string {
-  const { schemaName, type_name, args } = column.type;
-  const qualified = schemaName ? `${schemaName}.${type_name}` : type_name;
-  return args ? `${qualified}(${args})` : qualified;
-}
-
-function renderIndexItem(index: Table['indexes'][number]): string {
-  const cols = index.columns.map((c) => c.value).join(', ');
-  const tags: string[] = [];
-  if (index.pk) tags.push('PK');
-  if (index.unique) tags.push('UNIQUE');
-  if (index.type) tags.push(index.type.toUpperCase());
-  return `
-    <li>
-      <code>(${escapeHtml(cols)})</code>
-      ${tags.map((t) => `<span class="dv-badge">${escapeHtml(t)}</span>`).join('')}
-      ${index.name ? ` <span class="dv-muted">${escapeHtml(index.name)}</span>` : ''}
-      ${index.note ? ` — ${escapeHtml(index.note.value)}` : ''}
-    </li>
-  `;
-}
-
-function renderRefSection(title: string, refs: RefEntry[], self: Table): string {
-  if (refs.length === 0) return '';
-  return `
-    <h3 class="dv-section-title">${escapeHtml(title)}</h3>
-    <ul class="dv-refs">
-      ${refs.map((r) => renderRefItem(r, self)).join('')}
-    </ul>
-  `;
-}
-
-function renderRefItem(entry: RefEntry, self: Table): string {
-  // Render always as "self <arrow> other", regardless of how the parser
-  // ordered the endpoints. For self-refs, split by cardinality so the
-  // outgoing entry shows the FK column and the incoming entry shows the PK.
-  const selfId = tableId(self);
-  const selfEnd = selfEndpoint(entry.ref, selfId, entry.direction);
-  const otherEnd = otherEndpointOf(entry.ref, selfEnd);
-  const otherId = endpointTableId(otherEnd);
-  const selfLabel = `${self.name}.(${selfEnd.fieldNames.join(', ')})`;
-  const otherLabel = `${otherId === selfId ? otherEnd.tableName : otherId}.(${otherEnd.fieldNames.join(', ')})`;
-  const arrow = relationArrow(selfEnd.relation, otherEnd.relation);
-  return `
-    <li>
-      <code>${escapeHtml(selfLabel)}</code>
-      <span class="dv-ref-arrow">${arrow}</span>
-      <a href="#table:${encodeURIComponent(otherId)}" data-jump-table="${escapeAttr(otherId)}"><code>${escapeHtml(otherLabel)}</code></a>
-    </li>
-  `;
-}
-
-function relationArrow(self: '1' | '*', other: '1' | '*'): string {
-  if (self === '*' && other === '1') return '&rarr;';
-  if (self === '1' && other === '*') return '&larr;';
-  if (self === '1' && other === '1') return '&minus;';
-  return '&harr;';
-}
-
-function indexRefsByTable(db: Database): Map<string, RefEntry[]> {
-  // Endpoint order in `db.refs` isn't authoritative (inline refs get promoted
-  // with target first), so categorize by cardinality: `*` = FK-holder
-  // (outgoing), `1` = referenced (incoming). Symmetric refs (`-`/`<>`) land
-  // in one bucket on both ends, which is fine for the section heading.
-  const out = new Map<string, RefEntry[]>();
-  for (const ref of allRefs(db)) {
-    for (const endpoint of ref.endpoints) {
-      const id = endpointTableId(endpoint);
-      const direction: RefDirection = endpoint.relation === '*' ? 'outgoing' : 'incoming';
-      push(out, id, { ref, direction });
-    }
-  }
-  return out;
-}
-
-function push<K, V>(map: Map<K, V[]>, key: K, value: V): void {
-  const existing = map.get(key);
-  if (existing) existing.push(value);
-  else map.set(key, [value]);
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function escapeAttr(value: string): string {
-  return escapeHtml(value);
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
+// Re-export for consumers that want to type their wiring.
+export type { Selection, TreeGroup } from './shared';
 
 if (!customElements.get(DbmlStructureElement.tagName)) {
   customElements.define(DbmlStructureElement.tagName, DbmlStructureElement);

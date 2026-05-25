@@ -1,21 +1,40 @@
 // SPA shell. Loads a .dbml file (drop, picker, sample, or ?url=) and feeds it
-// into the structure + diagram components. Remembers the last file in
-// localStorage and the last set of active views.
+// into the structure, detail, and diagram components. Owns the URL hash,
+// cross-component selection wiring, and the resizable three-panel layout.
 
 import '@dbml-view/components';
 import '@dbml-view/components/style.css';
 
-import type { DbmlDiagramElement, DbmlStructureElement } from '@dbml-view/components';
+import type {
+  DbmlDetailElement,
+  DbmlDiagramElement,
+  DbmlStructureElement,
+  Selection,
+} from '@dbml-view/components';
+import { parseDbml } from '@dbml-view/parser';
 
 const LS_KEY = 'dbml-view:last-source';
 const LS_NAME_KEY = 'dbml-view:last-name';
 const LS_VIEWS_KEY = 'dbml-view:active-views';
 const LS_THEME_KEY = 'dbml-view:theme';
+const LS_PANEL_WIDTH_PREFIX = 'dbml-view:panel-width:';
 
 type Theme = 'light' | 'dark';
 
-type View = 'structure' | 'diagram';
-const VIEWS: readonly View[] = ['structure', 'diagram'];
+type View = 'structure' | 'detail' | 'diagram';
+const VIEWS: readonly View[] = ['structure', 'detail', 'diagram'];
+
+const PANEL_MIN_PX: Record<View, number> = {
+  structure: 200,
+  detail: 320,
+  diagram: 280,
+};
+
+const PANEL_DEFAULT_PX: Record<View, number> = {
+  structure: 280,
+  detail: 480,
+  diagram: 520,
+};
 
 const dropzone = mustGet<HTMLElement>('dropzone');
 const fileInput = mustGet<HTMLInputElement>('file-input');
@@ -27,14 +46,21 @@ const viewsEl = mustGet<HTMLElement>('views');
 const themeToggle = mustGet<HTMLButtonElement>('theme-toggle');
 
 const structure = mustGet<DbmlStructureElement>('structure');
+const detail = mustGet<DbmlDetailElement>('detail');
 const diagram = mustGet<DbmlDiagramElement>('diagram');
 
 const viewSections: Record<View, HTMLElement> = {
   structure: mustGet<HTMLElement>('view-structure'),
+  detail: mustGet<HTMLElement>('view-detail'),
   diagram: mustGet<HTMLElement>('view-diagram'),
 };
 
-const activeViews = new Set<View>(['structure']);
+const activeViews = new Set<View>(['structure', 'detail']);
+const panelWidths: Record<View, number> = {
+  structure: loadPanelWidth('structure'),
+  detail: loadPanelWidth('detail'),
+  diagram: loadPanelWidth('diagram'),
+};
 let hasSource = false;
 
 fileButton.addEventListener('click', () => fileInput.click());
@@ -110,13 +136,24 @@ async function loadUrl(url: string, label: string): Promise<void> {
 }
 
 function applySource(source: string, label: string): void {
+  const result = parseDbml(source);
   hasSource = true;
   dropzone.hidden = true;
-  structure.source = source;
+  if (result.ok) {
+    structure.setDatabase(result.db);
+    detail.setDatabase(result.db);
+  } else {
+    // Push the raw source so each component renders its own error state.
+    structure.source = source;
+    detail.source = source;
+  }
   diagram.source = source;
   setFileLabel(label);
   status.textContent = '';
   renderViews();
+  // Apply current hash (if any) to the new database so deep-links survive
+  // reloading with a different file.
+  syncSelectionFromHash();
   try {
     localStorage.setItem(LS_KEY, source);
     localStorage.setItem(LS_NAME_KEY, label);
@@ -169,10 +206,165 @@ function renderViews(): void {
     return;
   }
   viewsEl.hidden = false;
-  viewsEl.classList.toggle('is-split', activeViews.size > 1);
   for (const view of VIEWS) {
     viewSections[view].hidden = !activeViews.has(view);
   }
+  layoutPanels();
+}
+
+/**
+ * Rebuilds the splitter DOM and applies widths. Each visible panel except
+ * the last one gets a fixed pixel width; the last fills the remaining space.
+ * Splitters live between adjacent visible panels and resize the panel on
+ * their left.
+ */
+function layoutPanels(): void {
+  // Remove existing splitters; sections re-order naturally.
+  for (const splitter of viewsEl.querySelectorAll('.app-splitter')) splitter.remove();
+
+  const visible = VIEWS.filter((v) => activeViews.has(v));
+  if (visible.length === 0) return;
+
+  // Reset widths on all sections, then apply per visible panel.
+  for (const v of VIEWS) {
+    const section = viewSections[v];
+    section.style.removeProperty('flex');
+    section.style.removeProperty('width');
+    section.style.removeProperty('min-width');
+  }
+
+  visible.forEach((view, idx) => {
+    const section = viewSections[view];
+    const isLast = idx === visible.length - 1;
+    section.style.minWidth = `${PANEL_MIN_PX[view]}px`;
+    if (isLast) {
+      // Fills the remaining space.
+      section.style.flex = '1 1 0';
+    } else {
+      const width = Math.max(PANEL_MIN_PX[view], panelWidths[view]);
+      section.style.flex = `0 0 ${width}px`;
+      // Insert a splitter after this section, anchored to the panel on its left.
+      const splitter = makeSplitter(view);
+      section.after(splitter);
+    }
+  });
+}
+
+function makeSplitter(leftView: View): HTMLElement {
+  const splitter = document.createElement('div');
+  splitter.className = 'app-splitter';
+  splitter.setAttribute('role', 'separator');
+  splitter.setAttribute('aria-orientation', 'vertical');
+  splitter.tabIndex = 0;
+  splitter.dataset.leftView = leftView;
+
+  let drag: { pointerId: number; startX: number; startWidth: number } | null = null;
+
+  splitter.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0) return;
+    const section = viewSections[leftView];
+    event.preventDefault();
+    splitter.setPointerCapture(event.pointerId);
+    splitter.classList.add('is-dragging');
+    drag = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startWidth: section.getBoundingClientRect().width,
+    };
+  });
+
+  splitter.addEventListener('pointermove', (event) => {
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const max = maxWidthFor(leftView);
+    const next = clamp(
+      drag.startWidth + (event.clientX - drag.startX),
+      PANEL_MIN_PX[leftView],
+      max,
+    );
+    setPanelWidth(leftView, next);
+  });
+
+  const end = (event: PointerEvent): void => {
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    drag = null;
+    splitter.classList.remove('is-dragging');
+    if (splitter.hasPointerCapture(event.pointerId)) {
+      splitter.releasePointerCapture(event.pointerId);
+    }
+    savePanelWidth(leftView);
+  };
+  splitter.addEventListener('pointerup', end);
+  splitter.addEventListener('pointercancel', end);
+
+  splitter.addEventListener('keydown', (event) => {
+    const step = event.shiftKey ? 32 : 8;
+    const current = viewSections[leftView].getBoundingClientRect().width;
+    const max = maxWidthFor(leftView);
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      setPanelWidth(leftView, clamp(current - step, PANEL_MIN_PX[leftView], max));
+      savePanelWidth(leftView);
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      setPanelWidth(leftView, clamp(current + step, PANEL_MIN_PX[leftView], max));
+      savePanelWidth(leftView);
+    }
+  });
+
+  splitter.addEventListener('dblclick', () => {
+    setPanelWidth(leftView, PANEL_DEFAULT_PX[leftView]);
+    savePanelWidth(leftView);
+  });
+
+  return splitter;
+}
+
+/** Cap so the rightmost flex panel never collapses below its min-width. */
+function maxWidthFor(view: View): number {
+  const visible = VIEWS.filter((v) => activeViews.has(v));
+  const containerWidth = viewsEl.getBoundingClientRect().width;
+  // Account for gaps and splitters between adjacent panels.
+  const gapCount = Math.max(0, visible.length - 1);
+  const overhead = gapCount * (APP_PANEL_GAP_PX + APP_SPLITTER_PX);
+  let reserved = overhead;
+  for (const v of visible) {
+    if (v === view) continue;
+    // Each other non-last visible panel takes its current width; the last one
+    // takes its min-width as a floor.
+    const idx = visible.indexOf(v);
+    const isLast = idx === visible.length - 1;
+    reserved += isLast ? PANEL_MIN_PX[v] : Math.max(PANEL_MIN_PX[v], panelWidths[v]);
+  }
+  return Math.max(PANEL_MIN_PX[view], containerWidth - reserved);
+}
+
+function setPanelWidth(view: View, width: number): void {
+  panelWidths[view] = width;
+  const section = viewSections[view];
+  section.style.flex = `0 0 ${Math.round(width)}px`;
+}
+
+function savePanelWidth(view: View): void {
+  try {
+    localStorage.setItem(`${LS_PANEL_WIDTH_PREFIX}${view}`, String(Math.round(panelWidths[view])));
+  } catch {
+    // ignore
+  }
+}
+
+function loadPanelWidth(view: View): number {
+  try {
+    const stored = localStorage.getItem(`${LS_PANEL_WIDTH_PREFIX}${view}`);
+    const parsed = stored !== null ? Number.parseInt(stored, 10) : Number.NaN;
+    if (Number.isFinite(parsed) && parsed >= PANEL_MIN_PX[view]) return parsed;
+  } catch {
+    // ignore
+  }
+  return PANEL_DEFAULT_PX[view];
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
 function mustGet<T extends HTMLElement>(id: string): T {
@@ -180,6 +372,9 @@ function mustGet<T extends HTMLElement>(id: string): T {
   if (!el) throw new Error(`Bootstrap: missing #${id}`);
   return el as T;
 }
+
+const APP_PANEL_GAP_PX = 0; // gaps are removed in favor of explicit splitters
+const APP_SPLITTER_PX = 6;
 
 // --- Theme: follow system preference until the user explicitly toggles. ---
 
@@ -222,6 +417,65 @@ darkMql.addEventListener('change', () => {
 
 applyTheme();
 
+// --- Selection wiring: structure ↔ detail ↔ diagram via URL hash. ---
+
+function parseHashSelection(): Selection {
+  const hash = window.location.hash;
+  const tableMatch = /^#table:(.+)$/.exec(hash);
+  if (tableMatch) return { kind: 'table', tableId: decodeURIComponent(tableMatch[1] ?? '') };
+  const enumMatch = /^#enum:(.+)$/.exec(hash);
+  if (enumMatch) return { kind: 'enum', enumId: decodeURIComponent(enumMatch[1] ?? '') };
+  return { kind: 'none' };
+}
+
+function selectionToHash(selection: Selection): string {
+  if (selection.kind === 'table') return `#table:${encodeURIComponent(selection.tableId)}`;
+  if (selection.kind === 'enum') return `#enum:${encodeURIComponent(selection.enumId)}`;
+  return '';
+}
+
+/** Push a selection to the components without echoing the hash. */
+function applySelection(selection: Selection): void {
+  structure.setSelection(selection);
+  detail.setSelection(selection);
+}
+
+function syncSelectionFromHash(): void {
+  applySelection(parseHashSelection());
+}
+
+structure.addEventListener('selection-change', (event) => {
+  const sel = (event as CustomEvent<Selection>).detail;
+  detail.setSelection(sel);
+  const target = selectionToHash(sel);
+  if (target && window.location.hash !== target) {
+    history.replaceState(null, '', target || window.location.pathname);
+  }
+});
+
+// Cross-component sync: when the user clicks a table in the diagram, also
+// reveal it in the structure + detail panes.
+diagram.addEventListener('table-selected', (event) => {
+  const id = (event as CustomEvent<{ tableId: string }>).detail?.tableId;
+  if (!id) return;
+  const sel: Selection = { kind: 'table', tableId: id };
+  applySelection(sel);
+  const target = selectionToHash(sel);
+  if (window.location.hash !== target) history.replaceState(null, '', target);
+});
+
+// Detail emits 'jump-to' when the user clicks a cross-link inside it.
+detail.addEventListener('jump-to', (event) => {
+  const sel = (event as CustomEvent<Selection>).detail;
+  applySelection(sel);
+  const target = selectionToHash(sel);
+  if (window.location.hash !== target) history.replaceState(null, '', target);
+});
+
+window.addEventListener('hashchange', () => {
+  syncSelectionFromHash();
+});
+
 // Restore last set of active views.
 try {
   const stored = localStorage.getItem(LS_VIEWS_KEY);
@@ -252,10 +506,22 @@ if (urlParam) {
   }
 }
 
-// Cross-component sync: when the user clicks a table in the diagram, also
-// reveal it in the structure view (helps when both are visible).
-diagram.addEventListener('table-selected', (event) => {
-  const detail = (event as CustomEvent<{ tableId: string }>).detail;
-  if (!detail?.tableId) return;
-  window.location.hash = `#table:${encodeURIComponent(detail.tableId)}`;
+// Container resize: if the user shrinks the window such that the rightmost
+// flex panel would underflow, clamp the fixed-width siblings.
+window.addEventListener('resize', () => {
+  if (!hasSource) return;
+  let dirty = false;
+  const visible = VIEWS.filter((v) => activeViews.has(v));
+  for (let i = 0; i < visible.length - 1; i++) {
+    const view = visible[i]!;
+    const max = maxWidthFor(view);
+    if (panelWidths[view] > max) {
+      setPanelWidth(view, max);
+      dirty = true;
+    }
+  }
+  if (dirty) {
+    // No persistence on resize-driven adjustments; only explicit user drags
+    // overwrite stored widths.
+  }
 });

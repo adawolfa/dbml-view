@@ -45,6 +45,9 @@
         <button type="button" data-view="structure" class="is-active" aria-pressed="true">
           Structure
         </button>
+        <button type="button" data-view="detail" class="is-active" aria-pressed="true">
+          Detail
+        </button>
         <button type="button" data-view="diagram" aria-pressed="false">Diagram</button>
       </nav>
       <div class="app-header-actions">
@@ -99,10 +102,13 @@
         <p class="dropzone-hint">Or load a sample from the header.</p>
       </div>
       <div class="views" id="views" hidden>
-        <section id="view-structure" class="view">
+        <section id="view-structure" class="view view-structure">
           <dbml-structure id="structure"></dbml-structure>
         </section>
-        <section id="view-diagram" class="view">
+        <section id="view-detail" class="view view-detail">
+          <dbml-detail id="detail"></dbml-detail>
+        </section>
+        <section id="view-diagram" class="view view-diagram">
           <dbml-diagram id="diagram"></dbml-diagram>
         </section>
       </div>

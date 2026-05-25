@@ -16,7 +16,7 @@
   --app-shadow-4: 0 2px 4px rgba(0, 0, 0, 0.06), 0 0 2px rgba(0, 0, 0, 0.08);
 }
 
-:root[data-theme='dark'] {
+:root[data-theme="dark"] {
   --app-bg: #1a1a1a;
   --app-surface: #242424;
   --app-fg: #e6e6e6;
@@ -53,8 +53,7 @@ body {
   margin: 0;
   background: var(--app-bg);
   color: var(--app-fg);
-  font:
-    14px / 1.4 "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui,
+  font: 14px / 1.4 "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui,
     sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -110,9 +109,7 @@ body {
   font-weight: 600;
   color: var(--app-fg);
   max-width: 280px;
-  transition:
-    background 80ms ease,
-    border-color 80ms ease;
+  transition: background 80ms ease, border-color 80ms ease;
 }
 
 .file-button:hover {
@@ -153,10 +150,7 @@ body {
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--app-fg);
-  transition:
-    background 80ms ease,
-    border-color 80ms ease,
-    color 80ms ease;
+  transition: background 80ms ease, border-color 80ms ease, color 80ms ease;
 }
 
 .view-toggles button:hover:not(.is-active):not([disabled]) {
@@ -194,22 +188,42 @@ body {
 }
 
 .views {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-}
-
-.views.is-split {
-  /* Structure pane defaults to ~50% of the window so its rail + detail leave
-     the detail at least ~30% of the viewport with the default rail width.
-     Both columns can shrink to 0 (structure scrolls horizontally if its own
-     min-widths overflow). */
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: row;
+  min-width: 0;
 }
 
 .views > .view {
   min-height: 0;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Vertical splitter between visible panels. The 6 px width is referenced by
+   APP_SPLITTER_PX in main.ts when computing max-width clamps. */
+.app-splitter {
+  flex: 0 0 6px;
+  background: var(--app-border);
+  cursor: col-resize;
+  position: relative;
+  touch-action: none;
+  transition: background 80ms ease;
+}
+
+.app-splitter::before {
+  /* Wider invisible hit area so the splitter is easy to grab without making
+     the visible bar fat. */
+  content: "";
+  position: absolute;
+  inset: 0 -3px;
+}
+
+.app-splitter:hover,
+.app-splitter.is-dragging,
+.app-splitter:focus-visible {
+  background: var(--app-accent);
+  outline: none;
 }
 
 .dropzone {
@@ -226,10 +240,7 @@ body {
   color: var(--app-muted);
   padding: 2rem;
   text-align: center;
-  transition:
-    border-color 120ms ease,
-    background 120ms ease,
-    color 120ms ease;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
 }
 
 .dropzone:hover {
@@ -281,10 +292,7 @@ body {
   font: inherit;
   font-size: 0.8rem;
   color: var(--app-fg);
-  transition:
-    background 80ms ease,
-    border-color 80ms ease,
-    color 80ms ease;
+  transition: background 80ms ease, border-color 80ms ease, color 80ms ease;
 }
 
 .sample-picker button:hover:not([disabled]) {
@@ -309,10 +317,7 @@ body {
   cursor: pointer;
   color: var(--app-fg);
   flex-shrink: 0;
-  transition:
-    background 80ms ease,
-    border-color 80ms ease,
-    color 80ms ease;
+  transition: background 80ms ease, border-color 80ms ease, color 80ms ease;
 }
 
 .theme-toggle:hover {
@@ -333,10 +338,10 @@ body {
   display: none;
 }
 
-:root[data-theme='dark'] .theme-toggle .theme-toggle-icon-sun {
+:root[data-theme="dark"] .theme-toggle .theme-toggle-icon-sun {
   display: block;
 }
 
-:root[data-theme='dark'] .theme-toggle .theme-toggle-icon-moon {
+:root[data-theme="dark"] .theme-toggle .theme-toggle-icon-moon {
   display: none;
 }
