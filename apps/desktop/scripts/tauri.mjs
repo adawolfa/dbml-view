@@ -33,7 +33,10 @@ function findVcvars() {
     ],
     { encoding: 'utf8' },
   );
-  for (const path of stdout.split(/\r?\n/).map((s) => s.trim()).filter(Boolean)) {
+  for (const path of stdout
+    .split(/\r?\n/)
+    .map((s) => s.trim())
+    .filter(Boolean)) {
     const vcvars = join(path, 'VC', 'Auxiliary', 'Build', 'vcvars64.bat');
     if (existsSync(vcvars)) return vcvars;
   }

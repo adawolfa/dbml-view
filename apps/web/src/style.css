@@ -486,3 +486,136 @@ body {
   outline: 2px solid var(--app-accent);
   outline-offset: -1px;
 }
+
+/* ── Parse-error modal ─────────────────────────────────────────────────────── */
+
+.error-modal {
+  padding: 0;
+  border: 1px solid var(--app-border-strong);
+  background: var(--app-surface);
+  color: var(--app-fg);
+  box-shadow: var(--app-shadow-4);
+  max-width: min(680px, 90vw);
+  max-height: 80vh;
+  width: 100%;
+  overflow: hidden;
+}
+
+.error-modal[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.error-modal::backdrop {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.error-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--app-border);
+  flex-shrink: 0;
+  gap: 1rem;
+}
+
+.error-modal-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.error-modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid transparent;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  color: var(--app-muted);
+  transition: background 80ms ease, border-color 80ms ease, color 80ms ease;
+}
+
+.error-modal-close:hover {
+  background: var(--app-neutral-hover);
+  border-color: var(--app-border);
+  color: var(--app-fg);
+}
+
+.error-modal-close:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: -1px;
+}
+
+.error-modal-close svg {
+  width: 14px;
+  height: 14px;
+}
+
+.error-modal-body {
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.error-modal-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.error-modal-message {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--app-fg);
+}
+
+.error-modal-pos {
+  font-family: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-weight: 600;
+  color: var(--dv-error-pos-fg, #c50f1f);
+}
+
+.error-modal-code {
+  margin: 0;
+  border: 1px solid var(--app-border);
+  border-left: 3px solid var(--dv-error-fg, #a4262c);
+  background: var(--app-bg);
+  overflow-x: auto;
+  font-family: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  padding: 0.4rem 0;
+}
+
+.error-modal-line {
+  display: flex;
+  white-space: pre;
+  padding: 0 0.75rem;
+}
+
+.error-modal-line.is-error {
+  background: color-mix(in srgb, var(--dv-error-fg, #a4262c) 8%, transparent);
+}
+
+.error-modal-lineno {
+  display: inline-block;
+  min-width: 2.75rem;
+  text-align: right;
+  margin-right: 1.25rem;
+  color: var(--app-muted);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.error-modal-linecode {
+  color: var(--app-fg);
+  overflow-x: visible;
+}

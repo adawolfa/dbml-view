@@ -14,6 +14,7 @@ import type {
 } from '@dbml-view/components';
 import { cs, setLocale, t } from '@dbml-view/i18n';
 import { parseDbml } from '@dbml-view/parser';
+import type { ParseError } from '@dbml-view/parser';
 
 const LS_KEY = 'dbml-view:last-source';
 const LS_NAME_KEY = 'dbml-view:last-name';
@@ -65,6 +66,11 @@ const fontMonoLabel = mustGet<HTMLElement>('font-mono-label');
 const fontPropLabel = mustGet<HTMLElement>('font-proportional-label');
 const langSelect = mustGet<HTMLSelectElement>('lang-select');
 
+const errorModal = mustGet<HTMLDialogElement>('error-modal');
+const errorModalTitle = mustGet<HTMLElement>('error-modal-title');
+const errorModalClose = mustGet<HTMLButtonElement>('error-modal-close');
+const errorModalBody = mustGet<HTMLElement>('error-modal-body');
+
 const structure = mustGet<DbmlStructureElement>('structure');
 const detail = mustGet<DbmlDetailElement>('detail');
 const diagram = mustGet<DbmlDiagramElement>('diagram');
@@ -96,6 +102,14 @@ registerComponents();
 // Apply translations to the static HTML elements that can't be reached from
 // component render methods (view toggles, file button initial state, dropzone).
 initTranslations();
+
+// Error modal: close button and backdrop click.
+errorModalClose.addEventListener('click', () => errorModal.close());
+errorModal.addEventListener('click', (e) => {
+  // The dialog element is the backdrop; a click on the content doesn't bubble up.
+  if (e.target === errorModal) errorModal.close();
+});
+// ESC is handled natively by <dialog>.
 
 fileButton.addEventListener('click', () => fileInput.click());
 
@@ -234,16 +248,16 @@ async function loadUrl(url: string, label: string): Promise<void> {
 
 function applySource(source: string, label: string): void {
   const result = parseDbml(source);
+  if (!result.ok) {
+    // Show the error modal without touching the panels — the last valid
+    // file (or the empty state) stays visible behind the modal.
+    showParseErrorModal(source, result.errors);
+    return;
+  }
   hasSource = true;
   dropzone.hidden = true;
-  if (result.ok) {
-    structure.setDatabase(result.db);
-    detail.setDatabase(result.db);
-  } else {
-    // Push the raw source so each component renders its own error state.
-    structure.source = source;
-    detail.source = source;
-  }
+  structure.setDatabase(result.db);
+  detail.setDatabase(result.db);
   diagram.source = source;
   setFileLabel(label);
   void setWindowTitle(label);
@@ -258,6 +272,57 @@ function applySource(source: string, label: string): void {
   } catch {
     // Quota / private mode — silently skip persistence.
   }
+}
+
+/** Show the parse-error modal with code context around each error. */
+function showParseErrorModal(source: string, errors: ParseError[]): void {
+  const CONTEXT = 3;
+  const lines = source.split('\n');
+
+  errorModalTitle.textContent = t('app.error.parse.title');
+  errorModalBody.innerHTML = '';
+
+  for (const err of errors) {
+    const item = document.createElement('div');
+    item.className = 'error-modal-item';
+
+    // "1:5  Expected table definition"
+    const msg = document.createElement('p');
+    msg.className = 'error-modal-message';
+    const pos = document.createElement('span');
+    pos.className = 'error-modal-pos';
+    pos.textContent = `${err.line}:${err.column}`;
+    msg.appendChild(pos);
+    msg.appendChild(document.createTextNode(` ${err.message}`));
+
+    // Code snippet: CONTEXT lines before + error line + CONTEXT lines after.
+    const pre = document.createElement('pre');
+    pre.className = 'error-modal-code';
+    const start = Math.max(1, err.line - CONTEXT);
+    const end = Math.min(lines.length, err.line + CONTEXT);
+    for (let i = start; i <= end; i++) {
+      const lineEl = document.createElement('span');
+      lineEl.className = i === err.line ? 'error-modal-line is-error' : 'error-modal-line';
+
+      const lineNo = document.createElement('span');
+      lineNo.className = 'error-modal-lineno';
+      lineNo.textContent = String(i);
+
+      const lineCode = document.createElement('span');
+      lineCode.className = 'error-modal-linecode';
+      lineCode.textContent = lines[i - 1] ?? '';
+
+      lineEl.appendChild(lineNo);
+      lineEl.appendChild(lineCode);
+      pre.appendChild(lineEl);
+    }
+
+    item.appendChild(msg);
+    item.appendChild(pre);
+    errorModalBody.appendChild(item);
+  }
+
+  errorModal.showModal();
 }
 
 function setFileLabel(label: string): void {
@@ -546,6 +611,8 @@ function initTranslations(): void {
   fontPropBtn.title = propLabel;
 
   langSelect.setAttribute('aria-label', t('app.settings.language.label'));
+
+  errorModalClose.setAttribute('aria-label', t('app.error.parse.close'));
 }
 
 /**

@@ -64,6 +64,8 @@ export const en = {
   'app.dropzone.hint': 'Or load a sample from the dropdown next to Open.',
   'app.previous_file': '(previous)',
   'app.error.load_url': "Couldn't load {label}: {message}",
+  'app.error.parse.title': "Couldn't parse this DBML",
+  'app.error.parse.close': 'Close',
 
   // --- Settings dropdown ---
   'app.settings.open': 'Settings',
