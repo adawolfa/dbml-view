@@ -59,3 +59,29 @@ test('TableGroup color tints the group hull', async ({ page }) => {
   await expect(group).toHaveCount(1);
   await expect(group).toHaveAttribute('style', /--dv-group-color:\s*#a855f7/);
 });
+
+test('structure view tints table, group, and relation icons by their DBML colors', async ({
+  page,
+}) => {
+  // Structure renders alongside the diagram by default in the test fixture's view set.
+  const structure = page.locator('#structure');
+
+  const tablegroupIcon = structure.locator(
+    '[data-node="group"][data-group-id="tg:public.content"] .dv-tree-node-icon',
+  );
+  await expect(tablegroupIcon).toHaveAttribute('style', /color:\s*#a855f7/);
+
+  const usersIcon = structure.locator(
+    '[data-node="table"][data-table-id="public.users"] .dv-tree-node-icon',
+  );
+  await expect(usersIcon).toHaveAttribute('style', /color:\s*#2563eb/);
+
+  // Expand `posts` so its outgoing relation (→ users) is rendered and we can
+  // check the arrow color.
+  const postsNode = structure.locator('[data-node="table"][data-table-id="public.posts"]');
+  await postsNode.dblclick();
+  const usersArrow = structure
+    .locator('[data-node="relation"][data-from-column-id="public.posts.user_id"]')
+    .locator('.dv-tree-rel-arrow');
+  await expect(usersArrow).toHaveAttribute('style', /color:\s*#ef4444/);
+});
