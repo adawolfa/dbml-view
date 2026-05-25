@@ -754,6 +754,16 @@ dbml-diagram {
   background: color-mix(in srgb, var(--dv-group-color) 18%, var(--dv-bg));
   border: 1px solid color-mix(in srgb, var(--dv-group-color) 50%, transparent);
   border-radius: 4px;
+  /* Re-enable pointer events here since the .dv-groups parent disables them,
+     so the label can be grabbed to drag the whole group. */
+  pointer-events: auto;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.dv-group-label.is-dragging {
+  cursor: grabbing;
 }
 
 .dv-edges {

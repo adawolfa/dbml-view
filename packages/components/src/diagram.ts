@@ -5,6 +5,8 @@
 
 import { t } from '@dbml-view/i18n';
 import {
+  GROUP_LABEL_HEIGHT,
+  GROUP_PADDING,
   type LayoutResult,
   type PositionedGroup,
   type PositionedTable,
@@ -61,6 +63,9 @@ export class DbmlDiagramElement extends HTMLElement {
   /** Offset from layout-space to canvas-space, captured at layout time so drag math doesn't need to keep re-deriving it. */
   private layoutOffset = { x: 0, y: 0 };
   private tableEls = new Map<string, HTMLElement>();
+  /** Mutable working copy of the laid-out groups; bbox and DOM are kept in sync as members move. */
+  private groups: PositionedGroup[] = [];
+  private groupEls = new Map<string, { root: HTMLElement; label: HTMLElement }>();
   private edgeEls = new Map<string, SVGGElement>();
   private edgesByTable = new Map<string, Set<string>>();
   /** Maps canonically-sorted "colA|colB" → edgeId for cross-panel hover lookup. */
@@ -255,9 +260,13 @@ export class DbmlDiagramElement extends HTMLElement {
    */
   private renderGroups(groups: PositionedGroup[]): void {
     this.groupsEl.innerHTML = '';
+    this.groupEls.clear();
+    // Keep a mutable working copy — drag handlers update each group's bbox in
+    // place so the next reroute sees fresh coordinates without recomputing.
+    this.groups = groups.map((g) => ({ ...g }));
     const dx = this.layoutOffset.x;
     const dy = this.layoutOffset.y;
-    for (const g of groups) {
+    for (const g of this.groups) {
       const el = document.createElement('div');
       el.className = 'dv-group';
       el.dataset.groupId = g.id;
@@ -274,7 +283,41 @@ export class DbmlDiagramElement extends HTMLElement {
       label.textContent = g.name;
       el.appendChild(label);
       this.groupsEl.appendChild(el);
+      this.groupEls.set(g.id, { root: el, label });
     }
+  }
+
+  /**
+   * Recompute the bounding box of a single group from its members' current
+   * positions and push the new geometry into the DOM. Called on every drag
+   * frame — both when a single member moves and when the whole group is
+   * being dragged by its label.
+   */
+  private updateGroupRect(groupId: string): void {
+    const group = this.groups.find((g) => g.id === groupId);
+    if (!group) return;
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+    for (const tid of group.tableIds) {
+      const pos = this.positions.get(tid);
+      if (!pos) continue;
+      if (pos.x < minX) minX = pos.x;
+      if (pos.y < minY) minY = pos.y;
+      if (pos.x + pos.width > maxX) maxX = pos.x + pos.width;
+      if (pos.y + pos.height > maxY) maxY = pos.y + pos.height;
+    }
+    if (!Number.isFinite(minX)) return;
+    group.x = minX - GROUP_PADDING;
+    group.y = minY - GROUP_LABEL_HEIGHT;
+    group.width = maxX - minX + GROUP_PADDING * 2;
+    group.height = maxY - minY + GROUP_LABEL_HEIGHT + GROUP_PADDING;
+    const els = this.groupEls.get(groupId);
+    if (!els) return;
+    els.root.style.transform = `translate(${group.x + this.layoutOffset.x}px, ${group.y + this.layoutOffset.y}px)`;
+    els.root.style.width = `${group.width}px`;
+    els.root.style.height = `${group.height}px`;
   }
 
   private renderEdges(edges: RoutedEdge[], canvasWidth: number, canvasHeight: number): void {
@@ -431,6 +474,7 @@ export class DbmlDiagramElement extends HTMLElement {
     });
 
     this.wireTableDrag();
+    this.wireGroupDrag();
 
     this.toolbarEl.addEventListener('click', (event) => {
       const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-act]');
@@ -505,6 +549,7 @@ export class DbmlDiagramElement extends HTMLElement {
         pos.x = pendingX;
         pos.y = pendingY;
         if (dragEl) this.applyTableTransform(dragEl, pos);
+        if (pos.groupId) this.updateGroupRect(pos.groupId);
         this.rerouteEdges();
       });
     };
@@ -556,6 +601,107 @@ export class DbmlDiagramElement extends HTMLElement {
     this.nodesEl.addEventListener('pointermove', onMove);
     this.nodesEl.addEventListener('pointerup', endDrag);
     this.nodesEl.addEventListener('pointercancel', endDrag);
+  }
+
+  /**
+   * Drag every table in a TableGroup at once by grabbing the group's label.
+   * Mirrors {@link wireTableDrag}: below {@link DRAG_THRESHOLD} the press is
+   * just a no-op (label has no click action); past it, all member positions
+   * shift by the same delta and the group's bbox follows.
+   */
+  private wireGroupDrag(): void {
+    let dragGroupId: string | null = null;
+    let dragLabelEl: HTMLElement | null = null;
+    let dragPointer: number | null = null;
+    let startClientX = 0;
+    let startClientY = 0;
+    let startPositions = new Map<string, { x: number; y: number }>();
+    let active = false;
+    let pendingFrame = false;
+    let pendingDx = 0;
+    let pendingDy = 0;
+
+    const onMove = (event: PointerEvent): void => {
+      if (dragPointer === null || event.pointerId !== dragPointer) return;
+      const scale = this.viewport.scale || 1;
+      const dx = (event.clientX - startClientX) / scale;
+      const dy = (event.clientY - startClientY) / scale;
+      if (!active) {
+        if (
+          Math.hypot(event.clientX - startClientX, event.clientY - startClientY) < DRAG_THRESHOLD
+        ) {
+          return;
+        }
+        active = true;
+        dragLabelEl?.classList.add('is-dragging');
+        this.canvasEl.classList.add('is-dragging-table');
+      }
+      pendingDx = dx;
+      pendingDy = dy;
+      if (pendingFrame) return;
+      pendingFrame = true;
+      requestAnimationFrame(() => {
+        pendingFrame = false;
+        if (!dragGroupId) return;
+        for (const [tid, start] of startPositions) {
+          const pos = this.positions.get(tid);
+          if (!pos) continue;
+          pos.x = start.x + pendingDx;
+          pos.y = start.y + pendingDy;
+          const el = this.tableEls.get(tid);
+          if (el) this.applyTableTransform(el, pos);
+        }
+        this.updateGroupRect(dragGroupId);
+        this.rerouteEdges();
+      });
+    };
+
+    const endDrag = (event: PointerEvent): void => {
+      if (dragPointer === null || event.pointerId !== dragPointer) return;
+      try {
+        this.groupsEl.releasePointerCapture(event.pointerId);
+      } catch {
+        // ignore — pointer was never captured (no actual drag past threshold)
+      }
+      dragLabelEl?.classList.remove('is-dragging');
+      this.canvasEl.classList.remove('is-dragging-table');
+      dragGroupId = null;
+      dragLabelEl = null;
+      dragPointer = null;
+      active = false;
+      pendingFrame = false;
+      startPositions = new Map();
+    };
+
+    this.groupsEl.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
+      const labelEl = (event.target as HTMLElement).closest<HTMLElement>('.dv-group-label');
+      if (!labelEl) return;
+      const groupEl = labelEl.parentElement as HTMLElement | null;
+      const groupId = groupEl?.dataset.groupId;
+      if (!groupId) return;
+      const group = this.groups.find((g) => g.id === groupId);
+      if (!group) return;
+      // Stop the event from reaching the viewport's pan handler — otherwise
+      // grabbing the label would also start a background pan.
+      event.preventDefault();
+      event.stopPropagation();
+      dragGroupId = groupId;
+      dragLabelEl = labelEl;
+      dragPointer = event.pointerId;
+      startClientX = event.clientX;
+      startClientY = event.clientY;
+      startPositions = new Map();
+      for (const tid of group.tableIds) {
+        const pos = this.positions.get(tid);
+        if (pos) startPositions.set(tid, { x: pos.x, y: pos.y });
+      }
+      active = false;
+      this.groupsEl.setPointerCapture(event.pointerId);
+    });
+    this.groupsEl.addEventListener('pointermove', onMove);
+    this.groupsEl.addEventListener('pointerup', endDrag);
+    this.groupsEl.addEventListener('pointercancel', endDrag);
   }
 
   /** Re-route edges against `this.positions`; called on every drag frame. */

@@ -151,9 +151,9 @@ const GRID = 24;
 const CHANNEL_MARGIN = 4;
 
 /** Top padding reserved inside a TableGroup parent node for its label strip. */
-const GROUP_LABEL_HEIGHT = 28;
+export const GROUP_LABEL_HEIGHT = 28;
 /** Inset between the group's bounding box and its member tables on the other three sides. */
-const GROUP_PADDING = 16;
+export const GROUP_PADDING = 16;
 
 export async function layout(
   db: Database,
