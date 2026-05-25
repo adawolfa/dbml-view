@@ -546,8 +546,10 @@ function updateDetailToggle(): void {
   const enumIcon = button.querySelector<HTMLElement>('[data-icon="enum"]');
   const isEnum = currentSelection.kind === 'enum';
   if (label) label.textContent = t(isEnum ? 'app.view.detail.enum' : 'app.view.detail.table');
-  if (tableIcon) tableIcon.hidden = isEnum;
-  if (enumIcon) enumIcon.hidden = !isEnum;
+  // toggleAttribute() — not the `.hidden` IDL property — because the icons are
+  // SVG elements and `hidden` IDL doesn't reflect to the attribute on SVGElement.
+  if (tableIcon) tableIcon.toggleAttribute('hidden', isEnum);
+  if (enumIcon) enumIcon.toggleAttribute('hidden', !isEnum);
 }
 
 function mustGet<T extends HTMLElement>(id: string): T {

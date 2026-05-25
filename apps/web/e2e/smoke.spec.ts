@@ -1,15 +1,8 @@
 import { expect, test } from '@playwright/test';
+import { installPersistentClear, loadSample } from './_setup';
 
-// Start every test with a clean slate: the app persists the last loaded source
-// in localStorage and would otherwise skip the dropzone on a warm reload.
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
-    try {
-      localStorage.clear();
-    } catch {
-      // ignore
-    }
-  });
+  await installPersistentClear(page);
 });
 
 test('loads the small sample and renders structure + detail', async ({ page }) => {
@@ -17,12 +10,7 @@ test('loads the small sample and renders structure + detail', async ({ page }) =
 
   await expect(page.locator('#dropzone')).toBeVisible();
 
-  // Open the samples dropdown and pick `small`.
-  await page.locator('#file-dropdown-trigger').click();
-  await page.locator('#file-dropdown .file-dropdown-item', { hasText: 'small' }).click();
-
-  // Dropzone goes away once a source is loaded.
-  await expect(page.locator('#dropzone')).toBeHidden();
+  await loadSample(page, 'small');
 
   // Structure tree should list both sample tables.
   const structure = page.locator('#structure');
@@ -40,8 +28,7 @@ test('loads the small sample and renders structure + detail', async ({ page }) =
 
 test('view toggles enable the diagram pane', async ({ page }) => {
   await page.goto('/');
-  await page.locator('#file-dropdown-trigger').click();
-  await page.locator('#file-dropdown .file-dropdown-item', { hasText: 'small' }).click();
+  await loadSample(page, 'small');
 
   const diagramToggle = page.locator('#view-toggles button[data-view="diagram"]');
   await expect(diagramToggle).toHaveAttribute('aria-pressed', 'false');
