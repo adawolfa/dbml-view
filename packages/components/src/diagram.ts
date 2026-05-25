@@ -64,6 +64,8 @@ export class DbmlDiagramElement extends HTMLElement {
   private edgesByColumnPair = new Map<string, string>();
   private hoveredTableId: string | null = null;
   private hoveredEdgeId: string | null = null;
+  /** Column ID internally hovered (mouse over a column row in the diagram canvas). */
+  private hoveredColumnId: string | null = null;
   /** Column ID that was externally highlighted (not from edge hover) and must be cleared separately. */
   private externalColumnId: string | null = null;
   private selectedTableId: string | null = null;
@@ -335,11 +337,53 @@ export class DbmlDiagramElement extends HTMLElement {
     this.viewportEl.addEventListener('pointercancel', endPan);
 
     this.nodesEl.addEventListener('pointerover', (event) => {
-      const el = (event.target as HTMLElement).closest<HTMLElement>('[data-table-id]');
-      const id = el?.dataset.tableId ?? null;
-      if (id !== this.hoveredTableId) this.setHovered(id);
+      const target = event.target as HTMLElement;
+      const tableEl = target.closest<HTMLElement>('[data-table-id]');
+      const newTableId = tableEl?.dataset.tableId ?? null;
+      const colEl = target.closest<HTMLElement>('[data-column-id]');
+      const newColId = colEl?.dataset.columnId ?? null;
+
+      const tableChanged = newTableId !== this.hoveredTableId;
+      const colChanged = newColId !== this.hoveredColumnId;
+      if (!tableChanged && !colChanged) return;
+
+      // Keep column highlight in sync with the pointer position.
+      if (colChanged) {
+        if (this.hoveredColumnId) {
+          this.nodesEl
+            .querySelector(`[data-column-id="${cssEscape(this.hoveredColumnId)}"]`)
+            ?.classList.remove('is-edge-endpoint');
+        }
+        this.hoveredColumnId = newColId;
+        if (newColId) {
+          this.nodesEl
+            .querySelector(`[data-column-id="${cssEscape(newColId)}"]`)
+            ?.classList.add('is-edge-endpoint');
+        }
+      }
+
+      if (tableChanged) this.applyTableHover(newTableId);
+
+      // Emit the finest-grained state available.
+      const state: HoverState =
+        newColId && newTableId
+          ? { kind: 'column', tableId: newTableId, columnId: newColId }
+          : newTableId
+            ? { kind: 'table', tableId: newTableId }
+            : { kind: 'none' };
+      this.dispatchEvent(
+        new CustomEvent<HoverState>('hover-change', { detail: state, bubbles: true }),
+      );
     });
-    this.nodesEl.addEventListener('pointerleave', () => this.setHovered(null));
+    this.nodesEl.addEventListener('pointerleave', () => {
+      if (this.hoveredColumnId) {
+        this.nodesEl
+          .querySelector(`[data-column-id="${cssEscape(this.hoveredColumnId)}"]`)
+          ?.classList.remove('is-edge-endpoint');
+        this.hoveredColumnId = null;
+      }
+      this.setHovered(null);
+    });
 
     // Body clicks still select the table. Header clicks go through the drag
     // path, which falls back to selection when movement is below the threshold.
@@ -621,7 +665,14 @@ export class DbmlDiagramElement extends HTMLElement {
    * to prevent feedback loops. The app shell routes events between panels.
    */
   setExternalHover(state: HoverState): void {
-    // Clear any externally-applied column highlight first (tracked separately
+    // Clear any internally-hovered column (user's mouse was in the diagram canvas).
+    if (this.hoveredColumnId) {
+      this.nodesEl
+        .querySelector(`[data-column-id="${cssEscape(this.hoveredColumnId)}"]`)
+        ?.classList.remove('is-edge-endpoint');
+      this.hoveredColumnId = null;
+    }
+    // Clear any externally-applied column highlight (tracked separately
     // since it doesn't go through applyEdgeHover / applyTableHover).
     if (this.externalColumnId) {
       this.nodesEl

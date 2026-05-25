@@ -591,6 +591,16 @@ export class DbmlStructureElement extends HTMLElement {
           node.classList.add('is-hovered');
         }
       }
+      // Also highlight the table nodes for both endpoints so there is visible
+      // feedback even when the tables are collapsed (no relation nodes rendered).
+      for (const colId of [state.colA, state.colB]) {
+        const lastDot = colId.lastIndexOf('.');
+        if (lastDot === -1) continue;
+        const tId = colId.slice(0, lastDot);
+        this.querySelector(`[data-node="table"][data-table-id="${cssEscape(tId)}"]`)?.classList.add(
+          'is-hovered',
+        );
+      }
     }
   }
 
