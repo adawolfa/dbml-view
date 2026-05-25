@@ -220,15 +220,11 @@ dbml-structure {
   font-weight: 600;
 }
 
-.dv-tree-group-kind {
-  font-size: 0.6rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--dv-muted);
-  background: var(--dv-table-header-bg);
-  padding: 0.05rem 0.3rem;
+.dv-tree-node-icon {
+  width: 12px;
+  height: 12px;
   flex-shrink: 0;
+  color: var(--dv-muted);
 }
 
 .dv-tree-group-name {
@@ -345,17 +341,6 @@ dbml-structure {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.dv-tree-enum-kind {
-  font-size: 0.6rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--dv-muted);
-  background: var(--dv-table-header-bg);
-  padding: 0.05rem 0.3rem;
-  flex-shrink: 0;
 }
 
 .dv-tree-node-enum.is-active {

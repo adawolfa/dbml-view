@@ -160,7 +160,7 @@ body {
 }
 
 .file-dropdown-trigger:active,
-.file-dropdown-trigger[aria-expanded='true'] {
+.file-dropdown-trigger[aria-expanded="true"] {
   background: var(--app-neutral-pressed);
   color: var(--app-fg);
 }
@@ -345,7 +345,6 @@ body {
   color: var(--app-fg);
 }
 
-
 /* Settings gear button + dropdown. */
 .settings-group {
   position: relative;
@@ -371,7 +370,7 @@ body {
 }
 
 .settings-trigger:active,
-.settings-trigger[aria-expanded='true'] {
+.settings-trigger[aria-expanded="true"] {
   background: var(--app-neutral-pressed);
 }
 

@@ -6,14 +6,10 @@ export const cs = {
   'structure.search.placeholder': 'Hledat tabulky / sloupce…',
   'structure.empty.no_dbml': 'Žádný DBML není načten.',
   'structure.empty.no_matches': 'Žádné výsledky.',
-  'structure.group.kind.tablegroup': 'Skupina',
-  'structure.group.kind.schema': 'Schéma',
   'structure.group.kind.enums': 'Výčty',
   'structure.section.columns': 'Sloupce',
   'structure.section.relations': 'Relace',
   'structure.pk.title': 'Primární klíč',
-  'structure.enum.label': 'výčet',
-  'structure.enum.title': 'Výčet',
 
   // --- Detail panel ---
   'detail.error.heading': 'DBML se nepodařilo zpracovat',
