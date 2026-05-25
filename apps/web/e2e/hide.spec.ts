@@ -186,6 +186,113 @@ test('hidden state survives a reload via localStorage', async ({ page }) => {
   ).toHaveClass(/is-hidden/);
 });
 
+// ---- Group toggle: "all or nothing" when only some tables are individually hidden ----
+
+test('schema toggle hides all tables when only some are individually hidden', async ({ page }) => {
+  await page.goto('/');
+  await loadSample(page, 'medium');
+  await setViewToggle(page, 'diagram', true);
+  // medium: 5 tables. Individually hide shop.products so the schema is only partially hidden.
+  await page
+    .locator('#structure .dv-tree-hide-toggle[data-hide-kind="table"][data-hide-id="shop.products"]')
+    .click();
+  await expect(page.locator('#diagram .dv-table')).toHaveCount(4);
+
+  // Click the schema toggle for "shop" — should hide all remaining shop tables.
+  await page
+    .locator('#structure .dv-tree-hide-toggle[data-hide-kind="schema"][data-hide-id="shop"]')
+    .click();
+
+  // Only auth.users should remain.
+  await expect(page.locator('#diagram .dv-table')).toHaveCount(1);
+  await expect(page.locator('#diagram .dv-table[data-table-id="auth.users"]')).toBeVisible();
+  await expect(
+    page.locator('#structure .dv-tree-group').filter({ hasText: 'shop' }).first(),
+  ).toHaveClass(/is-hidden/);
+});
+
+test('schema toggle un-hides all tables, clearing individual hides', async ({ page }) => {
+  await page.goto('/');
+  await loadSample(page, 'medium');
+  await setViewToggle(page, 'diagram', true);
+  // Individually hide shop.products.
+  await page
+    .locator('#structure .dv-tree-hide-toggle[data-hide-kind="table"][data-hide-id="shop.products"]')
+    .click();
+  // Hide the whole schema.
+  await page
+    .locator('#structure .dv-tree-hide-toggle[data-hide-kind="schema"][data-hide-id="shop"]')
+    .click();
+  await expect(page.locator('#diagram .dv-table')).toHaveCount(1);
+
+  // Un-hide the schema — all 5 tables must come back, including shop.products
+  // (which was individually hidden before the schema was toggled).
+  await page
+    .locator('#structure .dv-tree-hide-toggle[data-hide-kind="schema"][data-hide-id="shop"]')
+    .click();
+
+  await expect(page.locator('#diagram .dv-table')).toHaveCount(5);
+  await expect(
+    page.locator('#structure .dv-tree-table[data-table-id="shop.products"]'),
+  ).not.toHaveClass(/is-hidden/);
+});
+
+test('tablegroup toggle hides all tables when only some are individually hidden', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await loadSample(page, 'tablegroup');
+  await setViewToggle(page, 'diagram', true);
+  // tablegroup: 3 tables. Individually hide public.posts so the group is only partially hidden.
+  await page
+    .locator('#structure .dv-tree-hide-toggle[data-hide-kind="table"][data-hide-id="public.posts"]')
+    .click();
+  await expect(page.locator('#diagram .dv-table')).toHaveCount(2);
+
+  // Click the tablegroup toggle for "content" — should hide public.comments too.
+  await page
+    .locator(
+      '#structure .dv-tree-hide-toggle[data-hide-kind="tablegroup"][data-hide-id="public.content"]',
+    )
+    .click();
+
+  // Only public.users should remain.
+  await expect(page.locator('#diagram .dv-table')).toHaveCount(1);
+  await expect(page.locator('#diagram .dv-table[data-table-id="public.users"]')).toBeVisible();
+  await expect(
+    page.locator('#structure .dv-tree-group').filter({ hasText: 'content' }).first(),
+  ).toHaveClass(/is-hidden/);
+});
+
+test('tablegroup toggle un-hides all tables, clearing individual hides', async ({ page }) => {
+  await page.goto('/');
+  await loadSample(page, 'tablegroup');
+  await setViewToggle(page, 'diagram', true);
+  // Individually hide public.posts.
+  await page
+    .locator('#structure .dv-tree-hide-toggle[data-hide-kind="table"][data-hide-id="public.posts"]')
+    .click();
+  // Hide the whole group.
+  await page
+    .locator(
+      '#structure .dv-tree-hide-toggle[data-hide-kind="tablegroup"][data-hide-id="public.content"]',
+    )
+    .click();
+  await expect(page.locator('#diagram .dv-table')).toHaveCount(1);
+
+  // Un-hide the group — all 3 tables must come back, including public.posts.
+  await page
+    .locator(
+      '#structure .dv-tree-hide-toggle[data-hide-kind="tablegroup"][data-hide-id="public.content"]',
+    )
+    .click();
+
+  await expect(page.locator('#diagram .dv-table')).toHaveCount(3);
+  await expect(
+    page.locator('#structure .dv-tree-table[data-table-id="public.posts"]'),
+  ).not.toHaveClass(/is-hidden/);
+});
+
 test('hide toggle reveals on row hover and stays visible when item is hidden', async ({ page }) => {
   await page.goto('/');
   await loadSample(page, 'small');
