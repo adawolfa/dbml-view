@@ -185,7 +185,10 @@ export async function layout(
     const gid = tableGroupId(group);
     const memberIds: string[] = [];
     for (const member of group.tables) {
-      const mid = `${member.schemaName ?? DEFAULT_SCHEMA}.${member.name}`;
+      // @dbml/parse returns "" (not null) for schemaName when a TableGroup member
+      // has no schema qualifier, while db.tables uses null. Use || so both
+      // falsy values fall back to the default schema and the IDs match.
+      const mid = `${member.schemaName || DEFAULT_SCHEMA}.${member.name}`;
       if (!knownIds.has(mid)) continue;
       if (groupOfTable.has(mid)) continue;
       groupOfTable.set(mid, gid);
