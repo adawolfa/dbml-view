@@ -698,9 +698,12 @@ function distributeMidX(routes: RawRoute[], tables: PositionedTable[]): void {
     // search within ~12 grid columns (~288 px) of the desired position.
     // Past that the H-V-H shape distorts into a long U-turn, which reads
     // worse than just letting the line clip through a table.
-    let chosen = findColumn(desiredCol, 12, (c) =>
-      !collides(used, c, yLo, yHi) &&
-      !pathHitsObstacle(r.from.x, r.from.y, c * GRID, r.to.x, r.to.y, obstacles),
+    let chosen = findColumn(
+      desiredCol,
+      12,
+      (c) =>
+        !collides(used, c, yLo, yHi) &&
+        !pathHitsObstacle(r.from.x, r.from.y, c * GRID, r.to.x, r.to.y, obstacles),
     );
     // Tier 2: relax obstacle avoidance, still avoid bundle collisions, in a
     // wider window so the cross-bundle pass keeps doing its job.

@@ -18,6 +18,7 @@ import {
 } from '@dbml-view/parser';
 
 import {
+  type HoverState,
   type RefEntry,
   type Selection,
   escapeAttr,
@@ -42,6 +43,10 @@ export class DbmlDetailElement extends HTMLElement {
   private refsByTableId = new Map<string, RefEntry[]>();
   private selection: Selection = { kind: 'none' };
   private rendered = false;
+  /** Hover state from another panel; re-applied after each renderDetail(). */
+  private externalHover: HoverState = { kind: 'none' };
+  /** Last column ID emitted as hover-change, to suppress redundant events. */
+  private lastEmittedColumnId: string | null = null;
 
   connectedCallback(): void {
     if (!this.rendered) {
@@ -55,6 +60,7 @@ export class DbmlDetailElement extends HTMLElement {
       this.source = source;
     } else {
       this.renderDetail();
+      this.applyExternalHoverToDom();
     }
   }
 
@@ -82,6 +88,7 @@ export class DbmlDetailElement extends HTMLElement {
     this.refsByTableId = indexRefsByTable(db);
     if (!this.rendered) return;
     this.renderDetail();
+    this.applyExternalHoverToDom();
   }
 
   /**
@@ -92,9 +99,40 @@ export class DbmlDetailElement extends HTMLElement {
     this.selection = selection;
     if (!this.rendered) return;
     this.renderDetail();
+    this.applyExternalHoverToDom();
     if (selection.kind === 'table' && selection.columnName !== undefined) {
       this.scrollColumnIntoView(selection.tableId, selection.columnName);
     }
+  }
+
+  /**
+   * Apply a hover highlight driven by another panel. Toggles `.is-hovered`
+   * directly on existing DOM rows — no re-render, no event emission.
+   */
+  setExternalHover(state: HoverState): void {
+    this.externalHover = state;
+    this.applyExternalHoverToDom();
+  }
+
+  private applyExternalHoverToDom(): void {
+    // Clear previously applied external hover rows.
+    for (const el of this.querySelectorAll<HTMLElement>('tr.is-hovered')) {
+      el.classList.remove('is-hovered');
+    }
+    const state = this.externalHover;
+    if (state.kind === 'none') return;
+
+    const cssEscape = (id: string): string =>
+      window.CSS && CSS.escape ? CSS.escape(id) : id.replace(/["\\]/g, '\\$&');
+
+    if (state.kind === 'column') {
+      this.querySelector(`tr#${cssEscape(state.columnId)}`)?.classList.add('is-hovered');
+    } else if (state.kind === 'edge') {
+      // Highlight whichever endpoint columns are visible in the currently-shown table.
+      this.querySelector(`tr#${cssEscape(state.colA)}`)?.classList.add('is-hovered');
+      this.querySelector(`tr#${cssEscape(state.colB)}`)?.classList.add('is-hovered');
+    }
+    // 'table' kind: the whole pane already shows that table, no additional highlight needed.
   }
 
   private wireEvents(): void {
@@ -123,6 +161,41 @@ export class DbmlDetailElement extends HTMLElement {
           }),
         );
       }
+    });
+
+    // Emit hover-change when the user hovers over a column row.
+    this.addEventListener('mouseover', (event) => {
+      const row = (event.target as HTMLElement).closest<HTMLTableRowElement>('tr[id]');
+      const columnId = row?.id ?? null;
+      if (columnId === this.lastEmittedColumnId) return;
+      this.lastEmittedColumnId = columnId;
+      const sel = this.selection;
+      if (columnId && sel.kind === 'table') {
+        this.dispatchEvent(
+          new CustomEvent<HoverState>('hover-change', {
+            detail: { kind: 'column', tableId: sel.tableId, columnId },
+            bubbles: true,
+          }),
+        );
+      } else {
+        this.dispatchEvent(
+          new CustomEvent<HoverState>('hover-change', {
+            detail: { kind: 'none' },
+            bubbles: true,
+          }),
+        );
+      }
+    });
+
+    this.addEventListener('mouseleave', () => {
+      if (this.lastEmittedColumnId === null) return;
+      this.lastEmittedColumnId = null;
+      this.dispatchEvent(
+        new CustomEvent<HoverState>('hover-change', {
+          detail: { kind: 'none' },
+          bubbles: true,
+        }),
+      );
     });
   }
 

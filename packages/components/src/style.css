@@ -190,7 +190,8 @@ dbml-structure {
   transition: background 80ms ease;
 }
 
-.dv-tree-node:hover {
+.dv-tree-node:hover,
+.dv-tree-node.is-hovered {
   background: var(--dv-hover-bg);
 }
 
@@ -245,7 +246,8 @@ dbml-structure {
   font-weight: 600;
 }
 
-.dv-tree-node-table.is-active:hover {
+.dv-tree-node-table.is-active:hover,
+.dv-tree-node-table.is-active.is-hovered {
   background: var(--dv-accent-soft);
 }
 
@@ -299,7 +301,8 @@ dbml-structure {
   color: var(--dv-badge-pk-fg);
 }
 
-.dv-tree-node-column.is-active {
+.dv-tree-node-column.is-active,
+.dv-tree-node-column.is-active.is-hovered {
   background: var(--dv-accent-soft);
   border-left-color: var(--dv-accent);
 }
@@ -357,7 +360,8 @@ dbml-structure {
   font-weight: 600;
 }
 
-.dv-tree-node-enum.is-active:hover {
+.dv-tree-node-enum.is-active:hover,
+.dv-tree-node-enum.is-active.is-hovered {
   background: var(--dv-accent-soft);
 }
 
@@ -530,6 +534,10 @@ dbml-detail {
 
 .dv-columns tbody tr:hover td {
   background: var(--dv-row-hover-bg);
+}
+
+.dv-columns tbody tr.is-hovered td {
+  background: var(--dv-hover-bg);
 }
 
 .dv-columns tbody tr.is-highlighted td {
