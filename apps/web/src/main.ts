@@ -16,6 +16,7 @@ import type {
   DbmlStructureElement,
   HiddenSet,
   HoverState,
+  SearchActiveDetail,
   Selection,
 } from '@dbml-view/components';
 import { cs, setLocale, t } from '@dbml-view/i18n';
@@ -887,6 +888,22 @@ function updateSelectionHash(sel: Selection): void {
     history.replaceState(null, '', url);
   }
 }
+
+// Structure search cursor preview — when the user arrow-navigates through
+// search matches, mirror the highlight in the diagram + detail and pan the
+// diagram to keep the active match visible. `null` means the query was
+// cleared (Escape / empty input / no matches), so drop the preview.
+structure.addEventListener('search-active-change', (event) => {
+  const payload = (event as CustomEvent<SearchActiveDetail>).detail;
+  if (!payload) {
+    diagram.setExternalHover({ kind: 'none' });
+    detail.setExternalHover({ kind: 'none' });
+    return;
+  }
+  diagram.setExternalHover(payload.hover);
+  detail.setExternalHover(payload.hover);
+  if (payload.match.kind === 'table') diagram.panToTable(payload.match.tableId);
+});
 
 // Cross-panel hover synchronisation. Each panel emits `hover-change`; the app
 // shell routes it to the OTHER two panels only (no echo back to the source).

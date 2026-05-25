@@ -10,6 +10,7 @@ export { DbmlDetailElement, registerDetailElement };
 export { DbmlDiagramElement, registerDiagramElement };
 export type { Selection, HoverState, HiddenSet } from './shared';
 export { computeHiddenTableIds, emptyHiddenSet, hiddenSetIsEmpty } from './shared';
+export type { SearchActiveDetail, SearchMatch } from './structure';
 
 /** Register all custom elements. Call this after setLocale() so that the initial
  * render uses the correct translations. */

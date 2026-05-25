@@ -1016,8 +1016,17 @@ export class DbmlDiagramElement extends HTMLElement {
   revealTable(id: string): void {
     // 1. Apply selection visual.
     this.applyTableSelection(id);
+    // 2. Pan into viewport if needed + brief pulse.
+    this.panToTable(id, { pulse: true });
+  }
 
-    // 2. Pan to the table if it's outside the current viewport.
+  /**
+   * Pan the diagram so `id` is visible; no-op if it's already fully on-screen.
+   * Optionally pulses the table once so the user's eye locks onto it. Unlike
+   * {@link revealTable} this does NOT change the diagram's selection — used by
+   * the structure search to preview a match without committing.
+   */
+  panToTable(id: string, options: { pulse?: boolean } = {}): void {
     const pos = this.positions.get(id);
     if (!pos) return;
 
@@ -1026,30 +1035,30 @@ export class DbmlDiagramElement extends HTMLElement {
     if (vw === 0 || vh === 0) return;
 
     const { scale, tx, ty } = this.viewport;
-    // Canvas-space top-left corner of the table.
     const cx = pos.x + this.layoutOffset.x;
     const cy = pos.y + this.layoutOffset.y;
     const cw = pos.width;
     const ch = pos.height;
 
-    // Map to viewport-space.
     const vpLeft = cx * scale + tx;
     const vpTop = cy * scale + ty;
     const vpRight = (cx + cw) * scale + tx;
     const vpBottom = (cy + ch) * scale + ty;
 
     if (vpLeft < 0 || vpTop < 0 || vpRight > vw || vpBottom > vh) {
-      // Center the table in the viewport.
       this.panTo(vw / 2 - (cx + cw / 2) * scale, vh / 2 - (cy + ch / 2) * scale);
     }
 
-    // 3. Brief highlight so the table pops visually.
-    const el = this.tableEls.get(id);
-    if (el) {
-      el.classList.remove('is-revealed');
-      void el.offsetWidth; // force reflow so removing + re-adding restarts the animation
-      el.classList.add('is-revealed');
-      el.addEventListener('animationend', () => el.classList.remove('is-revealed'), { once: true });
+    if (options.pulse) {
+      const el = this.tableEls.get(id);
+      if (el) {
+        el.classList.remove('is-revealed');
+        void el.offsetWidth;
+        el.classList.add('is-revealed');
+        el.addEventListener('animationend', () => el.classList.remove('is-revealed'), {
+          once: true,
+        });
+      }
     }
   }
 

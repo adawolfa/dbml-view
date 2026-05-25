@@ -266,6 +266,86 @@ export function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
+/**
+ * Two-tier name search used by the structure tree.
+ *   1. Case-insensitive contiguous substring (the original behaviour).
+ *   2. Word-aware subsequence — each query char must either start a new word in
+ *      the target (after `_`, `-`, `.`, ` `, a camel-case bump, or a letter→
+ *      digit transition) or directly continue the previously matched char.
+ *      Lets `poRe` match `post_revisions` without being so loose that `us`
+ *      starts matching any name with a stray `u` and `s` in it.
+ *
+ * Returns the indices in `target` where each query char matched, or `null` if
+ * no match. Empty query → empty array (caller's "no filter" sentinel).
+ */
+export function searchMatch(target: string, query: string): number[] | null {
+  if (query.length === 0) return [];
+  const t = target.toLowerCase();
+  const q = query.toLowerCase();
+
+  const direct = t.indexOf(q);
+  if (direct >= 0) {
+    const out: number[] = [];
+    for (let k = 0; k < q.length; k++) out.push(direct + k);
+    return out;
+  }
+
+  const indices: number[] = [];
+  let prev = -1;
+  for (let qi = 0; qi < q.length; qi++) {
+    const qc = q[qi]!;
+    let pick = -1;
+    for (let j = prev + 1; j < t.length; j++) {
+      if (t[j] !== qc) continue;
+      const continuation = prev !== -1 && j === prev + 1;
+      if (continuation || isWordBoundary(target, j)) {
+        pick = j;
+        break;
+      }
+    }
+    if (pick === -1) return null;
+    indices.push(pick);
+    prev = pick;
+  }
+  return indices;
+}
+
+function isWordBoundary(s: string, i: number): boolean {
+  if (i === 0) return true;
+  const prev = s[i - 1]!;
+  if (/[^A-Za-z0-9]/.test(prev)) return true;
+  const curr = s[i]!;
+  if (/[a-z]/.test(prev) && /[A-Z]/.test(curr)) return true;
+  if (/[A-Za-z]/.test(prev) && /[0-9]/.test(curr)) return true;
+  return false;
+}
+
+/**
+ * Render `text` with the characters at `indices` wrapped in `<mark>` spans.
+ * Contiguous indices collapse into a single span so adjacent matches read as
+ * one highlighted run rather than a strobe of individual characters.
+ *
+ * `null` / empty `indices` → plain escaped text (no markup).
+ */
+export function highlightHtml(text: string, indices: number[] | null): string {
+  if (!indices || indices.length === 0) return escapeHtml(text);
+  const ranges: Array<[number, number]> = [];
+  for (const i of indices) {
+    const last = ranges[ranges.length - 1];
+    if (last && last[1] + 1 === i) last[1] = i;
+    else ranges.push([i, i]);
+  }
+  const parts: string[] = [];
+  let pos = 0;
+  for (const [start, end] of ranges) {
+    if (start > pos) parts.push(escapeHtml(text.slice(pos, start)));
+    parts.push(`<mark class="dv-tree-match">${escapeHtml(text.slice(start, end + 1))}</mark>`);
+    pos = end + 1;
+  }
+  if (pos < text.length) parts.push(escapeHtml(text.slice(pos)));
+  return parts.join('');
+}
+
 export function escapeAttr(value: string): string {
   return escapeHtml(value);
 }

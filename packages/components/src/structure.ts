@@ -30,13 +30,28 @@ import {
   escapeAttr,
   escapeHtml,
   formatColumnType,
+  highlightHtml,
   hoverStateEquals,
   indexRefsByTable,
   otherEndpointOf,
   relationArrow,
+  searchMatch,
   selfEndpoint,
   tableGroupKey,
 } from './shared';
+
+/**
+ * One entry in the ordered list of search matches the structure can step
+ * through with arrow keys. The shape mirrors {@link Selection} but is its own
+ * type so consumers can't confuse "currently selected" with "search cursor".
+ */
+export type SearchMatch =
+  | { kind: 'table'; tableId: string; columnName?: string }
+  | { kind: 'enum'; enumId: string };
+
+/** Detail of the `search-active-change` event — `null` means search is empty
+ * or has no matches and the diagram/detail should drop any preview highlight. */
+export type SearchActiveDetail = { match: SearchMatch; hover: HoverState } | null;
 
 export class DbmlStructureElement extends HTMLElement {
   static readonly tagName = 'dbml-structure';
@@ -58,6 +73,14 @@ export class DbmlStructureElement extends HTMLElement {
   private externalHover: HoverState = { kind: 'none' };
   /** Tracks which hover state is currently being emitted so we can deduplicate. */
   private internalHover: HoverState = { kind: 'none' };
+  /** Ordered list of search matches in tree traversal order. Rebuilt on every
+   * search-driven render so arrow nav follows visual order. */
+  private searchMatches: SearchMatch[] = [];
+  /** Index into {@link searchMatches} for the currently highlighted match. */
+  private activeMatchIndex = 0;
+  /** Per-target highlight indices, keyed by `t:<tableId>` / `c:<tableId>.<col>`
+   * / `e:<enumId>`. Lookup during render to wrap matched chars in &lt;mark&gt;. */
+  private matchIndices = new Map<string, number[]>();
 
   connectedCallback(): void {
     if (!this.rendered) {
@@ -163,8 +186,45 @@ export class DbmlStructureElement extends HTMLElement {
   private wireEvents(): void {
     const search = this.querySelector<HTMLInputElement>('[data-search]');
     search?.addEventListener('input', () => {
-      this.searchQuery = search.value.trim().toLowerCase();
+      this.searchQuery = search.value.trim();
+      this.activeMatchIndex = 0;
       this.renderTree();
+      this.updateClearButton();
+      this.emitSearchActive();
+    });
+    search?.addEventListener('keydown', (event) => {
+      if (event.key === 'ArrowDown') {
+        if (this.searchMatches.length > 0) {
+          event.preventDefault();
+          this.activeMatchIndex = (this.activeMatchIndex + 1) % this.searchMatches.length;
+          this.applyActiveMatchHighlight();
+          this.emitSearchActive();
+        }
+      } else if (event.key === 'ArrowUp') {
+        if (this.searchMatches.length > 0) {
+          event.preventDefault();
+          this.activeMatchIndex =
+            (this.activeMatchIndex - 1 + this.searchMatches.length) % this.searchMatches.length;
+          this.applyActiveMatchHighlight();
+          this.emitSearchActive();
+        }
+      } else if (event.key === 'Enter') {
+        if (this.searchMatches.length > 0) {
+          event.preventDefault();
+          this.activateCurrentMatch();
+        }
+      } else if (event.key === 'Escape') {
+        if (search.value !== '') {
+          event.preventDefault();
+          this.clearSearch();
+        }
+      }
+    });
+
+    const clearBtn = this.querySelector<HTMLButtonElement>('[data-search-clear]');
+    clearBtn?.addEventListener('click', () => {
+      this.clearSearch();
+      search?.focus();
     });
 
     const tree = this.querySelector<HTMLElement>('[data-tree]');
@@ -235,6 +295,8 @@ export class DbmlStructureElement extends HTMLElement {
     if (!this.database) {
       container.innerHTML = `<p class="dv-empty">${escapeHtml(t('structure.empty.no_dbml'))}</p>`;
       this.applyExternalHoverToDom();
+      this.searchMatches = [];
+      this.matchIndices.clear();
       return;
     }
     const groups = buildTree(this.database);
@@ -242,32 +304,49 @@ export class DbmlStructureElement extends HTMLElement {
     const matchingTables = new Set<string>();
     const matchingColumns = new Map<string, Set<string>>();
     const matchingEnums = new Set<string>();
+    this.matchIndices.clear();
+    this.searchMatches = [];
     if (q !== '') {
+      // Tables first across all groups (visually rendered top-down), enums last
+      // (rendered after every schema/tablegroup section). Matches the order the
+      // arrow keys step through.
       for (const group of groups) {
         for (const table of group.tables) {
           const tId = tableId(table);
-          const tableMatches =
-            table.name.toLowerCase().includes(q) ||
-            (table.schemaName ?? DEFAULT_SCHEMA).toLowerCase().includes(q);
-          const colMatches = table.fields.filter((c) => c.name.toLowerCase().includes(q));
-          if (tableMatches || colMatches.length > 0) {
+          const tableNameMatch = searchMatch(table.name, q);
+          const colHits: Array<{ name: string; indices: number[] }> = [];
+          for (const col of table.fields) {
+            const hit = searchMatch(col.name, q);
+            if (hit) colHits.push({ name: col.name, indices: hit });
+          }
+          if (tableNameMatch || colHits.length > 0) {
             matchingTables.add(tId);
-            if (!tableMatches) {
-              matchingColumns.set(tId, new Set(colMatches.map((c) => c.name)));
+            if (tableNameMatch) {
+              this.matchIndices.set(`t:${tId}`, tableNameMatch);
+              this.searchMatches.push({ kind: 'table', tableId: tId });
+            }
+            if (colHits.length > 0) {
+              matchingColumns.set(tId, new Set(colHits.map((c) => c.name)));
+              for (const c of colHits) {
+                this.matchIndices.set(`c:${tId}.${c.name}`, c.indices);
+                this.searchMatches.push({ kind: 'table', tableId: tId, columnName: c.name });
+              }
             }
           }
         }
+      }
+      for (const group of groups) {
         for (const en of group.enums) {
           const eId = enumId(en);
-          const enumMatches =
-            en.name.toLowerCase().includes(q) ||
-            (en.schemaName ?? DEFAULT_SCHEMA).toLowerCase().includes(q);
-          const valueMatches = en.values.filter((v) => v.name.toLowerCase().includes(q));
-          if (enumMatches || valueMatches.length > 0) {
+          const enumNameMatch = searchMatch(en.name, q);
+          if (enumNameMatch) {
             matchingEnums.add(eId);
+            this.matchIndices.set(`e:${eId}`, enumNameMatch);
+            this.searchMatches.push({ kind: 'enum', enumId: eId });
           }
         }
       }
+      if (this.activeMatchIndex >= this.searchMatches.length) this.activeMatchIndex = 0;
       if (matchingTables.size === 0 && matchingEnums.size === 0) {
         container.innerHTML = `<p class="dv-empty">${escapeHtml(t('structure.empty.no_matches'))}</p>`;
         this.applyExternalHoverToDom();
@@ -332,6 +411,107 @@ export class DbmlStructureElement extends HTMLElement {
 
     container.innerHTML = `<ul class="dv-tree">${html}${enumsSectionHtml}</ul>`;
     this.applyExternalHoverToDom();
+    this.applyActiveMatchHighlight();
+  }
+
+  /** Mark the DOM node corresponding to the active search match with
+   * `is-search-active` and scroll it into view. Cleared before re-applying so
+   * stale highlights don't accumulate across re-renders. */
+  private applyActiveMatchHighlight(): void {
+    for (const el of this.querySelectorAll<HTMLElement>('.is-search-active')) {
+      el.classList.remove('is-search-active');
+    }
+    if (this.searchQuery === '' || this.searchMatches.length === 0) return;
+    const match = this.searchMatches[this.activeMatchIndex];
+    if (!match) return;
+    const target = this.matchTargetEl(match);
+    if (!target) return;
+    target.classList.add('is-search-active');
+    target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  private matchTargetEl(match: SearchMatch): HTMLElement | null {
+    if (match.kind === 'enum') {
+      return this.querySelector<HTMLElement>(
+        `[data-node="enum"][data-enum-id="${cssEscape(match.enumId)}"]`,
+      );
+    }
+    if (match.columnName !== undefined) {
+      return this.querySelector<HTMLElement>(
+        `[data-node="column"][data-table-id="${cssEscape(match.tableId)}"][data-column="${cssEscape(match.columnName)}"]`,
+      );
+    }
+    return this.querySelector<HTMLElement>(
+      `[data-node="table"][data-table-id="${cssEscape(match.tableId)}"]`,
+    );
+  }
+
+  /** Translate the active match into a {@link HoverState} so listeners can mirror
+   * the highlight in the diagram and detail panes. Returns `null` when there is
+   * no active match (empty query or no hits). */
+  private activeMatchHover(): HoverState | null {
+    if (this.searchQuery === '' || this.searchMatches.length === 0) return null;
+    const match = this.searchMatches[this.activeMatchIndex];
+    if (!match || match.kind === 'enum') return null;
+    if (match.columnName !== undefined) {
+      return {
+        kind: 'column',
+        tableId: match.tableId,
+        columnId: `${match.tableId}.${match.columnName}`,
+      };
+    }
+    return { kind: 'table', tableId: match.tableId };
+  }
+
+  private emitSearchActive(): void {
+    if (this.searchQuery === '' || this.searchMatches.length === 0) {
+      this.dispatchEvent(
+        new CustomEvent<SearchActiveDetail>('search-active-change', {
+          detail: null,
+          bubbles: true,
+        }),
+      );
+      return;
+    }
+    const match = this.searchMatches[this.activeMatchIndex];
+    if (!match) return;
+    const hover = this.activeMatchHover() ?? { kind: 'none' };
+    this.dispatchEvent(
+      new CustomEvent<SearchActiveDetail>('search-active-change', {
+        detail: { match, hover },
+        bubbles: true,
+      }),
+    );
+  }
+
+  private activateCurrentMatch(): void {
+    const match = this.searchMatches[this.activeMatchIndex];
+    if (!match) return;
+    if (match.kind === 'enum') {
+      this.selectEnum(match.enumId);
+      return;
+    }
+    if (match.columnName !== undefined) {
+      this.activateColumn(match.tableId, match.columnName);
+      return;
+    }
+    this.selectTable(match.tableId);
+  }
+
+  private clearSearch(): void {
+    const search = this.querySelector<HTMLInputElement>('[data-search]');
+    if (search) search.value = '';
+    this.searchQuery = '';
+    this.activeMatchIndex = 0;
+    this.renderTree();
+    this.updateClearButton();
+    this.emitSearchActive();
+  }
+
+  private updateClearButton(): void {
+    const btn = this.querySelector<HTMLButtonElement>('[data-search-clear]');
+    if (!btn) return;
+    btn.hidden = this.searchQuery === '';
   }
 
   private renderTreeTable(
@@ -389,6 +569,7 @@ export class DbmlStructureElement extends HTMLElement {
 
     const hideToggle = this.renderTableHideToggle(id);
     const hiddenClass = this.effectiveHidden.has(id) ? ' is-hidden' : '';
+    const tableNameHtml = highlightHtml(table.name, this.matchIndices.get(`t:${id}`) ?? null);
     return `
       <li class="dv-tree-table${active ? ' is-active' : ''}${hiddenClass}" data-table-id="${escapeAttr(id)}">
         <div class="dv-tree-row">
@@ -401,7 +582,7 @@ export class DbmlStructureElement extends HTMLElement {
           >
             <span class="dv-tree-chevron">${chevron}</span>
             ${iconTable()}
-            <span class="dv-tree-table-name">${escapeHtml(table.name)}</span>
+            <span class="dv-tree-table-name">${tableNameHtml}</span>
           </button>
           ${hideToggle}
           <span class="dv-tree-count">${table.fields.length}</span>
@@ -420,6 +601,10 @@ export class DbmlStructureElement extends HTMLElement {
     const pk = column.pk
       ? `<span class="dv-tree-flag dv-tree-flag-pk" title="${escapeAttr(t('structure.pk.title'))}">${escapeHtml(t('detail.flag.pk'))}</span>`
       : '';
+    const nameHtml = highlightHtml(
+      column.name,
+      this.matchIndices.get(`c:${id}.${column.name}`) ?? null,
+    );
     return `
       <li>
         <button
@@ -429,7 +614,7 @@ export class DbmlStructureElement extends HTMLElement {
           data-table-id="${escapeAttr(id)}"
           data-column="${escapeAttr(column.name)}"
         >
-          <span class="dv-tree-column-name">${escapeHtml(column.name)}</span>
+          <span class="dv-tree-column-name">${nameHtml}</span>
           ${pk}
           <span class="dv-tree-column-type">${escapeHtml(formatColumnType(column))}</span>
         </button>
@@ -440,6 +625,7 @@ export class DbmlStructureElement extends HTMLElement {
   private renderTreeEnum(en: Enum): string {
     const id = enumId(en);
     const active = this.selection.kind === 'enum' && this.selection.enumId === id;
+    const nameHtml = highlightHtml(en.name, this.matchIndices.get(`e:${id}`) ?? null);
     return `
       <li class="dv-tree-enum${active ? ' is-active' : ''}">
         <button
@@ -449,7 +635,7 @@ export class DbmlStructureElement extends HTMLElement {
           data-enum-id="${escapeAttr(id)}"
         >
           ${iconEnum()}
-          <span class="dv-tree-enum-name">${escapeHtml(en.name)}</span>
+          <span class="dv-tree-enum-name">${nameHtml}</span>
           <span class="dv-tree-count">${en.values.length}</span>
         </button>
       </li>
@@ -466,6 +652,15 @@ export class DbmlStructureElement extends HTMLElement {
     // First field column IDs for cross-panel edge hover matching.
     const fromColId = selfEnd.fieldNames[0] ? `${selfId}.${selfEnd.fieldNames[0]}` : '';
     const toColId = other.fieldNames[0] ? `${targetId}.${other.fieldNames[0]}` : '';
+    // Highlight matches in the target table name and the (comma-separated) self
+    // field names so relationship rows reflect the active query just like the
+    // primary nodes do.
+    const q = this.searchQuery;
+    const targetIndices = q !== '' ? searchMatch(other.tableName, q) : null;
+    const targetHtml = highlightHtml(other.tableName, targetIndices);
+    const fieldsStr = `(${selfEnd.fieldNames.join(', ')})`;
+    const fieldsIndices = q !== '' ? searchMatch(fieldsStr, q) : null;
+    const fieldsHtml = highlightHtml(fieldsStr, fieldsIndices);
     return `
       <li>
         <button
@@ -478,8 +673,8 @@ export class DbmlStructureElement extends HTMLElement {
           title="${escapeAttr(fieldsLabel)}"
         >
           <span class="dv-tree-rel-arrow">${arrow}</span>
-          <span class="dv-tree-rel-target">${escapeHtml(other.tableName)}</span>
-          <span class="dv-tree-rel-fields">${escapeHtml(`(${selfEnd.fieldNames.join(', ')})`)}</span>
+          <span class="dv-tree-rel-target">${targetHtml}</span>
+          <span class="dv-tree-rel-fields">${fieldsHtml}</span>
         </button>
       </li>
     `;
@@ -899,11 +1094,29 @@ function iconEnum(): string {
   return `<svg class="dv-tree-node-icon" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" aria-hidden="true"><path d="M4 1.5C3.5 1.5 3 2 3 2.5V5C3 5.5 2.5 6 2 6C2.5 6 3 6.5 3 7V9.5C3 10 3.5 10.5 4 10.5"/><path d="M8 1.5C8.5 1.5 9 2 9 2.5V5C9 5.5 9.5 6 10 6C9.5 6 9 6.5 9 7V9.5C9 10 8.5 10.5 8 10.5"/><circle cx="6" cy="6" r="0.75" fill="currentColor" stroke="none"/></svg>`;
 }
 
+function iconSearch(): string {
+  return `<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="4"/><line x1="9" y1="9" x2="12.5" y2="12.5"/></svg>`;
+}
+
+function iconClear(): string {
+  return `<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3.5" y1="3.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="3.5" x2="3.5" y2="10.5"/></svg>`;
+}
+
 function makeTemplate(): string {
+  const clearLabel = t('structure.search.clear');
   return `
-    <label class="dv-search">
+    <div class="dv-search" role="search">
+      <span class="dv-search-icon" aria-hidden="true">${iconSearch()}</span>
       <input type="search" placeholder="${escapeAttr(t('structure.search.placeholder'))}" data-search />
-    </label>
+      <button
+        type="button"
+        class="dv-search-clear"
+        data-search-clear
+        title="${escapeAttr(clearLabel)}"
+        aria-label="${escapeAttr(clearLabel)}"
+        hidden
+      >${iconClear()}</button>
+    </div>
     <nav class="dv-tree-wrap" data-tree></nav>
   `;
 }
