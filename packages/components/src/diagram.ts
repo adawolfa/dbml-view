@@ -1237,6 +1237,8 @@ function cssEscape(value: string): string {
     : value.replace(/["\\]/g, '\\$&');
 }
 
-if (!customElements.get(DbmlDiagramElement.tagName)) {
-  customElements.define(DbmlDiagramElement.tagName, DbmlDiagramElement);
+export function registerDiagramElement(): void {
+  if (!customElements.get(DbmlDiagramElement.tagName)) {
+    customElements.define(DbmlDiagramElement.tagName, DbmlDiagramElement);
+  }
 }

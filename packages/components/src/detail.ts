@@ -496,6 +496,8 @@ function renderRefItem(entry: RefEntry, self: Table): string {
   `;
 }
 
-if (!customElements.get(DbmlDetailElement.tagName)) {
-  customElements.define(DbmlDetailElement.tagName, DbmlDetailElement);
+export function registerDetailElement(): void {
+  if (!customElements.get(DbmlDetailElement.tagName)) {
+    customElements.define(DbmlDetailElement.tagName, DbmlDetailElement);
+  }
 }
