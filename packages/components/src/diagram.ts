@@ -172,14 +172,16 @@ export class DbmlDiagramElement extends HTMLElement {
     void this.nodesEl.offsetHeight;
 
     for (const [id, el] of this.tableEls) {
-      const rect = el.getBoundingClientRect();
+      // offsetWidth/Height (not getBoundingClientRect) — the canvas carries a
+      // CSS transform from the previous fit-to-screen, which would scale rect
+      // values and feed the layout engine bogus (tiny) table sizes.
       const rowOffsets = new Map<string, { top: number; height: number }>();
       for (const rowEl of el.querySelectorAll<HTMLElement>('[data-column-id]')) {
         const cid = rowEl.dataset.columnId;
         if (!cid) continue;
         rowOffsets.set(cid, { top: rowEl.offsetTop, height: rowEl.offsetHeight });
       }
-      measures.set(id, { width: rect.width, height: rect.height, rowOffsets });
+      measures.set(id, { width: el.offsetWidth, height: el.offsetHeight, rowOffsets });
     }
 
     const result = layout(db, measures);
