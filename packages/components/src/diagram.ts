@@ -3,7 +3,14 @@
 // Pipeline: build table DOM → measure off-screen → packages/layout →
 // move tables into the canvas + draw edges → pan/zoom + toolbar.
 
-import { type LayoutResult, type RoutedEdge, type TableMeasure, layout } from '@dbml-view/layout';
+import {
+  type LayoutResult,
+  type PositionedTable,
+  type RoutedEdge,
+  type TableMeasure,
+  layout,
+  reroute,
+} from '@dbml-view/layout';
 import {
   type Column,
   DEFAULT_SCHEMA,
@@ -22,6 +29,8 @@ const MIN_SCALE = 0.15;
 const MAX_SCALE = 3;
 const ZOOM_STEP = 1.2;
 const CANVAS_PADDING = 32;
+/** Pointer movement (in viewport pixels) below which a header press is treated as a click, not a drag. */
+const DRAG_THRESHOLD = 3;
 
 type Viewport = { scale: number; tx: number; ty: number };
 
@@ -42,6 +51,11 @@ export class DbmlDiagramElement extends HTMLElement {
   private toolbarEl!: HTMLElement;
   private viewport: Viewport = { scale: 1, tx: 0, ty: 0 };
   private lastLayout: LayoutResult | null = null;
+  /** Working positions, mutated in place during drag; `lastLayout.tables` is rebuilt from this on each reroute. */
+  private positions = new Map<string, PositionedTable>();
+  private measures = new Map<string, TableMeasure>();
+  /** Offset from layout-space to canvas-space, captured at layout time so drag math doesn't need to keep re-deriving it. */
+  private layoutOffset = { x: 0, y: 0 };
   private tableEls = new Map<string, HTMLElement>();
   private edgeEls = new Map<string, SVGGElement>();
   private edgesByTable = new Map<string, Set<string>>();
@@ -191,10 +205,14 @@ export class DbmlDiagramElement extends HTMLElement {
     // A newer relayout has started while we awaited ELK — drop this result.
     if (myToken !== this.layoutToken) return;
     this.lastLayout = result;
+    this.measures = measures;
+    this.positions = new Map(result.tables.map((t) => [t.id, { ...t }]));
 
     // Step 3: position tables in the canvas.
-    const offsetX = CANVAS_PADDING - result.bbox.x;
-    const offsetY = CANVAS_PADDING - result.bbox.y;
+    this.layoutOffset = {
+      x: CANVAS_PADDING - result.bbox.x,
+      y: CANVAS_PADDING - result.bbox.y,
+    };
     const canvasWidth = result.bbox.width + CANVAS_PADDING * 2;
     const canvasHeight = result.bbox.height + CANVAS_PADDING * 2;
     this.canvasEl.style.width = `${canvasWidth}px`;
@@ -203,16 +221,31 @@ export class DbmlDiagramElement extends HTMLElement {
     for (const positioned of result.tables) {
       const el = this.tableEls.get(positioned.id);
       if (!el) continue;
-      el.style.transform = `translate(${positioned.x + offsetX}px, ${positioned.y + offsetY}px)`;
+      this.applyTableTransform(el, positioned);
       el.style.width = `${positioned.width}px`;
     }
 
-    // Step 4: SVG edges, in the same coordinate space (offset built into the path).
+    this.renderEdges(result.edges, canvasWidth, canvasHeight);
+
+    this.canvasEl.style.visibility = 'visible';
+    this.fit();
+  }
+
+  private applyTableTransform(el: HTMLElement, p: { x: number; y: number }): void {
+    el.style.transform = `translate(${p.x + this.layoutOffset.x}px, ${p.y + this.layoutOffset.y}px)`;
+  }
+
+  private renderEdges(edges: RoutedEdge[], canvasWidth: number, canvasHeight: number): void {
+    this.edgeEls.clear();
+    this.edgesByTable.clear();
+    while (this.edgesEl.firstChild) this.edgesEl.removeChild(this.edgesEl.firstChild);
     this.edgesEl.setAttribute('width', String(canvasWidth));
     this.edgesEl.setAttribute('height', String(canvasHeight));
     this.edgesEl.setAttribute('viewBox', `0 0 ${canvasWidth} ${canvasHeight}`);
-    for (const edge of result.edges) {
-      const shifted = shiftEdge(edge, offsetX, offsetY);
+    const dx = this.layoutOffset.x;
+    const dy = this.layoutOffset.y;
+    for (const edge of edges) {
+      const shifted = shiftEdge(edge, dx, dy);
       const group = document.createElementNS(SVG_NS, 'g');
       group.setAttribute('class', 'dv-edge-group');
       group.dataset.edgeId = edge.id;
@@ -242,9 +275,6 @@ export class DbmlDiagramElement extends HTMLElement {
       track(this.edgesByTable, edge.from.tableId, edge.id);
       track(this.edgesByTable, edge.to.tableId, edge.id);
     }
-
-    this.canvasEl.style.visibility = 'visible';
-    this.fit();
   }
 
   private wireInteractions(): void {
@@ -261,40 +291,40 @@ export class DbmlDiagramElement extends HTMLElement {
       { passive: false },
     );
 
-    let dragging = false;
-    let dragStartX = 0;
-    let dragStartY = 0;
-    let dragOriginTx = 0;
-    let dragOriginTy = 0;
-    let activePointer: number | null = null;
+    let panning = false;
+    let panStartX = 0;
+    let panStartY = 0;
+    let panOriginTx = 0;
+    let panOriginTy = 0;
+    let panPointer: number | null = null;
 
     this.viewportEl.addEventListener('pointerdown', (event) => {
       // Pan on background drag only; don't hijack clicks inside tables.
       const onTable = (event.target as HTMLElement).closest('[data-table-id]');
       if (onTable) return;
-      dragging = true;
-      activePointer = event.pointerId;
-      dragStartX = event.clientX;
-      dragStartY = event.clientY;
-      dragOriginTx = this.viewport.tx;
-      dragOriginTy = this.viewport.ty;
+      panning = true;
+      panPointer = event.pointerId;
+      panStartX = event.clientX;
+      panStartY = event.clientY;
+      panOriginTx = this.viewport.tx;
+      panOriginTy = this.viewport.ty;
       this.viewportEl.setPointerCapture(event.pointerId);
       this.viewportEl.classList.add('is-panning');
     });
     this.viewportEl.addEventListener('pointermove', (event) => {
-      if (!dragging || event.pointerId !== activePointer) return;
-      this.viewport.tx = dragOriginTx + (event.clientX - dragStartX);
-      this.viewport.ty = dragOriginTy + (event.clientY - dragStartY);
+      if (!panning || event.pointerId !== panPointer) return;
+      this.viewport.tx = panOriginTx + (event.clientX - panStartX);
+      this.viewport.ty = panOriginTy + (event.clientY - panStartY);
       this.applyViewport();
     });
-    const endDrag = (event: PointerEvent): void => {
-      if (event.pointerId !== activePointer) return;
-      dragging = false;
-      activePointer = null;
+    const endPan = (event: PointerEvent): void => {
+      if (event.pointerId !== panPointer) return;
+      panning = false;
+      panPointer = null;
       this.viewportEl.classList.remove('is-panning');
     };
-    this.viewportEl.addEventListener('pointerup', endDrag);
-    this.viewportEl.addEventListener('pointercancel', endDrag);
+    this.viewportEl.addEventListener('pointerup', endPan);
+    this.viewportEl.addEventListener('pointercancel', endPan);
 
     this.nodesEl.addEventListener('pointerover', (event) => {
       const el = (event.target as HTMLElement).closest<HTMLElement>('[data-table-id]');
@@ -303,13 +333,17 @@ export class DbmlDiagramElement extends HTMLElement {
     });
     this.nodesEl.addEventListener('pointerleave', () => this.setHovered(null));
 
+    // Body clicks still select the table. Header clicks go through the drag
+    // path, which falls back to selection when movement is below the threshold.
     this.nodesEl.addEventListener('click', (event) => {
-      const el = (event.target as HTMLElement).closest<HTMLElement>('[data-table-id]');
+      const target = event.target as HTMLElement;
+      if (target.closest('.dv-table-header')) return;
+      const el = target.closest<HTMLElement>('[data-table-id]');
       const id = el?.dataset.tableId ?? null;
-      if (id) {
-        this.selectTable(id);
-      }
+      if (id) this.selectTable(id);
     });
+
+    this.wireTableDrag();
 
     this.toolbarEl.addEventListener('click', (event) => {
       const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-act]');
@@ -337,6 +371,118 @@ export class DbmlDiagramElement extends HTMLElement {
           break;
       }
     });
+  }
+
+  /**
+   * Drag a table by its header. Below {@link DRAG_THRESHOLD} of pointer
+   * movement the press becomes a click (table selection); past it, we capture
+   * the pointer and begin updating positions, re-routing edges live.
+   */
+  private wireTableDrag(): void {
+    let dragId: string | null = null;
+    let dragEl: HTMLElement | null = null;
+    let dragPointer: number | null = null;
+    let startClientX = 0;
+    let startClientY = 0;
+    let originX = 0;
+    let originY = 0;
+    let active = false;
+    let pendingFrame = false;
+    let pendingX = 0;
+    let pendingY = 0;
+
+    const onMove = (event: PointerEvent): void => {
+      if (dragPointer === null || event.pointerId !== dragPointer) return;
+      const scale = this.viewport.scale || 1;
+      const dx = (event.clientX - startClientX) / scale;
+      const dy = (event.clientY - startClientY) / scale;
+      if (!active) {
+        if (Math.hypot(event.clientX - startClientX, event.clientY - startClientY) < DRAG_THRESHOLD) {
+          return;
+        }
+        active = true;
+        dragEl?.classList.add('is-dragging');
+        this.canvasEl.classList.add('is-dragging-table');
+      }
+      pendingX = originX + dx;
+      pendingY = originY + dy;
+      if (pendingFrame) return;
+      pendingFrame = true;
+      requestAnimationFrame(() => {
+        pendingFrame = false;
+        if (!dragId) return;
+        const pos = this.positions.get(dragId);
+        if (!pos) return;
+        pos.x = pendingX;
+        pos.y = pendingY;
+        if (dragEl) this.applyTableTransform(dragEl, pos);
+        this.rerouteEdges();
+      });
+    };
+
+    const endDrag = (event: PointerEvent): void => {
+      if (dragPointer === null || event.pointerId !== dragPointer) return;
+      const wasActive = active;
+      try {
+        this.nodesEl.releasePointerCapture(event.pointerId);
+      } catch {
+        // ignore — pointer was never captured (no actual drag)
+      }
+      if (dragEl) dragEl.classList.remove('is-dragging');
+      this.canvasEl.classList.remove('is-dragging-table');
+      const id = dragId;
+      dragId = null;
+      dragEl = null;
+      dragPointer = null;
+      active = false;
+      pendingFrame = false;
+      // A short press without crossing the drag threshold = click → select.
+      if (!wasActive && id) this.selectTable(id);
+    };
+
+    this.nodesEl.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
+      const target = event.target as HTMLElement;
+      const tableEl = target.closest<HTMLElement>('[data-table-id]');
+      if (!tableEl) return;
+      // Only the header initiates a drag; column rows stay clickable for
+      // future row-level interactions and let text selection inside the
+      // table body keep working.
+      if (!target.closest('.dv-table-header')) return;
+      const id = tableEl.dataset.tableId;
+      if (!id) return;
+      const pos = this.positions.get(id);
+      if (!pos) return;
+      event.preventDefault();
+      dragId = id;
+      dragEl = tableEl;
+      dragPointer = event.pointerId;
+      startClientX = event.clientX;
+      startClientY = event.clientY;
+      originX = pos.x;
+      originY = pos.y;
+      active = false;
+      this.nodesEl.setPointerCapture(event.pointerId);
+    });
+    this.nodesEl.addEventListener('pointermove', onMove);
+    this.nodesEl.addEventListener('pointerup', endDrag);
+    this.nodesEl.addEventListener('pointercancel', endDrag);
+  }
+
+  /** Re-route edges against `this.positions`; called on every drag frame. */
+  private rerouteEdges(): void {
+    if (!this.database || !this.lastLayout) return;
+    const result = reroute(this.database, this.positions, this.measures);
+    this.lastLayout = result;
+    const canvasWidth = Number.parseFloat(this.canvasEl.style.width) || 0;
+    const canvasHeight = Number.parseFloat(this.canvasEl.style.height) || 0;
+    this.renderEdges(result.edges, canvasWidth, canvasHeight);
+    // Re-apply hover/selection visuals if the dragged table was hovered.
+    if (this.hoveredTableId) {
+      for (const edgeId of this.edgesByTable.get(this.hoveredTableId) ?? []) {
+        this.edgeEls.get(edgeId)?.classList.add('is-related');
+      }
+    }
   }
 
   /** Zoom keeping the viewport-relative point (cx, cy) anchored under the cursor. */

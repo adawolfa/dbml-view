@@ -743,7 +743,6 @@ dbml-diagram {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 0 2px rgba(0, 0, 0, 0.08);
   min-width: 200px;
   max-width: 320px;
-  cursor: pointer;
   transition: box-shadow 120ms ease, border-color 120ms ease, transform 120ms ease;
 }
 
@@ -759,11 +758,25 @@ dbml-diagram {
   z-index: 2;
 }
 
+.dv-table.is-dragging {
+  /* Snap to the pointer without easing while a drag is active. */
+  transition: box-shadow 120ms ease, border-color 120ms ease;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.18), 0 0 0 2px var(--dv-accent-soft);
+  z-index: 3;
+}
+
 .dv-table-header {
   padding: 0.45rem 0.65rem;
   background: var(--dv-table-header-bg);
   border-bottom: 1px solid var(--dv-border);
   font-weight: 600;
+  cursor: grab;
+  touch-action: none;
+}
+
+.dv-table.is-dragging .dv-table-header,
+.dv-canvas.is-dragging-table .dv-table-header {
+  cursor: grabbing;
 }
 
 .dv-table-schema {

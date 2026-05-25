@@ -190,22 +190,44 @@ export async function layout(
 
   const elkResult = await elk.layout(elkGraph);
 
-  const tables: PositionedTable[] = [];
   const positions = new Map<string, PositionedTable>();
   for (const c of elkResult.children ?? []) {
-    const positioned: PositionedTable = {
+    positions.set(c.id, {
       id: c.id,
       x: c.x ?? 0,
       y: c.y ?? 0,
       width: c.width ?? 0,
       height: c.height ?? 0,
-    };
-    tables.push(positioned);
-    positions.set(c.id, positioned);
+    });
   }
 
-  // Compute geometric route data without emitting paths yet — we need to
-  // redistribute midX values across colliding edges before we can serialize.
+  return reroute(db, positions, measures);
+}
+
+/**
+ * Re-run the edge-routing pipeline against a caller-supplied set of table
+ * positions, skipping ELK. Used when the user drags a table — the positions
+ * change but the layout engine doesn't need to run again. Pure and sync.
+ */
+export function reroute(
+  db: Database,
+  positions: Map<string, PositionedTable>,
+  measures: Map<string, TableMeasure>,
+): LayoutResult {
+  const knownIds = new Set(positions.keys());
+
+  const renderedRefs: { ref: Ref; from: RefEndpoint; to: RefEndpoint }[] = [];
+  for (const ref of db.refs) {
+    const [a, b] = ref.endpoints;
+    if (!a || !b) continue;
+    if (!knownIds.has(endpointTableId(a)) || !knownIds.has(endpointTableId(b))) continue;
+    const fromSide: RefEndpoint = a.relation === '*' || b.relation !== '*' ? a : b;
+    const toSide: RefEndpoint = fromSide === a ? b : a;
+    renderedRefs.push({ ref, from: fromSide, to: toSide });
+  }
+
+  const tables = [...positions.values()];
+
   const rawRoutes: RawRoute[] = [];
   for (const [i, entry] of renderedRefs.entries()) {
     const raw = computeRawRoute(String(i), entry, positions, measures);
@@ -215,9 +237,7 @@ export async function layout(
   distributeMidX(rawRoutes, tables);
 
   const edges: RoutedEdge[] = rawRoutes.map(rawToRoutedEdge);
-
   const decorated = decorateEdges(edges);
-
   const bbox = computeBbox(tables);
 
   return { tables, edges: decorated, bbox };
