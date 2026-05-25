@@ -34,9 +34,6 @@ import {
   selfEndpoint,
 } from './shared';
 
-/** Stable ID for the synthetic "Enums" group rendered at the bottom of the tree. */
-const ENUMS_GROUP_ID = '__enums__';
-
 export class DbmlStructureElement extends HTMLElement {
   static readonly tagName = 'dbml-structure';
 
@@ -93,9 +90,8 @@ export class DbmlStructureElement extends HTMLElement {
   setDatabase(db: Database): void {
     this.database = db;
     this.refsByTableId = indexRefsByTable(db);
-    // Expand all groups by default; tables and enums stay collapsed until selected.
-    // Also pre-expand the synthetic Enums group so enums are visible on first load.
-    this.expandedGroups = new Set([...buildTree(db).map((g) => g.id), ENUMS_GROUP_ID]);
+    // Expand all groups by default; tables stay collapsed until selected.
+    this.expandedGroups = new Set(buildTree(db).map((g) => g.id));
     if (!this.rendered) return;
     this.renderTree();
   }
@@ -274,38 +270,9 @@ export class DbmlStructureElement extends HTMLElement {
       })
       .join('');
 
-    // Render all enums after all schema/tablegroup sections.
-    let enumsSectionHtml = '';
-    if (allVisibleEnums.length > 0) {
-      const enumsHtml = allVisibleEnums.map((e) => this.renderTreeEnum(e)).join('');
-      if (showSchemaHeaders) {
-        // Multi-schema: wrap in a collapsible synthetic "Enums" group so the
-        // section is visually consistent with the schema groups above it.
-        const groupOpen = q !== '' || this.expandedGroups.has(ENUMS_GROUP_ID);
-        const chevron = groupOpen ? '▾' : '▸';
-        const childrenHtml = groupOpen ? `<ul class="dv-tree-children">${enumsHtml}</ul>` : '';
-        enumsSectionHtml = `
-          <li class="dv-tree-group">
-            <button
-              type="button"
-              class="dv-tree-node dv-tree-node-group"
-              data-node="group"
-              data-group-id="${escapeAttr(ENUMS_GROUP_ID)}"
-              aria-expanded="${groupOpen}"
-            >
-              <span class="dv-tree-chevron">${chevron}</span>
-              ${iconEnum()}
-              <span class="dv-tree-group-name">${escapeHtml(t('structure.group.kind.enums'))}</span>
-              <span class="dv-tree-count">${allVisibleEnums.length}</span>
-            </button>
-            ${childrenHtml}
-          </li>
-        `;
-      } else {
-        // Single-schema: enums are flat, matching the rest of the unwrapped layout.
-        enumsSectionHtml = enumsHtml;
-      }
-    }
+    // Render all enums after all schema/tablegroup sections, always flat (no folder).
+    const enumsSectionHtml =
+      allVisibleEnums.length > 0 ? allVisibleEnums.map((e) => this.renderTreeEnum(e)).join('') : '';
 
     container.innerHTML = `<ul class="dv-tree">${html}${enumsSectionHtml}</ul>`;
     this.applyExternalHoverToDom();
@@ -526,10 +493,8 @@ export class DbmlStructureElement extends HTMLElement {
           break;
         }
       }
-    } else if (sel.kind === 'enum') {
-      // All enums are rendered in the synthetic ENUMS_GROUP_ID section.
-      this.expandedGroups.add(ENUMS_GROUP_ID);
     }
+    // Enums are rendered flat — no group to expand.
   }
 
   /**
@@ -546,10 +511,8 @@ export class DbmlStructureElement extends HTMLElement {
           break;
         }
       }
-    } else if (sel.kind === 'enum') {
-      // All enums are rendered in the synthetic ENUMS_GROUP_ID section.
-      this.expandedGroups.add(ENUMS_GROUP_ID);
     }
+    // Enums are rendered flat — no group to expand.
   }
 
   private scrollSelectionIntoView(): void {

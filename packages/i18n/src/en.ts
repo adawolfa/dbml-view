@@ -4,7 +4,6 @@ export const en = {
   'structure.search.placeholder': 'Search tables / columns…',
   'structure.empty.no_dbml': 'No DBML loaded.',
   'structure.empty.no_matches': 'No matches.',
-  'structure.group.kind.enums': 'Enums',
   'structure.section.columns': 'Columns',
   'structure.section.relations': 'Relations',
   'structure.pk.title': 'Primary key',
