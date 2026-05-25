@@ -246,6 +246,7 @@ function applySource(source: string, label: string): void {
   }
   diagram.source = source;
   setFileLabel(label);
+  void setWindowTitle(label);
   status.textContent = '';
   renderViews();
   // Apply current hash (if any) to the new database so deep-links survive
@@ -262,6 +263,20 @@ function applySource(source: string, label: string): void {
 function setFileLabel(label: string): void {
   fileButtonLabel.textContent = label;
   fileButton.title = label;
+}
+
+const APP_TITLE = 'DBML View';
+
+async function setWindowTitle(label: string | null): Promise<void> {
+  const title = label ?? APP_TITLE;
+  document.title = title;
+  if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) return;
+  try {
+    const { getCurrentWindow } = await import('@tauri-apps/api/window');
+    await getCurrentWindow().setTitle(title);
+  } catch {
+    // Tauri runtime missing or IPC error — browser title fallback is fine.
+  }
 }
 
 function toggleView(view: View): void {
@@ -792,7 +807,11 @@ try {
 renderViews();
 
 // Bootstrap: Tauri argv > ?url= > last-stored source > drop zone.
-void bootstrap();
+void bootstrap().finally(() => {
+  // Tauri starts the window hidden so the user never sees a white flash before
+  // the theme + content are painted. Reveal it once initial state is applied.
+  void showTauriWindow();
+});
 
 async function bootstrap(): Promise<void> {
   if (await bootstrapTauri()) return;
@@ -806,6 +825,16 @@ async function bootstrap(): Promise<void> {
     const stored = localStorage.getItem(LS_KEY);
     const storedName = localStorage.getItem(LS_NAME_KEY);
     if (stored) applySource(stored, storedName ?? t('app.previous_file'));
+  } catch {
+    // ignore
+  }
+}
+
+async function showTauriWindow(): Promise<void> {
+  if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) return;
+  try {
+    const { getCurrentWindow } = await import('@tauri-apps/api/window');
+    await getCurrentWindow().show();
   } catch {
     // ignore
   }
