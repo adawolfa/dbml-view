@@ -11,9 +11,11 @@
 
 import ELK, { type ElkNode } from 'elkjs/lib/elk.bundled.js';
 import {
+  DEFAULT_SCHEMA,
   type Database,
   type Ref,
   type RefEndpoint,
+  type TableGroup,
   columnId,
   endpointTableId,
   tableId,
@@ -37,6 +39,26 @@ export type PositionedTable = {
   y: number;
   width: number;
   height: number;
+  /** Containing group id (`schema.name`), or null when the table isn't grouped. */
+  groupId?: string | null;
+};
+
+/**
+ * Bounding box for a TableGroup. Drawn behind tables to make the cluster
+ * visible; the title sits inside the top padding strip.
+ */
+export type PositionedGroup = {
+  id: string;
+  name: string;
+  schemaName: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** Optional explicit color from the DBML (`TableGroup foo [color: '#…']`). */
+  color: string | null;
+  /** Member table ids, in DBML order. */
+  tableIds: string[];
 };
 
 /** Endpoint side relative to a table's bounding box. */
@@ -65,6 +87,7 @@ export type RoutedEdge = {
 export type LayoutResult = {
   tables: PositionedTable[];
   edges: RoutedEdge[];
+  groups: PositionedGroup[];
   bbox: Rect;
 };
 
@@ -127,6 +150,11 @@ const GRID = 24;
  * midX values never collide with a table's stub. */
 const CHANNEL_MARGIN = 4;
 
+/** Top padding reserved inside a TableGroup parent node for its label strip. */
+const GROUP_LABEL_HEIGHT = 28;
+/** Inset between the group's bounding box and its member tables on the other three sides. */
+const GROUP_PADDING = 16;
+
 export async function layout(
   db: Database,
   measures: Map<string, TableMeasure>,
@@ -149,13 +177,45 @@ export async function layout(
     renderedRefs.push({ ref, from: fromSide, to: toSide });
   }
 
-  // Build the ELK graph: nodes are tables, edges are inter-table refs (self
-  // refs are routed by hand later, so we omit them from ELK's input).
-  const children: ElkNode[] = usableTables.map((t) => {
-    const id = tableId(t);
+  // Build TableGroup membership. A table can belong to at most one group
+  // (DBML's own constraint). Tables not in any group sit at root.
+  const groupOfTable = new Map<string, string>();
+  const groupSpecs: { id: string; group: TableGroup; tableIds: string[] }[] = [];
+  for (const group of db.tableGroups) {
+    const gid = tableGroupId(group);
+    const memberIds: string[] = [];
+    for (const member of group.tables) {
+      const mid = `${member.schemaName ?? DEFAULT_SCHEMA}.${member.name}`;
+      if (!knownIds.has(mid)) continue;
+      if (groupOfTable.has(mid)) continue;
+      groupOfTable.set(mid, gid);
+      memberIds.push(mid);
+    }
+    if (memberIds.length > 0) groupSpecs.push({ id: gid, group, tableIds: memberIds });
+  }
+
+  // ELK nodes: ungrouped tables live at root; grouped tables nest inside a
+  // parent node per TableGroup. Hierarchy + INCLUDE_CHILDREN tells layered
+  // to lay everything out together while keeping cluster members adjacent.
+  const tableNodeFor = (id: string): ElkNode => {
     const m = measures.get(id)!;
     return { id, width: m.width, height: m.height };
-  });
+  };
+  const rootChildren: ElkNode[] = [];
+  for (const t of usableTables) {
+    const id = tableId(t);
+    if (groupOfTable.has(id)) continue;
+    rootChildren.push(tableNodeFor(id));
+  }
+  for (const spec of groupSpecs) {
+    rootChildren.push({
+      id: spec.id,
+      layoutOptions: {
+        'elk.padding': `[top=${GROUP_LABEL_HEIGHT},left=${GROUP_PADDING},bottom=${GROUP_PADDING},right=${GROUP_PADDING}]`,
+      },
+      children: spec.tableIds.map(tableNodeFor),
+    });
+  }
 
   const elkEdges = renderedRefs
     .map((entry, i) => {
@@ -175,6 +235,7 @@ export async function layout(
       // with — even though we discard ELK's edge points, this still
       // influences node ordering and layer spacing decisions.
       'elk.edgeRouting': 'ORTHOGONAL',
+      'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
       'elk.spacing.nodeNode': String(opts.nodesep),
       'elk.layered.spacing.nodeNodeBetweenLayers': String(opts.ranksep),
       'elk.layered.spacing.edgeNodeBetweenLayers': '24',
@@ -184,24 +245,86 @@ export async function layout(
       'elk.layered.considerModelOrder.strategy': 'PREFER_EDGES',
       'elk.padding': `[top=${opts.marginy},left=${opts.marginx},bottom=${opts.marginy},right=${opts.marginx}]`,
     },
-    children,
+    children: rootChildren,
     edges: elkEdges,
   };
 
   const elkResult = await elk.layout(elkGraph);
 
+  // Walk the hierarchy: anything with children is a group, leaves are tables.
+  // Children x/y are parent-relative, so we sum offsets to get absolute coords.
   const positions = new Map<string, PositionedTable>();
-  for (const c of elkResult.children ?? []) {
-    positions.set(c.id, {
-      id: c.id,
-      x: c.x ?? 0,
-      y: c.y ?? 0,
-      width: c.width ?? 0,
-      height: c.height ?? 0,
-    });
-  }
+  const groupRects = new Map<string, { x: number; y: number; width: number; height: number }>();
+  const walk = (node: ElkNode, offsetX: number, offsetY: number, groupId: string | null): void => {
+    const absX = offsetX + (node.x ?? 0);
+    const absY = offsetY + (node.y ?? 0);
+    if (node.children && node.children.length > 0 && node.id !== 'root') {
+      groupRects.set(node.id, {
+        x: absX,
+        y: absY,
+        width: node.width ?? 0,
+        height: node.height ?? 0,
+      });
+      for (const child of node.children) walk(child, absX, absY, node.id);
+    } else if (node.id !== 'root') {
+      positions.set(node.id, {
+        id: node.id,
+        x: absX,
+        y: absY,
+        width: node.width ?? 0,
+        height: node.height ?? 0,
+        groupId,
+      });
+    } else if (node.children) {
+      for (const child of node.children) walk(child, absX, absY, null);
+    }
+  };
+  walk(elkResult, 0, 0, null);
 
-  return reroute(db, positions, measures);
+  const result = reroute(db, positions, measures);
+  // Carry the group rectangles through (reroute doesn't know about groups —
+  // they don't affect routing, only rendering).
+  result.groups = groupSpecs
+    .map((spec) => {
+      const rect = groupRects.get(spec.id);
+      if (!rect) return null;
+      return {
+        id: spec.id,
+        name: spec.group.name ?? spec.id,
+        schemaName: spec.group.schemaName ?? DEFAULT_SCHEMA,
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+        color: spec.group.color ?? null,
+        tableIds: spec.tableIds,
+      };
+    })
+    .filter((g): g is PositionedGroup => g !== null);
+  // A group's bounding box extends past its children (label strip on top,
+  // padding on the other sides). Expand the layout bbox so the canvas
+  // doesn't clip the group's border or label.
+  result.bbox = expandBboxToGroups(result.bbox, result.groups);
+  return result;
+}
+
+function expandBboxToGroups(bbox: Rect, groups: PositionedGroup[]): Rect {
+  if (groups.length === 0) return bbox;
+  let minX = bbox.x;
+  let minY = bbox.y;
+  let maxX = bbox.x + bbox.width;
+  let maxY = bbox.y + bbox.height;
+  for (const g of groups) {
+    if (g.x < minX) minX = g.x;
+    if (g.y < minY) minY = g.y;
+    if (g.x + g.width > maxX) maxX = g.x + g.width;
+    if (g.y + g.height > maxY) maxY = g.y + g.height;
+  }
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
+function tableGroupId(group: TableGroup): string {
+  return `__group__:${group.schemaName ?? DEFAULT_SCHEMA}.${group.name ?? ''}`;
 }
 
 /**
@@ -240,7 +363,10 @@ export function reroute(
   const decorated = decorateEdges(edges);
   const bbox = computeBbox(tables);
 
-  return { tables, edges: decorated, bbox };
+  // Groups (if any) are stitched back in by the caller. `reroute` is also
+  // used live during table drags, where groups deliberately don't follow —
+  // it would be jarring for the bounding box to jump on every pointermove.
+  return { tables, edges: decorated, groups: [], bbox };
 }
 
 type Pt = { x: number; y: number };
