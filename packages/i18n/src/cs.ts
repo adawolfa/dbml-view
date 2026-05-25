@@ -4,6 +4,7 @@ import type { Translations } from './index.js';
 export const cs = {
   // --- Structure panel ---
   'structure.search.placeholder': 'Hledat tabulky / sloupce…',
+  'structure.search.clear': 'Vymazat hledání',
   'structure.empty.no_dbml': 'Žádný DBML není načten.',
   'structure.empty.no_matches': 'Žádné výsledky.',
   'structure.section.columns': 'Sloupce',

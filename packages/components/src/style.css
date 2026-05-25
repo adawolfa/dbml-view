@@ -121,6 +121,8 @@ dbml-structure {
   min-height: 0;
 }
 
+/* Flex shell that puts the leading icon and trailing clear button on either
+   side of the input. The input flex-grows between them. */
 .dv-search {
   position: sticky;
   top: 0;
@@ -128,16 +130,42 @@ dbml-structure {
   padding: 0.5rem;
   border-bottom: 1px solid var(--dv-border);
   z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.dv-search-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: var(--dv-muted);
+  flex-shrink: 0;
+}
+
+.dv-search-icon svg {
+  width: 14px;
+  height: 14px;
 }
 
 .dv-search input {
-  width: 100%;
-  padding: 0.35rem 0.6rem;
+  flex: 1;
+  min-width: 0;
+  padding: 0.35rem 0.4rem;
   border: 1px solid var(--dv-border-strong);
   font: inherit;
   background: var(--dv-input-bg);
   color: var(--dv-fg);
   transition: border-color 80ms ease, box-shadow 80ms ease;
+}
+
+/* Hide the native clear button — we render our own that's stylable + tied to a
+   programmatic state machine. */
+.dv-search input::-webkit-search-cancel-button {
+  appearance: none;
+  display: none;
 }
 
 .dv-search input::placeholder {
@@ -152,6 +180,57 @@ dbml-structure {
   outline: none;
   border-color: var(--dv-accent);
   box-shadow: 0 0 0 1px var(--dv-accent);
+}
+
+.dv-search-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--dv-muted);
+  cursor: pointer;
+  border-radius: 3px;
+  flex-shrink: 0;
+  transition: color 80ms ease, background 80ms ease;
+}
+
+.dv-search-clear[hidden] {
+  display: none;
+}
+
+.dv-search-clear:hover,
+.dv-search-clear:focus-visible {
+  color: var(--dv-accent);
+  background: var(--dv-hover-bg);
+  outline: none;
+}
+
+.dv-search-clear svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* --- Search match highlights --- */
+
+.dv-tree-match {
+  background: var(--dv-search-match-bg, rgba(250, 204, 21, 0.45));
+  color: inherit;
+  padding: 0;
+  border-radius: 2px;
+}
+
+/* Currently-active match (driven by keyboard navigation). Wins over hover and
+   selection backgrounds so the user can always see where the cursor is. */
+.dv-tree-node.is-search-active,
+.dv-tree-node.is-search-active:hover {
+  background: var(--dv-accent-soft);
+  border-left-color: var(--dv-accent);
+  outline: 1px solid var(--dv-accent);
+  outline-offset: -1px;
 }
 
 /* --- Tree --- */

@@ -2,6 +2,7 @@
 export const en = {
   // --- Structure panel ---
   'structure.search.placeholder': 'Search tables / columns…',
+  'structure.search.clear': 'Clear search',
   'structure.empty.no_dbml': 'No DBML loaded.',
   'structure.empty.no_matches': 'No matches.',
   'structure.section.columns': 'Columns',
