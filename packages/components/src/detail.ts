@@ -360,16 +360,13 @@ function renderTableDetail(
 }
 
 function renderEnumDetail(en: Enum, usages: EnumUsage[], showSchema: boolean): string {
-  const id = enumId(en);
-  const schema = en.schemaName ?? DEFAULT_SCHEMA;
   return `
     <header class="dv-detail-header">
-      ${showSchema ? `<div class="dv-detail-schema">${escapeHtml(schema)}</div>` : ''}
       <h2 class="dv-detail-name">
         <span class="dv-detail-kind">${escapeHtml(t('detail.enum.kind'))}</span>
         ${escapeHtml(en.name)}
       </h2>
-      <code class="dv-detail-id">${escapeHtml(showSchema ? id : en.name)}</code>
+      <code class="dv-detail-id">${escapeHtml(en.name)}</code>
     </header>
 
     <h3 class="dv-section-title">${escapeHtml(t('detail.section.values'))}</h3>
