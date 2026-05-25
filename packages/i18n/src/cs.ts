@@ -51,8 +51,8 @@ export const cs = {
   'diagram.toolbar.export_svg.label': 'SVG',
   'diagram.toolbar.export_svg.title': 'Exportovat SVG',
   'diagram.toolbar.cols.toggle.label': 'Jen FK',
-  'diagram.toolbar.cols.toggle.title': 'Skrýt sloupce, které nejsou součástí žádného vztahu',
-  'diagram.toolbar.groups.toggle.title': 'Skrýt kontejnery skupin',
+  'diagram.toolbar.cols.toggle.title': 'Zobrazit sloupce, které nejsou součástí žádného vztahu',
+  'diagram.toolbar.groups.toggle.title': 'Zobrazit kontejnery skupin',
   'diagram.empty': 'Žádné tabulky k zobrazení.',
   'diagram.export.filename': 'diagram.svg',
 
