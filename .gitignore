@@ -11,6 +11,11 @@ Thumbs.db
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/
 
+# Playwright
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/.playwright/
+
 # IDE
 .idea/
 .vscode/

@@ -1,9 +1,9 @@
 // Custom Elements must be registered explicitly — call register() after setting
 // the locale so that connectedCallback() picks up the correct translations.
 
-import { DbmlStructureElement, registerStructureElement } from './structure';
 import { DbmlDetailElement, registerDetailElement } from './detail';
 import { DbmlDiagramElement, registerDiagramElement } from './diagram';
+import { DbmlStructureElement, registerStructureElement } from './structure';
 
 export { DbmlStructureElement, registerStructureElement };
 export { DbmlDetailElement, registerDetailElement };

@@ -12,7 +12,7 @@ import type {
   HoverState,
   Selection,
 } from '@dbml-view/components';
-import { t, setLocale, cs } from '@dbml-view/i18n';
+import { cs, setLocale, t } from '@dbml-view/i18n';
 import { parseDbml } from '@dbml-view/parser';
 
 const LS_KEY = 'dbml-view:last-source';

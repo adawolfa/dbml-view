@@ -9,7 +9,6 @@
 // Self-refs aren't sent to ELK; we route them by hand around the right side
 // of the table.
 
-import ELK, { type ElkNode } from 'elkjs/lib/elk.bundled.js';
 import {
   DEFAULT_SCHEMA,
   type Database,
@@ -20,6 +19,7 @@ import {
   endpointTableId,
   tableId,
 } from '@dbml-view/parser';
+import ELK, { type ElkNode } from 'elkjs/lib/elk.bundled.js';
 
 const elk = new ELK();
 

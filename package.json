@@ -13,7 +13,8 @@
     "dev": "pnpm --filter @dbml-view/web dev",
     "typecheck": "pnpm -r typecheck",
     "lint": "biome check .",
-    "format": "biome format --write ."
+    "format": "biome format --write .",
+    "test:e2e": "pnpm --filter @dbml-view/web e2e"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

@@ -24,6 +24,7 @@ Run from the repo root.
 - `pnpm typecheck` — recursive `tsc -b`
 - `pnpm lint` — Biome check
 - `pnpm format` — Biome format (writes)
+- `pnpm test:e2e` — Playwright E2E (`apps/web/e2e/`); auto-starts `pnpm dev` on port 4173. First run needs `pnpm --filter @dbml-view/web exec playwright install chromium`.
 
 When working outside the main worktree (e.g. in `.claude/worktrees/*`), `pnpm dev` already uses a random OS-assigned port by default — no extra flags needed.
 
