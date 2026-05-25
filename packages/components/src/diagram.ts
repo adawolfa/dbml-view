@@ -637,6 +637,9 @@ export class DbmlDiagramElement extends HTMLElement {
         active = true;
         dragLabelEl?.classList.add('is-dragging');
         this.canvasEl.classList.add('is-dragging-table');
+        for (const tid of startPositions.keys()) {
+          this.tableEls.get(tid)?.classList.add('is-dragging');
+        }
       }
       pendingDx = dx;
       pendingDy = dy;
@@ -667,6 +670,9 @@ export class DbmlDiagramElement extends HTMLElement {
       }
       dragLabelEl?.classList.remove('is-dragging');
       this.canvasEl.classList.remove('is-dragging-table');
+      for (const tid of startPositions.keys()) {
+        this.tableEls.get(tid)?.classList.remove('is-dragging');
+      }
       dragGroupId = null;
       dragLabelEl = null;
       dragPointer = null;
