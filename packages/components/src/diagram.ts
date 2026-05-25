@@ -558,8 +558,10 @@ export class DbmlDiagramElement extends HTMLElement {
   private updateColsToggle(): void {
     const btn = this.toolbarEl.querySelector<HTMLButtonElement>('button[data-act="cols-toggle"]');
     if (!btn) return;
-    btn.classList.toggle('is-active', this.hideNonRelational);
-    btn.setAttribute('aria-pressed', this.hideNonRelational ? 'true' : 'false');
+    // Highlighted when all columns are visible (the "showing" state); unpressed when filtering to FK-only.
+    const showingAll = !this.hideNonRelational;
+    btn.classList.toggle('is-active', showingAll);
+    btn.setAttribute('aria-pressed', showingAll ? 'true' : 'false');
   }
 
   private toggleGroupVisibility(): void {
@@ -574,8 +576,10 @@ export class DbmlDiagramElement extends HTMLElement {
     if (!btn) return;
     const hasGroups = this.groups.length > 0;
     btn.hidden = !hasGroups;
-    btn.classList.toggle('is-active', this.hideGroups);
-    btn.setAttribute('aria-pressed', this.hideGroups ? 'true' : 'false');
+    // Highlighted when group containers are visible (the "showing" state); unpressed when they're hidden.
+    const showingGroups = !this.hideGroups;
+    btn.classList.toggle('is-active', showingGroups);
+    btn.setAttribute('aria-pressed', showingGroups ? 'true' : 'false');
   }
 
   /**
@@ -1120,8 +1124,8 @@ function makeTemplate(): string {
       <button type="button" data-act="reset" title="${escapeAttr(t('diagram.toolbar.reset.title'))}">${escapeHtml(t('diagram.toolbar.reset.label'))}</button>
       <button type="button" data-act="export-svg" title="${escapeAttr(t('diagram.toolbar.export_svg.title'))}">${escapeHtml(t('diagram.toolbar.export_svg.label'))}</button>
       <span class="dv-diagram-toolbar-sep" aria-hidden="true"></span>
-      <button type="button" data-act="cols-toggle" class="dv-diagram-toolbar-icon-btn" aria-pressed="false" title="${escapeAttr(t('diagram.toolbar.cols.toggle.title'))}" aria-label="${escapeAttr(t('diagram.toolbar.cols.toggle.title'))}"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 9.5a3.18 3.18 0 0 0 4.5 0l1.5-1.5a3.18 3.18 0 0 0-4.5-4.5L7 4.5"/><path d="M9.5 6.5a3.18 3.18 0 0 0-4.5 0l-1.5 1.5a3.18 3.18 0 0 0 4.5 4.5L9 11.5"/></svg></button>
-      <button type="button" data-act="groups-toggle" class="dv-diagram-toolbar-icon-btn" aria-pressed="false" hidden title="${escapeAttr(t('diagram.toolbar.groups.toggle.title'))}" aria-label="${escapeAttr(t('diagram.toolbar.groups.toggle.title'))}"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="2" stroke-dasharray="3 2"/></svg></button>
+      <button type="button" data-act="cols-toggle" class="dv-diagram-toolbar-icon-btn is-active" aria-pressed="true" title="${escapeAttr(t('diagram.toolbar.cols.toggle.title'))}" aria-label="${escapeAttr(t('diagram.toolbar.cols.toggle.title'))}"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><path d="M2.5 6h11"/><path d="M2.5 9.5h11"/></svg></button>
+      <button type="button" data-act="groups-toggle" class="dv-diagram-toolbar-icon-btn is-active" aria-pressed="true" hidden title="${escapeAttr(t('diagram.toolbar.groups.toggle.title'))}" aria-label="${escapeAttr(t('diagram.toolbar.groups.toggle.title'))}"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="2" stroke-dasharray="3 2"/></svg></button>
       <span class="dv-diagram-status" data-status></span>
     </div>
     <div class="dv-diagram-viewport" data-viewport>

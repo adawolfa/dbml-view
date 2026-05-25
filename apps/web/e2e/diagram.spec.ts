@@ -155,16 +155,18 @@ test('FK-only toggle hides non-relationship columns and re-layout', async ({ pag
     '#diagram .dv-table[data-table-id="shop.orders"] [data-column-id]',
   );
 
-  // Default: toggle is off and every column renders.
-  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  // Default: toggle is highlighted (all columns showing) and every column renders.
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(toggle).toHaveClass(/is-active/);
   await expect(productsRows).toHaveCount(5);
   await expect(ordersRows).toHaveCount(5);
 
-  // Toggle on: only FK-participant columns survive.
+  // Click to filter: only FK-participant columns survive; button is no longer highlighted.
   // products keeps only `id` (referenced by order_items.product_id).
   // orders keeps `id`, `user_id`, `shipping_address_id` (all referenced by FKs).
   await toggle.click();
-  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(toggle).not.toHaveClass(/is-active/);
   await expect(productsRows).toHaveCount(1);
   await expect(ordersRows).toHaveCount(3);
   await expect(ordersRows.locator('.dv-row-name')).toHaveText([
@@ -177,9 +179,10 @@ test('FK-only toggle hides non-relationship columns and re-layout', async ({ pag
   // definition, so all 5 edges in the medium sample remain visible.
   await expect(page.locator('#diagram .dv-edge-group')).toHaveCount(5);
 
-  // Toggle off: all columns restored.
+  // Click again to restore: all columns visible and button highlighted again.
   await toggle.click();
-  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(toggle).toHaveClass(/is-active/);
   await expect(productsRows).toHaveCount(5);
   await expect(ordersRows).toHaveCount(5);
 });
@@ -201,20 +204,21 @@ test('groups-toggle hides and restores group container elements', async ({ page 
   // .dv-group elements have explicit JS-set dimensions so toBeVisible() is meaningful.
   const firstGroup = page.locator('#diagram .dv-group').first();
 
-  // Default: toggle is unpressed and the group hull is visible.
-  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
-  await expect(firstGroup).toBeVisible();
-
-  // Press to hide: .dv-groups gets display:none, taking all group hulls with it.
-  await toggle.click();
+  // Default: toggle is highlighted (groups showing) and the group hull is visible.
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   await expect(toggle).toHaveClass(/is-active/);
-  await expect(firstGroup).not.toBeVisible();
+  await expect(firstGroup).toBeVisible();
 
-  // Press again to restore: groups reappear, toggle resets.
+  // Click to hide: .dv-groups gets display:none and the toggle is no longer highlighted.
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   await expect(toggle).not.toHaveClass(/is-active/);
+  await expect(firstGroup).not.toBeVisible();
+
+  // Click again to restore: groups reappear and the toggle highlights again.
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(toggle).toHaveClass(/is-active/);
   await expect(firstGroup).toBeVisible();
 });
 
