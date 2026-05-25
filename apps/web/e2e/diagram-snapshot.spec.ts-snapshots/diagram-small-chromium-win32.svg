@@ -1,0 +1,12 @@
+<svg class="dv-edges" data-edges="" xmlns="http://www.w3.org/2000/svg" width="684" height="227" viewBox="0 0 684 227">
+<g class="dv-edge-group" data-edge-id="0" data-from-table="public.posts" data-to-table="public.users" data-from-column="public.posts.user_id" data-to-column="public.users.id">
+<path d="M 232 103 H 344 A 1 1 0 0 1 344 104 V 104 A 1 1 0 0 0 345 104 H 452" class="dv-edge-hit">
+</path>
+<path d="M 232 103 H 344 A 1 1 0 0 1 344 104 V 104 A 1 1 0 0 0 345 104 H 452" class="dv-edge">
+</path>
+<polygon points="232,103 222,98 222,108" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="452,104 443,100 443,108" class="dv-arrow">
+</polygon>
+</g>
+</svg>
