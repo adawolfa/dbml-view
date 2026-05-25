@@ -9,6 +9,8 @@ export const cs = {
   'structure.section.columns': 'Sloupce',
   'structure.section.relations': 'Relace',
   'structure.pk.title': 'Primární klíč',
+  'structure.hide.hide': 'Skrýt z diagramu',
+  'structure.hide.show': 'Zobrazit v diagramu',
 
   // --- Detail panel ---
   'detail.error.heading': 'DBML se nepodařilo zpracovat',

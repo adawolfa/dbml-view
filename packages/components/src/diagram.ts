@@ -47,6 +47,8 @@ export class DbmlDiagramElement extends HTMLElement {
   }
 
   private database: Database | null = null;
+  /** Table IDs hidden from the diagram. Filtered out before layout/render. */
+  private hiddenTables = new Set<string>();
   private rendered = false;
   private viewportEl!: HTMLElement;
   private canvasEl!: HTMLElement;
@@ -158,6 +160,20 @@ export class DbmlDiagramElement extends HTMLElement {
     this.scheduleRelayout();
   }
 
+  /**
+   * Replace the set of hidden table IDs and trigger a relayout. Hidden tables
+   * are removed from the diagram entirely — their refs disappear along with
+   * them since the layout engine only emits edges between known tables.
+   */
+  setHiddenTableIds(ids: Iterable<string>): void {
+    const next = new Set(ids);
+    if (setsEqual(next, this.hiddenTables)) return;
+    this.hiddenTables = next;
+    this.laidOutWhenVisible = false;
+    if (!this.rendered || !this.database) return;
+    this.scheduleRelayout();
+  }
+
   private scheduleRelayout(): void {
     if (this.pendingRelayout) return;
     this.pendingRelayout = true;
@@ -170,7 +186,8 @@ export class DbmlDiagramElement extends HTMLElement {
   private async relayout(): Promise<void> {
     const db = this.database;
     if (!db) return;
-    if (db.tables.length === 0) {
+    const visibleTables = db.tables.filter((t) => !this.hiddenTables.has(tableId(t)));
+    if (visibleTables.length === 0) {
       this.renderEmpty();
       return;
     }
@@ -194,7 +211,7 @@ export class DbmlDiagramElement extends HTMLElement {
     this.canvasEl.style.visibility = 'hidden';
     const measures = new Map<string, TableMeasure>();
     const showSchema = hasMultipleSchemas(db);
-    for (const table of db.tables) {
+    for (const table of visibleTables) {
       const id = tableId(table);
       const el = buildTableElement(table, refsForTable(db, id), showSchema);
       el.dataset.tableId = id;
@@ -1207,6 +1224,12 @@ function track<K, V>(map: Map<K, Set<V>>, key: K, value: V): void {
 
 function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
+}
+
+function setsEqual<T>(a: Set<T>, b: Set<T>): boolean {
+  if (a.size !== b.size) return false;
+  for (const v of a) if (!b.has(v)) return false;
+  return true;
 }
 
 function escapeHtml(value: string): string {

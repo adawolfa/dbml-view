@@ -5,7 +5,8 @@
       "name": "web",
       "runtimeExecutable": "corepack",
       "runtimeArgs": ["pnpm", "-F", "@dbml-view/web", "dev"],
-      "port": 0
+      "port": 0,
+      "autoPort": true
     }
   ]
 }
