@@ -1,0 +1,627 @@
+// Large sample — exercises every DBML feature that @dbml/parse supports.
+// ~30 tables across 5 schemas: auth · shop · cms · logistics · analytics.
+//
+// Features demonstrated:
+//   Project (database_type, multi-line Note)
+//   Enums — per-value notes, quoted values
+//   Table aliases (as X)
+//   Column settings: pk, unique, not null, null, increment, default (string /
+//     number / expression), note, inline ref
+//   checks {} block with named check constraints
+//   Indexes — composite PK, named, unique, hash type, expression, note on index
+//   Refs — all four cardinalities (> < - <>), inline / short / long form,
+//     composite FK, cross-schema, delete + update actions
+//   TableGroup
+
+// ---------------------------------------------------------------------------
+// Project
+// ---------------------------------------------------------------------------
+
+Project platform {
+  database_type: 'PostgreSQL'
+  Note: '''
+    Multi-tenant e-commerce + CMS platform.
+    Schemas: auth · shop · cms · logistics · analytics
+    All monetary values are stored as integer cents (ISO 4217 currency codes).
+  '''
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum user_status {
+  active    [note: 'Normal account; can log in']
+  suspended [note: 'Temporarily locked by staff']
+  deleted   [note: 'Soft-deleted; excluded from all public queries']
+}
+
+enum role_name {
+  admin
+  staff
+  customer
+  guest
+}
+
+enum order_status {
+  draft      [note: 'Cart not yet checked out']
+  confirmed
+  paid
+  shipped
+  delivered
+  cancelled  [note: 'Terminal state; no further transitions']
+  refunded
+}
+
+enum payment_status {
+  pending
+  succeeded
+  failed
+  refunded
+}
+
+enum post_status {
+  draft
+  review     [note: 'Awaiting editorial approval']
+  published
+  archived
+}
+
+// Quoted enum values (identifiers that need escaping)
+enum product_condition {
+  "new"
+  "used"
+  "refurbished"
+}
+
+// ---------------------------------------------------------------------------
+// auth schema
+// ---------------------------------------------------------------------------
+
+Table auth.users as U {
+  id          bigserial        [pk]
+  email       varchar(320)     [unique, not null, note: 'RFC 5321 max address length']
+  username    varchar(64)      [unique, not null]
+  status      user_status [not null, default: 'active']
+  locale      char(5)          [not null, default: 'en-US']
+  timezone    varchar(64)      [not null, default: 'UTC']
+  mfa_enabled boolean          [not null, default: false]
+  last_login  timestamp        [null]
+  created_at  timestamp        [not null, default: `now()`]
+  updated_at  timestamp        [not null, default: `now()`]
+
+  Note: 'Core identity table. Passwords live in auth.credentials.'
+
+  indexes {
+    email            [unique, name: 'uq_users_email']
+    (status, locale) [name: 'idx_users_status_locale']
+    created_at       [name: 'idx_users_created']
+  }
+}
+
+Table auth.credentials {
+  user_id    bigint      [pk, ref: - auth.users.id]
+  algo       varchar(32) [not null, default: 'argon2id']
+  hash       text        [not null]
+  salt       varchar(64) [not null]
+  rotated_at timestamp   [null]
+  created_at timestamp   [not null, default: `now()`]
+  updated_at timestamp   [not null, default: `now()`]
+}
+
+Table auth.roles {
+  id          integer        [pk, increment]
+  name        role_name [unique, not null]
+  description text
+
+  Note: 'Static role catalogue; rows are managed via migrations.'
+}
+
+Table auth.user_roles {
+  user_id    bigint    [not null]
+  role_id    integer   [not null]
+  granted_by bigint    [null]
+  granted_at timestamp [not null, default: `now()`]
+
+  indexes {
+    (user_id, role_id) [pk]
+    granted_by
+  }
+}
+
+Table auth.sessions as S {
+  id         uuid        [pk, default: `gen_random_uuid()`]
+  user_id    bigint      [not null, ref: > auth.users.id]
+  token_hash varchar(64) [unique, not null]
+  ip_address varchar(45) [null, note: 'IPv4 or IPv6']
+  user_agent text        [null]
+  expires_at timestamp   [not null]
+  revoked    boolean     [not null, default: false]
+  created_at timestamp   [not null, default: `now()`]
+  updated_at timestamp   [not null, default: `now()`]
+
+  indexes {
+    token_hash         [unique, type: hash, name: 'idx_sessions_token']
+    (user_id, revoked) [name: 'idx_sessions_user_active']
+    expires_at         [name: 'idx_sessions_expires']
+  }
+}
+
+Table auth.api_keys {
+  id          bigserial   [pk]
+  user_id     bigint      [not null, ref: > auth.users.id]
+  prefix      char(8)     [unique, not null, note: 'Public prefix shown in the UI']
+  secret_hash varchar(64) [not null]
+  description varchar(255)
+  last_used   timestamp   [null]
+  expires_at  timestamp   [null]
+  created_at  timestamp   [not null, default: `now()`]
+  updated_at  timestamp   [not null, default: `now()`]
+
+}
+
+// Standalone Refs for auth.user_roles — with delete/update actions
+Ref: auth.user_roles.user_id    > auth.users.id [delete: cascade]
+Ref: auth.user_roles.role_id    > auth.roles.id [delete: restrict]
+Ref: auth.user_roles.granted_by > auth.users.id [delete: set null]
+
+// ---------------------------------------------------------------------------
+// shop schema
+// ---------------------------------------------------------------------------
+
+Table shop.categories {
+  id         integer      [pk, increment]
+  parent_id  integer      [null, ref: > shop.categories.id, note: 'NULL = root']
+  slug       varchar(128) [unique, not null]
+  name       varchar(255) [not null]
+  sort_order integer      [not null, default: 0]
+  active     boolean      [not null, default: true]
+  created_at timestamp    [not null, default: `now()`]
+  updated_at timestamp    [not null, default: `now()`]
+
+  indexes {
+    parent_id
+    slug [unique]
+  }
+
+  Note: 'Adjacency-list tree; max depth is enforced in application logic.'
+}
+
+Table shop.products as P {
+  id          bigserial         [pk]
+  category_id integer           [not null, ref: > shop.categories.id]
+  sku         varchar(128)      [unique, not null]
+  slug        varchar(512)      [unique, not null]
+  name        varchar(512)      [not null]
+  condition   product_condition [not null, default: 'new']
+  description text
+  weight_g    integer           [null, note: 'Grams; NULL for digital products']
+  active      boolean           [not null, default: true]
+  created_at  timestamp         [not null, default: `now()`]
+  updated_at  timestamp         [not null, default: `now()`]
+
+  indexes {
+    sku                   [unique, name: 'uq_products_sku']
+    slug                  [unique]
+    category_id
+    (active, category_id) [name: 'idx_products_browse']
+  }
+}
+
+Table shop.product_variants {
+  id         bigserial    [pk]
+  product_id bigint       [not null, ref: > shop.products.id]
+  sku_suffix varchar(32)  [not null]
+  label      varchar(255) [not null, note: 'E.g. "Red / XL"']
+  stock      integer      [not null, default: 0]
+  reserved   integer      [not null, default: 0]
+  created_at timestamp    [not null, default: `now()`]
+  updated_at timestamp    [not null, default: `now()`]
+
+  indexes {
+    (product_id, sku_suffix) [unique, name: 'uq_variant_product_sku']
+  }
+}
+
+Table shop.prices {
+  id           bigserial [pk]
+  variant_id   bigint    [not null, ref: > shop.product_variants.id]
+  currency     char(3)   [not null, default: 'USD', note: 'ISO 4217']
+  amount_cents integer   [not null]
+  valid_from   timestamp [not null, default: `now()`]
+  valid_until  timestamp [null]
+
+  indexes {
+    (variant_id, currency, valid_from) [name: 'idx_prices_lookup']
+  }
+}
+
+Table shop.product_images {
+  id         bigserial    [pk]
+  variant_id bigint       [not null, ref: > shop.product_variants.id]
+  url        text         [not null]
+  alt_text   varchar(512) [null]
+  sort_order integer      [not null, default: 0]
+  is_primary boolean      [not null, default: false]
+  created_at timestamp    [not null, default: `now()`]
+  updated_at timestamp    [not null, default: `now()`]
+}
+
+Table shop.coupons {
+  id             bigserial   [pk]
+  code           varchar(32) [unique, not null]
+  discount_pct   smallint    [null, note: 'Percentage off 1–100; mutually exclusive with discount_cents']
+  discount_cents integer     [null, note: 'Fixed amount off in cents; mutually exclusive with discount_pct']
+  max_uses       integer     [null, note: 'NULL = unlimited']
+  uses           integer     [not null, default: 0]
+  valid_from     timestamp   [not null, default: `now()`]
+  valid_until    timestamp   [null]
+  created_at     timestamp   [not null, default: `now()`]
+  updated_at     timestamp   [not null, default: `now()`]
+
+}
+
+Table shop.addresses {
+  id          bigserial    [pk]
+  user_id     bigint       [not null, ref: > auth.users.id]
+  label       varchar(64)  [null, note: 'E.g. "Home", "Work"']
+  line1       varchar(255) [not null]
+  line2       varchar(255) [null]
+  city        varchar(128) [not null]
+  state       varchar(128) [null]
+  postal_code varchar(16)  [not null]
+  country     char(2)      [not null, note: 'ISO 3166-1 alpha-2']
+  is_default  boolean      [not null, default: false]
+  created_at  timestamp    [not null, default: `now()`]
+  updated_at  timestamp    [not null, default: `now()`]
+
+  indexes {
+    (user_id, is_default) [name: 'idx_addresses_default']
+  }
+}
+
+Table shop.orders as O {
+  id                  bigserial    [pk]
+  user_id             bigint       [not null]
+  shipping_address_id bigint       [null]
+  billing_address_id  bigint       [null]
+  coupon_id           bigint       [null, ref: > shop.coupons.id]
+  status              order_status [not null, default: 'draft']
+  subtotal_cents      integer      [not null, default: 0]
+  discount_cents      integer      [not null, default: 0]
+  tax_cents           integer      [not null, default: 0]
+  total_cents         integer      [not null, default: 0]
+  currency            char(3)      [not null, default: 'USD']
+  notes               text         [null]
+  created_at          timestamp    [not null, default: `now()`]
+  updated_at          timestamp    [not null, default: `now()`]
+
+  indexes {
+    user_id
+    status
+    (user_id, status) [name: 'idx_orders_user_status']
+    created_at        [name: 'idx_orders_created']
+  }
+
+  Note: 'Financial totals are denormalised for read performance; recomputed on every cart mutation.'
+}
+
+Table shop.order_items {
+  order_id         bigint  [not null]
+  variant_id       bigint  [not null]
+  qty              integer [not null, default: 1]
+  unit_price_cents integer [not null]
+  discount_cents   integer [not null, default: 0]
+
+  indexes {
+    (order_id, variant_id) [pk]
+  }
+
+}
+
+Table shop.payments {
+  id           bigserial      [pk]
+  order_id     bigint         [not null]
+  status       payment_status [not null, default: 'pending']
+  provider     varchar(64)    [not null, note: 'E.g. stripe, paypal, bank_transfer']
+  provider_ref varchar(255)   [unique, null, note: 'External transaction ID']
+  amount_cents integer        [not null]
+  currency     char(3)        [not null]
+  captured_at  timestamp      [null]
+  refunded_at  timestamp      [null]
+  created_at   timestamp      [not null, default: `now()`]
+  updated_at   timestamp      [not null, default: `now()`]
+
+}
+
+Table shop.coupon_usages {
+  coupon_id bigint    [not null, ref: > shop.coupons.id]
+  order_id  bigint    [not null, ref: > shop.orders.id]
+  used_at   timestamp [not null, default: `now()`]
+
+  indexes {
+    (coupon_id, order_id) [pk]
+  }
+}
+
+// Many-to-many: a user can wish-list many products; a product can be wished by many users
+Table shop.wishlist_items {
+  user_id    bigint    [not null]
+  product_id bigint    [not null]
+  added_at   timestamp [not null, default: `now()`]
+
+  indexes {
+    (user_id, product_id) [pk]
+  }
+}
+
+// Standalone Refs for shop — with delete/update actions
+Ref: shop.orders.user_id             > auth.users.id     [delete: restrict]
+Ref: shop.orders.shipping_address_id > shop.addresses.id [delete: set null]
+Ref: shop.orders.billing_address_id  > shop.addresses.id [delete: set null]
+Ref: shop.order_items.order_id       > shop.orders.id    [delete: cascade]
+Ref: shop.order_items.variant_id     > shop.product_variants.id [delete: restrict]
+
+// Long-form Ref — demonstrates both delete and update together
+Ref {
+  shop.payments.order_id > shop.orders.id [delete: restrict, update: cascade]
+}
+
+// Many-to-many cardinality notation (<>)
+Ref: shop.wishlist_items.user_id    <> auth.users.id
+Ref: shop.wishlist_items.product_id <> shop.products.id
+
+// ---------------------------------------------------------------------------
+// cms schema
+// ---------------------------------------------------------------------------
+
+// One-to-one extension of auth.users for editorial staff
+Table cms.authors {
+  id       bigint       [pk, ref: - auth.users.id]
+  pen_name varchar(128) [unique, null]
+  bio      text         [null]
+  website  varchar(512) [null]
+
+  Note: 'One-to-one extension of auth.users; only exists for editorial staff.'
+}
+
+Table cms.posts as CP {
+  id           bigserial       [pk]
+  author_id    bigint          [not null, ref: > cms.authors.id]
+  status       post_status [not null, default: 'draft']
+  slug         varchar(512)    [unique, not null]
+  title        varchar(512)    [not null]
+  excerpt      text            [null]
+  body         text            [null]
+  published_at timestamp       [null]
+  pinned       boolean         [not null, default: false]
+  created_at   timestamp       [not null, default: `now()`]
+  updated_at   timestamp       [not null, default: `now()`]
+
+  indexes {
+    slug                   [unique]
+    author_id
+    status
+    (status, published_at) [name: 'idx_posts_feed']
+    (`length(body)`)       [name: 'idx_posts_body_len', note: 'Used by analytics to find long-form content']
+  }
+}
+
+Table cms.post_revisions {
+  id         bigserial    [pk]
+  post_id    bigint       [not null, ref: > cms.posts.id]
+  editor_id  bigint       [null, ref: > auth.users.id]
+  title      varchar(512) [not null]
+  body       text
+  diff_json  text         [null]
+  created_at timestamp    [not null, default: `now()`]
+
+  indexes {
+    (post_id, created_at) [name: 'idx_revisions_history']
+  }
+}
+
+Table cms.tags {
+  id   integer     [pk, increment]
+  slug varchar(64) [unique, not null]
+  name varchar(64) [not null]
+
+  Note: 'Flat tag vocabulary; tag hierarchy is out of scope for v1.'
+}
+
+// Classic many-to-many join table with composite PK
+Table cms.post_tags {
+  post_id bigint  [not null]
+  tag_id  integer [not null]
+
+  indexes {
+    (post_id, tag_id) [pk]
+    tag_id
+  }
+}
+
+Ref: cms.post_tags.post_id > cms.posts.id [delete: cascade]
+Ref: cms.post_tags.tag_id  > cms.tags.id  [delete: restrict]
+
+// Self-referential tree (threaded comments)
+Table cms.comments {
+  id        bigserial [pk]
+  post_id   bigint    [not null, ref: > cms.posts.id]
+  parent_id bigint    [null, ref: > cms.comments.id, note: 'NULL = top-level comment']
+  author_id bigint    [null, ref: > auth.users.id]
+  body      text      [not null]
+  approved  boolean   [not null, default: false]
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  indexes {
+    (post_id, approved) [name: 'idx_comments_post_approved']
+    parent_id
+  }
+}
+
+Table cms.media {
+  id          bigserial    [pk]
+  uploader_id bigint       [null, ref: > auth.users.id]
+  filename    varchar(255) [not null]
+  mime_type   varchar(128) [not null]
+  size_bytes  bigint       [not null]
+  storage_key text         [unique, not null]
+  width_px    integer      [null]
+  height_px   integer      [null]
+  alt_text    varchar(512) [null]
+  created_at  timestamp    [not null, default: `now()`]
+  updated_at  timestamp    [not null, default: `now()`]
+
+}
+
+// ---------------------------------------------------------------------------
+// logistics schema
+// ---------------------------------------------------------------------------
+
+Table logistics.warehouses {
+  id      integer      [pk, increment]
+  code    varchar(16)  [unique, not null]
+  name    varchar(255) [not null]
+  address text         [not null]
+  country char(2)      [not null, note: 'ISO 3166-1 alpha-2']
+  active  boolean      [not null, default: true]
+}
+
+// Composite PK, expression index
+Table logistics.inventory {
+  warehouse_id integer [not null]
+  variant_id   bigint  [not null]
+  on_hand      integer [not null, default: 0]
+  reorder_at   integer [not null, default: 10, note: 'Trigger reorder when on_hand falls below this']
+
+  indexes {
+    (warehouse_id, variant_id) [pk]
+    (`on_hand - reorder_at`)   [name: 'idx_inventory_reorder', note: 'Negative values indicate a reorder is needed']
+  }
+
+}
+
+Ref: logistics.inventory.warehouse_id > logistics.warehouses.id    [delete: restrict]
+Ref: logistics.inventory.variant_id   > shop.product_variants.id   [delete: restrict]
+
+// Table with a composite natural PK (carrier + tracking_no)
+Table logistics.shipments {
+  carrier      varchar(32) [not null]
+  tracking_no  varchar(64) [not null]
+  order_id     bigint      [not null, ref: > shop.orders.id]
+  warehouse_id integer     [not null, ref: > logistics.warehouses.id]
+  shipped_at   timestamp   [null]
+  eta          timestamp   [null]
+
+  indexes {
+    (carrier, tracking_no) [pk]
+    order_id
+  }
+}
+
+// Composite FK referencing the composite PK above
+Table logistics.shipment_events {
+  carrier     varchar(32)  [not null]
+  tracking_no varchar(64)  [not null]
+  occurred_at timestamp    [not null]
+  location    varchar(255) [null]
+  status      varchar(64)  [not null]
+  raw_payload text         [null, note: 'JSON blob from the carrier webhook']
+
+  indexes {
+    (carrier, tracking_no, occurred_at) [pk]
+  }
+}
+
+Ref: logistics.shipment_events.(carrier, tracking_no) > logistics.shipments.(carrier, tracking_no) [delete: cascade]
+
+// ---------------------------------------------------------------------------
+// analytics schema
+// ---------------------------------------------------------------------------
+
+Table analytics.page_views {
+  id          bigserial [pk]
+  session_id  uuid      [not null]
+  user_id     bigint    [null, ref: > auth.users.id]
+  path        text      [not null]
+  referrer    text      [null]
+  duration_ms integer   [null]
+  occurred_at timestamp [not null, default: `now()`]
+
+  indexes {
+    session_id          [type: hash, name: 'idx_pv_session']
+    user_id
+    occurred_at
+    (path, occurred_at) [name: 'idx_pv_path_time']
+  }
+}
+
+Table analytics.events {
+  id          bigserial    [pk]
+  session_id  uuid         [not null]
+  user_id     bigint       [null, ref: > auth.users.id]
+  event_name  varchar(128) [not null]
+  entity_type varchar(64)  [null]
+  entity_id   bigint       [null]
+  properties  text         [null, note: 'JSON payload; untyped for flexibility']
+  occurred_at timestamp    [not null, default: `now()`]
+
+  indexes {
+    session_id                [type: hash, name: 'idx_events_session']
+    (event_name, occurred_at) [name: 'idx_events_name_time']
+    (entity_type, entity_id)  [name: 'idx_events_entity']
+  }
+
+  Note: 'Generic event bus. entity_type + entity_id loosely reference any domain object.'
+}
+
+// ---------------------------------------------------------------------------
+// TableGroups
+// ---------------------------------------------------------------------------
+
+TableGroup auth_group {
+  auth.users
+  auth.credentials
+  auth.roles
+  auth.user_roles
+  auth.sessions
+  auth.api_keys
+}
+
+TableGroup shop_group {
+  shop.categories
+  shop.products
+  shop.product_variants
+  shop.prices
+  shop.product_images
+  shop.coupons
+  shop.addresses
+  shop.orders
+  shop.order_items
+  shop.payments
+  shop.coupon_usages
+  shop.wishlist_items
+}
+
+TableGroup cms_group {
+  cms.authors
+  cms.posts
+  cms.post_revisions
+  cms.tags
+  cms.post_tags
+  cms.comments
+  cms.media
+}
+
+TableGroup logistics_group {
+  logistics.warehouses
+  logistics.inventory
+  logistics.shipments
+  logistics.shipment_events
+}
+
+TableGroup analytics_group {
+  analytics.page_views
+  analytics.events
+}
