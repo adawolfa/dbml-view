@@ -370,10 +370,13 @@ dbml-structure {
 }
 
 /* Count chip lives directly in the row when a hide toggle is present, so it
-   sits to the right of the toggle. visibility: hidden — like the toggle — so
-   layout doesn't shift on hover. */
+   sits to the right of the toggle. min-width reserves space for ~3 digits and
+   right-aligns the number so the eye toggle stays at a fixed x-position
+   regardless of how wide the count text is (otherwise 10+ shifts it left). */
 .dv-tree-row > .dv-tree-count {
   flex-shrink: 0;
+  min-width: 1.5em;
+  text-align: right;
   font-size: 0.7rem;
   color: var(--dv-muted);
   font-variant-numeric: tabular-nums;

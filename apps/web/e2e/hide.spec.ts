@@ -186,6 +186,35 @@ test('hidden state survives a reload via localStorage', async ({ page }) => {
   ).toHaveClass(/is-hidden/);
 });
 
+test('eye toggles stay aligned across rows regardless of count digit width', async ({ page }) => {
+  // Regression: a double-digit column count (e.g. auth.users with 10 columns)
+  // used to push the eye toggle leftward, breaking visual alignment with
+  // toggles next to single-digit counts. The count chip now reserves a
+  // min-width so the toggle stays at a fixed x-position per row.
+  await page.goto('/');
+  await loadSample(page, 'large');
+
+  // auth.users has 10 cols (2 digits); auth.roles has 3 cols (1 digit).
+  // Both rows must place their eye toggle at the same x-coordinate.
+  const usersToggle = page.locator(
+    '#structure .dv-tree-hide-toggle[data-hide-kind="table"][data-hide-id="auth.users"]',
+  );
+  const rolesToggle = page.locator(
+    '#structure .dv-tree-hide-toggle[data-hide-kind="table"][data-hide-id="auth.roles"]',
+  );
+  // Force visibility so getBoundingClientRect reflects the laid-out position
+  // even though the toggle is opacity:0 until hovered.
+  await usersToggle.evaluate((el) => ((el as HTMLElement).style.opacity = '1'));
+  await rolesToggle.evaluate((el) => ((el as HTMLElement).style.opacity = '1'));
+
+  const usersBox = await usersToggle.boundingBox();
+  const rolesBox = await rolesToggle.boundingBox();
+  expect(usersBox).not.toBeNull();
+  expect(rolesBox).not.toBeNull();
+  // Allow 0.5px slack for sub-pixel rounding — anything bigger is misalignment.
+  expect(Math.abs((usersBox?.x ?? 0) - (rolesBox?.x ?? 0))).toBeLessThan(1);
+});
+
 test('hide toggle reveals on row hover and stays visible when item is hidden', async ({ page }) => {
   await page.goto('/');
   await loadSample(page, 'small');
