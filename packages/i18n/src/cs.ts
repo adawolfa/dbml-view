@@ -65,6 +65,8 @@ export const cs = {
   'app.dropzone.hint': 'Nebo načtěte vzorek z rozevíracího menu vedle tlačítka Otevřít.',
   'app.previous_file': '(předchozí)',
   'app.error.load_url': 'Nepodařilo se načíst {label}: {message}',
+  'app.error.parse.title': 'DBML se nepodařilo zpracovat',
+  'app.error.parse.close': 'Zavřít',
 
   // --- Settings dropdown ---
   'app.settings.open': 'Nastavení',

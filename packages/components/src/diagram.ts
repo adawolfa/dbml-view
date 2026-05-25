@@ -145,7 +145,7 @@ export class DbmlDiagramElement extends HTMLElement {
     const result = parseDbml(value);
     if (!result.ok) {
       this.database = null;
-      this.renderError(result.errors);
+      this.renderEmpty();
       return;
     }
     this.setDatabase(result.db);
@@ -968,15 +968,6 @@ export class DbmlDiagramElement extends HTMLElement {
       () => this.canvasEl.classList.remove('is-panning-to'),
       { once: true },
     );
-  }
-
-  private renderError(errors: { line: number; column: number; message: string }[]): void {
-    this.canvasEl.style.visibility = 'hidden';
-    this.nodesEl.innerHTML = '';
-    while (this.edgesEl.firstChild) this.edgesEl.removeChild(this.edgesEl.firstChild);
-    this.statusEl.innerHTML = errors
-      .map((e) => `<span class="dv-error">${e.line}:${e.column} ${escapeHtml(e.message)}</span>`)
-      .join('');
   }
 
   private renderEmpty(): void {

@@ -286,6 +286,18 @@
         </section>
       </div>
     </main>
+    <dialog id="error-modal" class="error-modal" aria-modal="true" aria-labelledby="error-modal-title">
+      <div class="error-modal-header">
+        <h2 id="error-modal-title" class="error-modal-title"></h2>
+        <button type="button" id="error-modal-close" class="error-modal-close">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"
+            stroke-linecap="round" aria-hidden="true">
+            <path d="M3 3l10 10M13 3L3 13" />
+          </svg>
+        </button>
+      </div>
+      <div id="error-modal-body" class="error-modal-body"></div>
+    </dialog>
     <script type="module" src="./src/main.ts"></script>
   </body>
 </html>
