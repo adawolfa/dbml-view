@@ -22,11 +22,14 @@ const LS_NAME_KEY = 'dbml-view:last-name';
 const LS_VIEWS_KEY = 'dbml-view:active-views';
 const LS_THEME_KEY = 'dbml-view:theme';
 const LS_LOCALE_KEY = 'dbml-view:locale';
+const LS_FONT_KEY = 'dbml-view:font';
 const LS_PANEL_WIDTH_PREFIX = 'dbml-view:panel-width:';
 
 type Locale = 'en' | 'cs';
 
 type Theme = 'light' | 'dark';
+
+type FontMode = 'mono' | 'proportional';
 
 type View = 'structure' | 'detail' | 'diagram';
 const VIEWS: readonly View[] = ['structure', 'detail', 'diagram'];
@@ -58,6 +61,8 @@ const themeSelect = mustGet<HTMLSelectElement>('theme-select');
 const themeSelectLabel = mustGet<HTMLElement>('theme-select-label');
 const langSelect = mustGet<HTMLSelectElement>('lang-select');
 const langSelectLabel = mustGet<HTMLElement>('lang-select-label');
+const fontSelect = mustGet<HTMLSelectElement>('font-select');
+const fontSelectLabel = mustGet<HTMLElement>('font-select-label');
 
 const structure = mustGet<DbmlStructureElement>('structure');
 const detail = mustGet<DbmlDetailElement>('detail');
@@ -507,10 +512,15 @@ function initTranslations(): void {
   settingsTrigger.setAttribute('aria-label', settingsLabel);
   themeSelectLabel.textContent = t('app.settings.theme.label');
   langSelectLabel.textContent = t('app.settings.language.label');
+  fontSelectLabel.textContent = t('app.settings.font.label');
   for (const opt of Array.from(themeSelect.options)) {
     if (opt.value === 'system') opt.textContent = t('app.settings.theme.system');
     else if (opt.value === 'light') opt.textContent = t('app.settings.theme.light');
     else if (opt.value === 'dark') opt.textContent = t('app.settings.theme.dark');
+  }
+  for (const opt of Array.from(fontSelect.options)) {
+    if (opt.value === 'mono') opt.textContent = t('app.settings.font.mono');
+    else if (opt.value === 'proportional') opt.textContent = t('app.settings.font.proportional');
   }
 }
 
@@ -590,6 +600,45 @@ langSelect.addEventListener('change', () => {
   }
   window.location.reload();
 });
+
+// --- Font: switch between monospace (Cascadia Code) and proportional (Aptos). ---
+
+function storedFont(): FontMode | null {
+  try {
+    const v = localStorage.getItem(LS_FONT_KEY);
+    return v === 'mono' || v === 'proportional' ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+function applyFont(): void {
+  const font = storedFont() ?? 'mono';
+  if (font === 'proportional') {
+    document.documentElement.setAttribute('data-font', 'proportional');
+  } else {
+    document.documentElement.removeAttribute('data-font');
+  }
+}
+
+// Initialise the font <select> to reflect the stored preference.
+fontSelect.value = storedFont() ?? 'mono';
+
+fontSelect.addEventListener('change', () => {
+  const val = fontSelect.value;
+  try {
+    if (val === 'mono') {
+      localStorage.removeItem(LS_FONT_KEY);
+    } else if (val === 'proportional') {
+      localStorage.setItem(LS_FONT_KEY, val);
+    }
+  } catch {
+    // ignore
+  }
+  applyFont();
+});
+
+applyFont();
 
 // --- Selection wiring: structure ↔ detail ↔ diagram via URL hash. ---
 

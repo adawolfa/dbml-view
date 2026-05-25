@@ -77,4 +77,7 @@ export const en = {
   'app.settings.theme.light': 'Light',
   'app.settings.theme.dark': 'Dark',
   'app.settings.language.label': 'Language',
+  'app.settings.font.label': 'Font',
+  'app.settings.font.mono': 'Cascadia Code',
+  'app.settings.font.proportional': 'Aptos',
 } as const;

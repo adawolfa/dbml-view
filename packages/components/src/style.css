@@ -43,6 +43,7 @@
   --dv-badge-auto-fg: #0e6b25;
   --dv-badge-notnull-bg: #fde7e9;
   --dv-badge-notnull-fg: #a4262c;
+  --dv-code-font: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
 
   display: block;
   color: var(--dv-fg);
@@ -95,6 +96,10 @@
   --dv-badge-auto-fg: #7ec07e;
   --dv-badge-notnull-bg: #3d1f1f;
   --dv-badge-notnull-fg: #f08080;
+}
+
+:root[data-font="proportional"] :where(dbml-structure, dbml-detail, dbml-diagram) {
+  --dv-code-font: "Aptos", "Calibri", "Segoe UI Variable", "Segoe UI", sans-serif;
 }
 
 /* ---- <dbml-structure> ---- */
@@ -233,7 +238,7 @@ dbml-structure {
 }
 
 .dv-tree-node-table .dv-tree-table-name {
-  font-family: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-family: var(--dv-code-font);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -270,7 +275,7 @@ dbml-structure {
 
 .dv-tree-node-column {
   padding-left: 1.1rem;
-  font-family: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-family: var(--dv-code-font);
   font-size: 12px;
 }
 
@@ -309,7 +314,7 @@ dbml-structure {
 
 .dv-tree-node-relation {
   padding-left: 1.1rem;
-  font-family: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-family: var(--dv-code-font);
   font-size: 12px;
   color: var(--dv-fg);
 }
@@ -336,7 +341,7 @@ dbml-structure {
 }
 
 .dv-tree-node-enum .dv-tree-enum-name {
-  font-family: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-family: var(--dv-code-font);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -367,7 +372,7 @@ dbml-structure {
 
 .dv-tree-node-enum-value {
   padding-left: 1.1rem;
-  font-family: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-family: var(--dv-code-font);
   font-size: 12px;
   cursor: default;
 }
@@ -431,7 +436,7 @@ dbml-detail {
 .dv-error-pos {
   display: inline-block;
   min-width: 3.5rem;
-  font-family: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-family: var(--dv-code-font);
   color: var(--dv-error-pos-fg);
 }
 
@@ -546,11 +551,11 @@ dbml-detail {
 
 .dv-col-name {
   font-weight: 600;
-  font-family: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-family: var(--dv-code-font);
 }
 
 .dv-col-type {
-  font-family: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-family: var(--dv-code-font);
   color: var(--dv-type-color);
 }
 
@@ -615,7 +620,7 @@ dbml-detail {
 }
 
 .dv-refs code {
-  font-family: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-family: var(--dv-code-font);
   font-size: 0.8rem;
 }
 
@@ -846,7 +851,7 @@ dbml-diagram {
 }
 
 .dv-table-name {
-  font-family: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-family: var(--dv-code-font);
   color: var(--dv-fg);
 }
 
@@ -857,7 +862,7 @@ dbml-diagram {
   gap: 0.5rem;
   padding: 0.28rem 0.65rem;
   border-top: 1px solid var(--dv-row-border);
-  font-family: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-family: var(--dv-code-font);
   font-size: 12px;
   line-height: 1.4;
 }
