@@ -1,0 +1,24 @@
+// Minimal sample used by E2E tests that exercise tablegroup visibility toggling.
+// All tables use the default (public) schema so the tree renders tablegroup headers.
+
+Table users {
+  id integer [pk, increment]
+  email varchar [unique, not null]
+}
+
+Table posts {
+  id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
+  title varchar
+}
+
+Table comments {
+  id integer [pk, increment]
+  post_id integer [not null, ref: > posts.id]
+  body text
+}
+
+TableGroup content {
+  posts
+  comments
+}

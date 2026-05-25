@@ -35,6 +35,7 @@ import {
   otherEndpointOf,
   relationArrow,
   selfEndpoint,
+  tableGroupKey,
 } from './shared';
 
 export class DbmlStructureElement extends HTMLElement {
@@ -501,17 +502,63 @@ export class DbmlStructureElement extends HTMLElement {
 
   private renderTableHideToggle(id: string): string {
     const directlyHidden = this.hiddenSet.tables.has(id);
-    // A table can also be hidden via its schema or tablegroup. In that case
-    // its own toggle becomes disabled (visually shown as hidden but inactive)
-    // — toggling the parent is the only way back.
+    // A table can also be hidden via its schema or tablegroup (transitively).
+    // Rather than disabling the toggle, we allow clicking it — the handler will
+    // smart-unhide the parent group and hide all sibling tables so only this
+    // one becomes visible.
     const transitivelyHidden = !directlyHidden && this.effectiveHidden.has(id);
-    return makeHideToggle(
-      'table',
-      id,
-      directlyHidden || transitivelyHidden,
-      id,
-      transitivelyHidden,
-    );
+    return makeHideToggle('table', id, directlyHidden || transitivelyHidden, id);
+  }
+
+  /**
+   * A table that is hidden via its parent group (schema or tablegroup) was
+   * toggled to visible. We operate at the database level — not the tree level —
+   * because a table's tree-group and its actual hiding source can differ (e.g.
+   * a table whose schema is hidden may appear under a tablegroup in the tree).
+   *
+   * For each hiding bucket that covers this table:
+   *   1. Remove the bucket entry (schema name / tablegroup key) so the group
+   *      itself becomes visible again.
+   *   2. Individually hide every other table that was covered by the same
+   *      bucket entry so they stay off the diagram.
+   * Finally, ensure the target table is not also in `hiddenSet.tables`.
+   *
+   * Net result: all masking groups un-hidden, only the clicked table visible.
+   */
+  private smartUnhideTable(id: string): void {
+    if (!this.database) return;
+
+    // Schema bucket: if the table's schema is hidden, un-hide it and
+    // individually hide every other table in that schema.
+    const table = this.database.tables.find((t) => tableId(t) === id);
+    if (table) {
+      const schema = table.schemaName ?? DEFAULT_SCHEMA;
+      if (this.hiddenSet.schemas.has(schema)) {
+        this.hiddenSet.schemas.delete(schema);
+        for (const t of this.database.tables) {
+          const tId = tableId(t);
+          if (tId !== id && (t.schemaName ?? DEFAULT_SCHEMA) === schema) {
+            this.hiddenSet.tables.add(tId);
+          }
+        }
+      }
+    }
+
+    // TableGroup bucket: if any tablegroup containing this table is hidden,
+    // un-hide it and individually hide every other member.
+    for (const tg of this.database.tableGroups) {
+      const key = tableGroupKey(tg);
+      if (!this.hiddenSet.tableGroups.has(key)) continue;
+      const memberIds = tg.tables.map((m) => `${m.schemaName || DEFAULT_SCHEMA}.${m.name}`);
+      if (!memberIds.includes(id)) continue;
+      this.hiddenSet.tableGroups.delete(key);
+      for (const tId of memberIds) {
+        if (tId !== id) this.hiddenSet.tables.add(tId);
+      }
+    }
+
+    // Ensure the target table is not directly hidden either.
+    this.hiddenSet.tables.delete(id);
   }
 
   private isGroupHidden(group: TreeGroup): boolean {
@@ -528,10 +575,18 @@ export class DbmlStructureElement extends HTMLElement {
     const kind = btn.dataset.hideKind;
     const id = btn.dataset.hideId ?? '';
     if (!kind || !id) return;
-    if (btn.dataset.disabled === 'true') return;
     if (kind === 'table') {
-      if (this.hiddenSet.tables.has(id)) this.hiddenSet.tables.delete(id);
-      else this.hiddenSet.tables.add(id);
+      if (this.hiddenSet.tables.has(id)) {
+        // Directly hidden → un-hide.
+        this.hiddenSet.tables.delete(id);
+      } else if (this.database && this.effectiveHidden.has(id)) {
+        // Transitively hidden via a parent group → smart-unhide: reveal only
+        // this table and hide every sibling individually.
+        this.smartUnhideTable(id);
+      } else {
+        // Visible → hide.
+        this.hiddenSet.tables.add(id);
+      }
     } else if (kind === 'schema') {
       if (this.hiddenSet.schemas.has(id)) this.hiddenSet.schemas.delete(id);
       else this.hiddenSet.schemas.add(id);
