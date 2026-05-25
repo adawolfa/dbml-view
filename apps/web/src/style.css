@@ -381,25 +381,72 @@ body {
 
 .settings-dropdown {
   position: absolute;
-  top: calc(100% + 3px);
+  top: calc(100% + 4px);
   right: 0;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 0.4rem 0.65rem;
-  padding: 0.6rem 0.75rem;
-  min-width: 210px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.5rem;
+  min-width: 220px;
   background: var(--app-surface);
   border: 1px solid var(--app-border-strong);
+  border-radius: 6px;
   box-shadow: var(--app-shadow-4);
   z-index: 100;
 }
 
-.settings-label {
+/* Segmented two-button toggle (theme / font). */
+.settings-toggle {
+  display: flex;
+  border: 1px solid var(--app-border-strong);
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--app-surface);
+}
+
+.settings-toggle-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
   font-size: 0.85rem;
   color: var(--app-fg);
-  white-space: nowrap;
-  cursor: default;
+  transition: background 80ms ease, color 80ms ease;
+}
+
+.settings-toggle-btn + .settings-toggle-btn {
+  border-left: 1px solid var(--app-border);
+}
+
+.settings-toggle-btn:hover:not([aria-pressed="true"]) {
+  background: var(--app-neutral-hover);
+}
+
+.settings-toggle-btn[aria-pressed="true"] {
+  background: var(--app-accent-soft);
+  color: var(--app-accent);
+}
+
+.settings-toggle-btn[aria-pressed="true"]:hover {
+  background: var(--app-accent-soft-hover);
+}
+
+.settings-toggle-btn:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: -2px;
+  z-index: 1;
+}
+
+.settings-toggle-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }
 
 .settings-select {
@@ -408,7 +455,8 @@ body {
   background: var(--app-surface);
   color: var(--app-fg);
   border: 1px solid var(--app-border-strong);
-  padding: 0.2rem 0.3rem;
+  border-radius: 4px;
+  padding: 0.35rem 0.5rem;
   cursor: pointer;
   width: 100%;
   transition: border-color 80ms ease;

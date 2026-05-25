@@ -68,12 +68,9 @@ export const cs = {
 
   // --- Settings dropdown ---
   'app.settings.open': 'Nastavení',
-  'app.settings.theme.label': 'Motiv',
-  'app.settings.theme.system': 'Systém',
   'app.settings.theme.light': 'Světlý',
   'app.settings.theme.dark': 'Tmavý',
   'app.settings.language.label': 'Jazyk',
-  'app.settings.font.label': 'Písmo',
-  'app.settings.font.mono': 'Cascadia Code',
-  'app.settings.font.proportional': 'Aptos',
+  'app.settings.font.mono': 'Mono',
+  'app.settings.font.proportional': 'Sans',
 } satisfies Translations;
