@@ -354,8 +354,8 @@ function renderTableDetail(
         : ''
     }
 
-    ${renderRefSection(t('detail.section.refs_out'), outgoing, table)}
-    ${renderRefSection(t('detail.section.refs_in'), incoming, table)}
+    ${renderRefSection(t('detail.section.refs_out'), outgoing, table, showSchema)}
+    ${renderRefSection(t('detail.section.refs_in'), incoming, table, showSchema)}
   `;
 }
 
@@ -466,17 +466,22 @@ function renderIndexItem(index: Table['indexes'][number]): string {
   `;
 }
 
-function renderRefSection(title: string, refs: RefEntry[], self: Table): string {
+function renderRefSection(
+  title: string,
+  refs: RefEntry[],
+  self: Table,
+  showSchema: boolean,
+): string {
   if (refs.length === 0) return '';
   return `
     <h3 class="dv-section-title">${escapeHtml(title)}</h3>
     <ul class="dv-refs">
-      ${refs.map((r) => renderRefItem(r, self)).join('')}
+      ${refs.map((r) => renderRefItem(r, self, showSchema)).join('')}
     </ul>
   `;
 }
 
-function renderRefItem(entry: RefEntry, self: Table): string {
+function renderRefItem(entry: RefEntry, self: Table, showSchema: boolean): string {
   // Render always as "self <arrow> other", regardless of how the parser
   // ordered the endpoints. For self-refs, split by cardinality so the
   // outgoing entry shows the FK column and the incoming entry shows the PK.
@@ -485,7 +490,10 @@ function renderRefItem(entry: RefEntry, self: Table): string {
   const otherEnd = otherEndpointOf(entry.ref, selfEnd);
   const otherId = endpointTableId(otherEnd);
   const selfLabel = `${self.name}.(${selfEnd.fieldNames.join(', ')})`;
-  const otherLabel = `${otherId === selfId ? otherEnd.tableName : otherId}.(${otherEnd.fieldNames.join(', ')})`;
+  // When the DBML uses no explicit schemas (showSchema=false), display just the
+  // table name — omit the redundant "public." prefix.
+  const otherDisplay = otherId === selfId || !showSchema ? otherEnd.tableName : otherId;
+  const otherLabel = `${otherDisplay}.(${otherEnd.fieldNames.join(', ')})`;
   const arrow = relationArrow(selfEnd.relation, otherEnd.relation);
   return `
     <li>
