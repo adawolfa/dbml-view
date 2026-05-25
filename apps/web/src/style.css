@@ -213,7 +213,6 @@ body {
   display: inline-flex;
   height: 30px;
   border: 1px solid var(--app-border-strong);
-  border-radius: 4px;
   overflow: hidden;
   background: var(--app-surface);
 }
@@ -410,7 +409,6 @@ body {
   min-width: 220px;
   background: var(--app-surface);
   border: 1px solid var(--app-border-strong);
-  border-radius: 6px;
   box-shadow: var(--app-shadow-4);
   z-index: 100;
 }
@@ -419,7 +417,6 @@ body {
 .settings-toggle {
   display: flex;
   border: 1px solid var(--app-border-strong);
-  border-radius: 4px;
   overflow: hidden;
   background: var(--app-surface);
 }
@@ -475,7 +472,6 @@ body {
   background: var(--app-surface);
   color: var(--app-fg);
   border: 1px solid var(--app-border-strong);
-  border-radius: 4px;
   padding: 0.35rem 0.5rem;
   cursor: pointer;
   width: 100%;
