@@ -5,6 +5,10 @@ description = "Read-only DBML viewer (desktop shell)"
 edition = "2021"
 rust-version = "1.77"
 
+[[bin]]
+name = "DBMLView"
+path = "src/main.rs"
+
 [lib]
 name = "dbml_view_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
