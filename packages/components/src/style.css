@@ -788,8 +788,11 @@ dbml-diagram {
   margin: 0 0.25rem;
 }
 
-.dv-diagram-status {
+.dv-diagram-toolbar button[data-act="zoom-in"] {
   margin-left: auto;
+}
+
+.dv-diagram-status {
   font-size: 0.75rem;
   color: var(--dv-muted);
   font-variant-numeric: tabular-nums;
