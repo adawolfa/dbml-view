@@ -932,6 +932,17 @@ dbml-diagram {
   touch-action: none;
 }
 
+/* DBML `[headerColor: #…]`: tint the header with the chosen color and lift the
+   border + name to a matching darker shade so the label stays legible. */
+.dv-table.has-header-color > .dv-table-header {
+  background: color-mix(in srgb, var(--dv-table-header-color) 22%, var(--dv-table-header-bg));
+  border-bottom-color: color-mix(in srgb, var(--dv-table-header-color) 60%, var(--dv-border));
+}
+
+.dv-table.has-header-color > .dv-table-header .dv-table-name {
+  color: color-mix(in srgb, var(--dv-table-header-color) 75%, var(--dv-fg));
+}
+
 .dv-table.is-dragging .dv-table-header,
 .dv-canvas.is-dragging-table .dv-table-header {
   cursor: grabbing;
@@ -988,6 +999,12 @@ dbml-diagram {
   /* Parent <svg> sets pointer-events: none; opt edges back in so they can be hovered. */
   pointer-events: auto;
   cursor: pointer;
+}
+
+/* DBML `Ref [color: '#…']`: paint the edge in the configured color. Hover/related
+   still take precedence so highlights remain visible. */
+.dv-edge-group.has-color {
+  color: var(--dv-edge-color);
 }
 
 .dv-edge-group.is-related {

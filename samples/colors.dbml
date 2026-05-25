@@ -1,0 +1,27 @@
+// Color attributes: table headerColor, ref color, TableGroup color.
+// See https://dbml.dbdiagram.io/docs for the full color syntax.
+
+Table users [headerColor: #2563eb] {
+  id integer [pk, increment]
+  email varchar [unique, not null]
+}
+
+Table posts [headerColor: #16a34a] {
+  id integer [pk, increment]
+  user_id integer [not null]
+  title varchar
+}
+
+Table comments [headerColor: #f97316] {
+  id integer [pk, increment]
+  post_id integer [not null]
+  body text
+}
+
+Ref red: posts.user_id > users.id [color: #ef4444]
+Ref green: comments.post_id > posts.id [color: #22c55e]
+
+TableGroup content [color: #a855f7] {
+  posts
+  comments
+}
