@@ -198,6 +198,12 @@ body {
   flex-direction: column;
 }
 
+/* When the structure panel is the only visible panel, cap its width so it
+   doesn't stretch awkwardly across the full window. */
+.views > .view.is-solo {
+  max-width: 480px;
+}
+
 /* Vertical splitter between visible panels. The 6 px width is referenced by
    APP_SPLITTER_PX in main.ts when computing max-width clamps. */
 .app-splitter {

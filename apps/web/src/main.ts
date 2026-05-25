@@ -62,6 +62,7 @@ const panelWidths: Record<View, number> = {
   diagram: loadPanelWidth('diagram'),
 };
 let hasSource = false;
+let currentSelection: Selection = { kind: 'none' };
 
 fileButton.addEventListener('click', () => fileInput.click());
 
@@ -207,7 +208,7 @@ function renderViews(): void {
   }
   viewsEl.hidden = false;
   for (const view of VIEWS) {
-    viewSections[view].hidden = !activeViews.has(view);
+    viewSections[view].hidden = !effectivelyVisible(view);
   }
   layoutPanels();
 }
@@ -222,8 +223,13 @@ function layoutPanels(): void {
   // Remove existing splitters; sections re-order naturally.
   for (const splitter of viewsEl.querySelectorAll('.app-splitter')) splitter.remove();
 
-  const visible = VIEWS.filter((v) => activeViews.has(v));
+  const visible = VIEWS.filter((v) => effectivelyVisible(v));
   if (visible.length === 0) return;
+
+  // When the structure panel is the only visible panel it would stretch to the
+  // full window width, which looks odd for a narrow tree. Mark it so CSS can
+  // cap its width; clear the flag whenever other panels are alongside it.
+  viewSections.structure.classList.toggle('is-solo', visible.length === 1 && visible[0] === 'structure');
 
   // Reset widths on all sections, then apply per visible panel.
   for (const v of VIEWS) {
@@ -321,7 +327,7 @@ function makeSplitter(leftView: View): HTMLElement {
 
 /** Cap so the rightmost flex panel never collapses below its min-width. */
 function maxWidthFor(view: View): number {
-  const visible = VIEWS.filter((v) => activeViews.has(v));
+  const visible = VIEWS.filter((v) => effectivelyVisible(v));
   const containerWidth = viewsEl.getBoundingClientRect().width;
   // Account for gaps and splitters between adjacent panels.
   const gapCount = Math.max(0, visible.length - 1);
@@ -365,6 +371,15 @@ function loadPanelWidth(view: View): number {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+/**
+ * Returns true if a view panel should actually be shown. The detail panel is
+ * additionally gated on having a table or enum selected — when nothing is
+ * selected it stays hidden regardless of the header toggle state.
+ */
+function effectivelyVisible(view: View): boolean {
+  return activeViews.has(view) && (view !== 'detail' || currentSelection.kind !== 'none');
 }
 
 function mustGet<T extends HTMLElement>(id: string): T {
@@ -436,8 +451,10 @@ function selectionToHash(selection: Selection): string {
 
 /** Push a selection to the components without echoing the hash. */
 function applySelection(selection: Selection): void {
+  currentSelection = selection;
   structure.setSelection(selection);
   detail.setSelection(selection);
+  renderViews();
 }
 
 function syncSelectionFromHash(): void {
@@ -446,7 +463,9 @@ function syncSelectionFromHash(): void {
 
 structure.addEventListener('selection-change', (event) => {
   const sel = (event as CustomEvent<Selection>).detail;
+  currentSelection = sel;
   detail.setSelection(sel);
+  renderViews();
   const target = selectionToHash(sel);
   if (target && window.location.hash !== target) {
     history.replaceState(null, '', target || window.location.pathname);
@@ -517,7 +536,7 @@ async function bootstrap(): Promise<void> {
 window.addEventListener('resize', () => {
   if (!hasSource) return;
   let dirty = false;
-  const visible = VIEWS.filter((v) => activeViews.has(v));
+  const visible = VIEWS.filter((v) => effectivelyVisible(v));
   for (let i = 0; i < visible.length - 1; i++) {
     const view = visible[i]!;
     const max = maxWidthFor(view);
