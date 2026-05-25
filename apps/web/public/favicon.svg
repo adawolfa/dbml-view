@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <clipPath id="tile"><rect width="256" height="256" rx="56" ry="56"></rect></clipPath>
+    <clipPath id="dShape"><path d="M64,52 H140 a64,76 0 0 1 0,152 H64 Z"></path></clipPath>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7ec6f5"></stop>
+      <stop offset="1" stop-color="#2f86d9"></stop>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.22"></stop>
+      <stop offset="0.4" stop-color="#ffffff" stop-opacity="0"></stop>
+    </linearGradient>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect width="256" height="256" fill="url(#bg)"></rect>
+    <path d="M64,52 H140 a64,76 0 0 1 0,152 H64 Z" fill="#ffffff"></path>
+    <g clip-path="url(#dShape)">
+      <rect x="60" y="92" width="160" height="4" fill="#0e3a6b" fill-opacity="0.20"></rect>
+      <rect x="60" y="128" width="160" height="4" fill="#0e3a6b" fill-opacity="0.20"></rect>
+      <rect x="60" y="164" width="160" height="4" fill="#0e3a6b" fill-opacity="0.20"></rect>
+      <rect x="78" y="62" width="6" height="132" rx="2" fill="#ffd25a"></rect>
+    </g>
+    <circle cx="200" cy="60" r="10" fill="#ffd25a"></circle>
+    <rect width="256" height="256" fill="url(#sheen)"></rect>
+  </g>
+</svg>
