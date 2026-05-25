@@ -238,11 +238,17 @@ try {
 
 renderViews();
 
-// Bootstrap: ?url=… > last-stored source > drop zone.
-const urlParam = new URLSearchParams(window.location.search).get('url');
-if (urlParam) {
-  void loadUrl(urlParam, urlParam);
-} else {
+// Bootstrap: Tauri argv > ?url= > last-stored source > drop zone.
+void bootstrap();
+
+async function bootstrap(): Promise<void> {
+  if (await bootstrapTauri()) return;
+
+  const urlParam = new URLSearchParams(window.location.search).get('url');
+  if (urlParam) {
+    void loadUrl(urlParam, urlParam);
+    return;
+  }
   try {
     const stored = localStorage.getItem(LS_KEY);
     const storedName = localStorage.getItem(LS_NAME_KEY);
@@ -250,6 +256,32 @@ if (urlParam) {
   } catch {
     // ignore
   }
+}
+
+// When running inside the Tauri shell, subscribe to file-open events (from
+// double-click / second-instance launches) and drain the initial argv payload.
+// Returns true if an initial file was applied — in that case we skip the
+// browser-only fallbacks (URL param, localStorage).
+async function bootstrapTauri(): Promise<boolean> {
+  if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) return false;
+  try {
+    const [{ invoke }, { listen }] = await Promise.all([
+      import('@tauri-apps/api/core'),
+      import('@tauri-apps/api/event'),
+    ]);
+    type Payload = { name: string; source: string };
+    await listen<Payload>('dbml-open', (event) => {
+      applySource(event.payload.source, event.payload.name);
+    });
+    const initial = await invoke<Payload | null>('take_pending_open');
+    if (initial) {
+      applySource(initial.source, initial.name);
+      return true;
+    }
+  } catch {
+    // Tauri runtime missing or IPC error — fall back to browser behaviour.
+  }
+  return false;
 }
 
 // Cross-component sync: when the user clicks a table in the diagram, also
