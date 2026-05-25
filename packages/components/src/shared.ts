@@ -111,6 +111,8 @@ export type TreeGroup = {
   kind: 'tablegroup' | 'schema';
   tables: Table[];
   enums: Enum[];
+  /** TableGroup color from DBML (`TableGroup foo [color: '#…']`); null for schema groups or when unset. */
+  color: string | null;
 };
 
 /**
@@ -160,6 +162,7 @@ export function buildTree(db: Database): TreeGroup[] {
         kind: 'tablegroup',
         tables: tables.slice().sort((a, b) => a.name.localeCompare(b.name)),
         enums: [],
+        color: tg.color ?? null,
       });
     }
     groups.sort((a, b) => a.label.localeCompare(b.label));
@@ -189,6 +192,7 @@ export function buildTree(db: Database): TreeGroup[] {
         .slice()
         .sort((a, b) => a.name.localeCompare(b.name)),
       enums: (enumsBySchema.get(schema) ?? []).slice().sort((a, b) => a.name.localeCompare(b.name)),
+      color: null,
     }))
     .filter((g) => g.tables.length > 0 || g.enums.length > 0)
     .sort((a, b) => a.label.localeCompare(b.label));

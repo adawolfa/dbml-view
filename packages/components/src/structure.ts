@@ -314,7 +314,7 @@ export class DbmlStructureElement extends HTMLElement {
                 aria-expanded="${groupOpen}"
               >
                 <span class="dv-tree-chevron">${chevron}</span>
-                ${group.kind === 'tablegroup' ? iconTableGroup() : iconSchema()}
+                ${group.kind === 'tablegroup' ? iconTableGroup(group.color) : iconSchema()}
                 <span class="dv-tree-group-name">${escapeHtml(group.label)}</span>
               </button>
               ${hideToggle}
@@ -400,7 +400,7 @@ export class DbmlStructureElement extends HTMLElement {
             aria-expanded="${expanded}"
           >
             <span class="dv-tree-chevron">${chevron}</span>
-            ${iconTable()}
+            ${iconTable(table.headerColor ?? null)}
             <span class="dv-tree-table-name">${escapeHtml(table.name)}</span>
           </button>
           ${hideToggle}
@@ -466,6 +466,7 @@ export class DbmlStructureElement extends HTMLElement {
     // First field column IDs for cross-panel edge hover matching.
     const fromColId = selfEnd.fieldNames[0] ? `${selfId}.${selfEnd.fieldNames[0]}` : '';
     const toColId = other.fieldNames[0] ? `${targetId}.${other.fieldNames[0]}` : '';
+    const arrowStyle = entry.ref.color ? ` style="color: ${escapeAttr(entry.ref.color)}"` : '';
     return `
       <li>
         <button
@@ -477,7 +478,7 @@ export class DbmlStructureElement extends HTMLElement {
           data-to-column-id="${escapeAttr(toColId)}"
           title="${escapeAttr(fieldsLabel)}"
         >
-          <span class="dv-tree-rel-arrow">${arrow}</span>
+          <span class="dv-tree-rel-arrow"${arrowStyle}>${arrow}</span>
           <span class="dv-tree-rel-target">${escapeHtml(other.tableName)}</span>
           <span class="dv-tree-rel-fields">${escapeHtml(`(${selfEnd.fieldNames.join(', ')})`)}</span>
         </button>
@@ -834,16 +835,20 @@ export class DbmlStructureElement extends HTMLElement {
 
 // ---- Tree node icons (inline SVG, 12×12, stroke-based) ----
 
-function iconTable(): string {
-  return `<svg class="dv-tree-node-icon" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1" y="1.5" width="10" height="9" rx="1"/><line x1="1" y1="4.5" x2="11" y2="4.5"/><line x1="4.5" y1="4.5" x2="4.5" y2="10.5"/></svg>`;
+/** Optional `color` paints the icon stroke via inline `color:` — icons use
+ *  `currentColor`, so the rest of the row text is unaffected. */
+function iconTable(color: string | null = null): string {
+  const style = color ? ` style="color: ${escapeAttr(color)}"` : '';
+  return `<svg class="dv-tree-node-icon" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"${style}><rect x="1" y="1.5" width="10" height="9" rx="1"/><line x1="1" y1="4.5" x2="11" y2="4.5"/><line x1="4.5" y1="4.5" x2="4.5" y2="10.5"/></svg>`;
 }
 
 function iconSchema(): string {
   return `<svg class="dv-tree-node-icon" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" aria-hidden="true"><ellipse cx="6" cy="3" rx="4" ry="1.5"/><path d="M2 3L2 9C2 9.83 3.79 10.5 6 10.5C8.21 10.5 10 9.83 10 9L10 3"/><path d="M2 6C2 6.83 3.79 7.5 6 7.5C8.21 7.5 10 6.83 10 6"/></svg>`;
 }
 
-function iconTableGroup(): string {
-  return `<svg class="dv-tree-node-icon" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 3.5C1 2.95 1.45 2.5 2 2.5H4.5L5.5 3.5H10C10.55 3.5 11 3.95 11 4.5V9C11 9.55 10.55 10 10 10H2C1.45 10 1 9.55 1 9V3.5Z"/></svg>`;
+function iconTableGroup(color: string | null = null): string {
+  const style = color ? ` style="color: ${escapeAttr(color)}"` : '';
+  return `<svg class="dv-tree-node-icon" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"${style}><path d="M1 3.5C1 2.95 1.45 2.5 2 2.5H4.5L5.5 3.5H10C10.55 3.5 11 3.95 11 4.5V9C11 9.55 10.55 10 10 10H2C1.45 10 1 9.55 1 9V3.5Z"/></svg>`;
 }
 
 /**
