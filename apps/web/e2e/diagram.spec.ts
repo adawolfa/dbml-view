@@ -86,30 +86,25 @@ test('renders TableGroup hulls behind member tables', async ({ page }) => {
   await expect(page.locator('#diagram .dv-group-label')).toHaveText('commerce');
 });
 
-test('column-filter toggles hide non-key / non-FK columns and re-layout', async ({ page }) => {
+test('FK-only toggle hides non-relationship columns and re-layout', async ({ page }) => {
+  const toggle = page.locator('#diagram button[data-act="cols-toggle"]');
   const productsRows = page.locator(
     '#diagram .dv-table[data-table-id="shop.products"] [data-column-id]',
   );
   const ordersRows = page.locator(
     '#diagram .dv-table[data-table-id="shop.orders"] [data-column-id]',
   );
-  const all = page.locator('#diagram button[data-act="cols-all"]');
-  const keys = page.locator('#diagram button[data-act="cols-keys"]');
-  const fk = page.locator('#diagram button[data-act="cols-fk"]');
 
-  // Default: All is pressed and every column renders.
-  await expect(all).toHaveAttribute('aria-pressed', 'true');
-  await expect(keys).toHaveAttribute('aria-pressed', 'false');
-  await expect(fk).toHaveAttribute('aria-pressed', 'false');
+  // Default: toggle is off and every column renders.
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   await expect(productsRows).toHaveCount(5);
   await expect(ordersRows).toHaveCount(5);
 
-  // Keys: PKs + FK-participants on either side. products keeps `id` (PK +
-  // referenced by order_items.product_id). orders keeps `id` (PK + referenced
-  // by order_items.order_id), `user_id`, `shipping_address_id`.
-  await keys.click();
-  await expect(keys).toHaveAttribute('aria-pressed', 'true');
-  await expect(all).toHaveAttribute('aria-pressed', 'false');
+  // Toggle on: only FK-participant columns survive.
+  // products keeps only `id` (referenced by order_items.product_id).
+  // orders keeps `id`, `user_id`, `shipping_address_id` (all referenced by FKs).
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   await expect(productsRows).toHaveCount(1);
   await expect(ordersRows).toHaveCount(3);
   await expect(ordersRows.locator('.dv-row-name')).toHaveText([
@@ -118,22 +113,13 @@ test('column-filter toggles hide non-key / non-FK columns and re-layout', async 
     'shipping_address_id',
   ]);
 
-  // FK only: same shape here because every PK in this sample is referenced
-  // by some FK, so it's an FK participant on the `1` side regardless.
-  await fk.click();
-  await expect(fk).toHaveAttribute('aria-pressed', 'true');
-  await expect(keys).toHaveAttribute('aria-pressed', 'false');
-  await expect(productsRows).toHaveCount(1);
-  await expect(ordersRows).toHaveCount(3);
-
-  // Edges still anchor correctly to visible columns — every ref in the medium
-  // sample has both endpoints visible in FK mode (they're all FK-participants
-  // by definition), so no edges should drop.
+  // Edges still anchor correctly — every ref endpoint is an FK-participant by
+  // definition, so all 5 edges in the medium sample remain visible.
   await expect(page.locator('#diagram .dv-edge-group')).toHaveCount(5);
 
-  // Back to All restores everything.
-  await all.click();
-  await expect(all).toHaveAttribute('aria-pressed', 'true');
+  // Toggle off: all columns restored.
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   await expect(productsRows).toHaveCount(5);
   await expect(ordersRows).toHaveCount(5);
 });

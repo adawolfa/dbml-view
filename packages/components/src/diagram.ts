@@ -39,13 +39,6 @@ const DRAG_THRESHOLD = 3;
 
 type Viewport = { scale: number; tx: number; ty: number };
 
-/**
- * Column-visibility filter for the diagram view.
- * - `all`  — every column is shown
- * - `keys` — only PKs and any column that participates in a foreign-key edge
- * - `fk`   — only columns that participate in a foreign-key edge (either side)
- */
-type ColumnFilter = 'all' | 'keys' | 'fk';
 
 export class DbmlDiagramElement extends HTMLElement {
   static readonly tagName = 'dbml-diagram';
@@ -93,7 +86,7 @@ export class DbmlDiagramElement extends HTMLElement {
   private laidOutWhenVisible = false;
   /** Monotonic counter to discard async layout results that finished after a newer relayout was scheduled. */
   private layoutToken = 0;
-  private columnFilter: ColumnFilter = 'all';
+  private hideNonRelational = false;
 
   connectedCallback(): void {
     if (!this.rendered) {
@@ -222,7 +215,7 @@ export class DbmlDiagramElement extends HTMLElement {
     const showSchema = hasMultipleSchemas(db);
     for (const table of visibleTables) {
       const id = tableId(table);
-      const el = buildTableElement(table, refsForTable(db, id), showSchema, this.columnFilter);
+      const el = buildTableElement(table, refsForTable(db, id), showSchema, this.hideNonRelational);
       el.dataset.tableId = id;
       this.nodesEl.appendChild(el);
       this.tableEls.set(id, el);
@@ -528,40 +521,25 @@ export class DbmlDiagramElement extends HTMLElement {
         case 'export-svg':
           this.exportSvg();
           break;
-        case 'cols-all':
-          this.setColumnFilter('all');
-          break;
-        case 'cols-keys':
-          this.setColumnFilter('keys');
-          break;
-        case 'cols-fk':
-          this.setColumnFilter('fk');
+        case 'cols-toggle':
+          this.toggleRelationalFilter();
           break;
       }
     });
-    this.updateColumnFilterButtons();
+    this.updateColsToggle();
   }
 
-  private setColumnFilter(filter: ColumnFilter): void {
-    if (this.columnFilter === filter) return;
-    this.columnFilter = filter;
-    this.updateColumnFilterButtons();
+  private toggleRelationalFilter(): void {
+    this.hideNonRelational = !this.hideNonRelational;
+    this.updateColsToggle();
     if (this.database) this.scheduleRelayout();
   }
 
-  private updateColumnFilterButtons(): void {
-    const map: Record<ColumnFilter, string> = {
-      all: 'cols-all',
-      keys: 'cols-keys',
-      fk: 'cols-fk',
-    };
-    for (const [filter, act] of Object.entries(map)) {
-      const btn = this.toolbarEl.querySelector<HTMLButtonElement>(`button[data-act="${act}"]`);
-      if (!btn) continue;
-      const active = this.columnFilter === filter;
-      btn.classList.toggle('is-active', active);
-      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
-    }
+  private updateColsToggle(): void {
+    const btn = this.toolbarEl.querySelector<HTMLButtonElement>('button[data-act="cols-toggle"]');
+    if (!btn) return;
+    btn.classList.toggle('is-active', this.hideNonRelational);
+    btn.setAttribute('aria-pressed', this.hideNonRelational ? 'true' : 'false');
   }
 
   /**
@@ -1076,11 +1054,7 @@ function makeTemplate(): string {
       <button type="button" data-act="reset" title="${escapeAttr(t('diagram.toolbar.reset.title'))}">${escapeHtml(t('diagram.toolbar.reset.label'))}</button>
       <button type="button" data-act="export-svg" title="${escapeAttr(t('diagram.toolbar.export_svg.title'))}">${escapeHtml(t('diagram.toolbar.export_svg.label'))}</button>
       <span class="dv-diagram-toolbar-sep" aria-hidden="true"></span>
-      <span class="dv-diagram-toolbar-group" role="group">
-        <button type="button" data-act="cols-all" aria-pressed="true" title="${escapeAttr(t('diagram.toolbar.cols.all.title'))}">${escapeHtml(t('diagram.toolbar.cols.all.label'))}</button>
-        <button type="button" data-act="cols-keys" aria-pressed="false" title="${escapeAttr(t('diagram.toolbar.cols.keys.title'))}">${escapeHtml(t('diagram.toolbar.cols.keys.label'))}</button>
-        <button type="button" data-act="cols-fk" aria-pressed="false" title="${escapeAttr(t('diagram.toolbar.cols.fk.title'))}">${escapeHtml(t('diagram.toolbar.cols.fk.label'))}</button>
-      </span>
+      <button type="button" data-act="cols-toggle" class="dv-diagram-toolbar-icon-btn" aria-pressed="false" title="${escapeAttr(t('diagram.toolbar.cols.toggle.title'))}" aria-label="${escapeAttr(t('diagram.toolbar.cols.toggle.title'))}"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 9.5a3.18 3.18 0 0 0 4.5 0l1.5-1.5a3.18 3.18 0 0 0-4.5-4.5L7 4.5"/><path d="M9.5 6.5a3.18 3.18 0 0 0-4.5 0l-1.5 1.5a3.18 3.18 0 0 0 4.5 4.5L9 11.5"/></svg></button>
       <span class="dv-diagram-status" data-status></span>
     </div>
     <div class="dv-diagram-viewport" data-viewport>
@@ -1211,7 +1185,7 @@ function buildTableElement(
   table: Table,
   refs: Ref[],
   showSchema: boolean,
-  filter: ColumnFilter,
+  hideNonRelational: boolean,
 ): HTMLElement {
   const id = tableId(table);
   const el = document.createElement('div');
@@ -1237,7 +1211,7 @@ function buildTableElement(
     }
   }
   const visibleRows = table.fields
-    .filter((c) => isColumnVisible(c, filter, pkColumns, fkParticipants))
+    .filter((c) => isColumnVisible(c, hideNonRelational, fkParticipants))
     .map((c) => renderRow(table, c, pkColumns, fkColumns))
     .join('');
   el.innerHTML = `
@@ -1252,18 +1226,10 @@ function buildTableElement(
 
 function isColumnVisible(
   column: Column,
-  filter: ColumnFilter,
-  pks: Set<string>,
+  hideNonRelational: boolean,
   fkParticipants: Set<string>,
 ): boolean {
-  switch (filter) {
-    case 'all':
-      return true;
-    case 'keys':
-      return pks.has(column.name) || fkParticipants.has(column.name);
-    case 'fk':
-      return fkParticipants.has(column.name);
-  }
+  return !hideNonRelational || fkParticipants.has(column.name);
 }
 
 function renderRow(table: Table, column: Column, pks: Set<string>, fks: Set<string>): string {
