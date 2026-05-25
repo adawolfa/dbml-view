@@ -818,10 +818,7 @@ structure.addEventListener('selection-change', (event) => {
   detail.setSelection(sel);
   if (sel.kind === 'table') diagram.revealTable(sel.tableId);
   renderViews();
-  const target = selectionToHash(sel);
-  if (target && window.location.hash !== target) {
-    history.replaceState(null, '', target || window.location.pathname);
-  }
+  updateSelectionHash(sel);
 });
 
 // Cross-component sync: when the user clicks a table in the diagram, also
@@ -831,9 +828,28 @@ diagram.addEventListener('table-selected', (event) => {
   if (!id) return;
   const sel: Selection = { kind: 'table', tableId: id };
   applySelection(sel);
-  const target = selectionToHash(sel);
-  if (window.location.hash !== target) history.replaceState(null, '', target);
+  updateSelectionHash(sel);
 });
+
+/**
+ * Update the URL hash to reflect a new selection. Uses pushState (so browser
+ * back/forward can traverse selection history) when the detail toggle is on;
+ * otherwise replaceState, since without a detail panel there's nothing
+ * meaningful to navigate back to.
+ */
+function updateSelectionHash(sel: Selection): void {
+  const target = selectionToHash(sel);
+  if (window.location.hash === target) return;
+  // Structure can emit a 'none' selection-change when the user deselects.
+  // Keep the legacy behavior of not clearing an existing hash in that case.
+  if (!target && !window.location.hash) return;
+  const url = target || window.location.pathname;
+  if (activeViews.has('detail')) {
+    history.pushState(null, '', url);
+  } else {
+    history.replaceState(null, '', url);
+  }
+}
 
 // Cross-panel hover synchronisation. Each panel emits `hover-change`; the app
 // shell routes it to the OTHER two panels only (no echo back to the source).
@@ -909,8 +925,7 @@ function saveHiddenSet(label: string | null, hidden: HiddenSet): void {
 detail.addEventListener('jump-to', (event) => {
   const sel = (event as CustomEvent<Selection>).detail;
   applySelection(sel);
-  const target = selectionToHash(sel);
-  if (window.location.hash !== target) history.replaceState(null, '', target);
+  updateSelectionHash(sel);
 });
 
 window.addEventListener('hashchange', () => {

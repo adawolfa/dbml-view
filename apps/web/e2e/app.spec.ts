@@ -129,6 +129,54 @@ test.describe('persistence and deep links', () => {
   });
 });
 
+test.describe('selection history', () => {
+  test('back/forward traverses previously selected tables when detail is open', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    await loadSample(page, 'medium');
+    // Detail toggle is on by default; assert to make the precondition explicit.
+    await expect(page.locator('#view-toggles button[data-view="detail"]')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+
+    await page.locator('#structure button[data-table-id="auth.users"]').click();
+    await expect(page).toHaveURL(/#table:auth\.users$/);
+    await page.locator('#structure button[data-table-id="shop.orders"]').click();
+    await expect(page).toHaveURL(/#table:shop\.orders$/);
+    await page.locator('#structure button[data-table-id="shop.products"]').click();
+    await expect(page).toHaveURL(/#table:shop\.products$/);
+
+    await page.goBack();
+    await expect(page).toHaveURL(/#table:shop\.orders$/);
+    await expect(page.locator('#detail .dv-detail-name')).toHaveText('orders');
+
+    await page.goBack();
+    await expect(page).toHaveURL(/#table:auth\.users$/);
+    await expect(page.locator('#detail .dv-detail-name')).toHaveText('users');
+
+    await page.goForward();
+    await expect(page).toHaveURL(/#table:shop\.orders$/);
+    await expect(page.locator('#detail .dv-detail-name')).toHaveText('orders');
+  });
+
+  test('selections do not stack on history when the detail panel is closed', async ({ page }) => {
+    await page.goto('/');
+    await loadSample(page, 'medium');
+    await setViewToggle(page, 'detail', false);
+
+    const lenBefore = await page.evaluate(() => history.length);
+    await page.locator('#structure button[data-table-id="auth.users"]').click();
+    await expect(page).toHaveURL(/#table:auth\.users$/);
+    await page.locator('#structure button[data-table-id="shop.orders"]').click();
+    await expect(page).toHaveURL(/#table:shop\.orders$/);
+    const lenAfter = await page.evaluate(() => history.length);
+    // replaceState keeps the stack flat; pushState would grow it by 2.
+    expect(lenAfter).toBe(lenBefore);
+  });
+});
+
 test.describe('dropzone visuals', () => {
   test('dragging a file over the dropzone applies the is-over class', async ({ page }) => {
     await page.goto('/');
