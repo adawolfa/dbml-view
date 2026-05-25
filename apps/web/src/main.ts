@@ -273,8 +273,11 @@ function applySource(source: string, label: string): void {
   detail.setDatabase(result.db);
   diagram.source = source;
   diagram.setHiddenTableIds(computeHiddenTableIds(result.db, hidden));
-  setFileLabel(label);
-  void setWindowTitle(label);
+  // Prefer the project name defined in the DBML `Project` block; fall back to the file label.
+  const projectName = 'name' in result.db.project ? (result.db.project.name ?? null) : null;
+  const displayLabel = projectName ?? label;
+  setFileLabel(displayLabel);
+  void setWindowTitle(displayLabel);
   status.textContent = '';
   renderViews();
   // Apply current hash (if any) to the new database so deep-links survive
