@@ -347,6 +347,8 @@ export class DbmlDiagramElement extends HTMLElement {
       // Pan on background drag only; don't hijack clicks inside tables.
       const onTable = (event.target as HTMLElement).closest('[data-table-id]');
       if (onTable) return;
+      // Cancel any in-progress animated pan so manual drag feels instant.
+      this.canvasEl.classList.remove('is-panning-to');
       panning = true;
       panPointer = event.pointerId;
       panStartX = event.clientX;
@@ -740,13 +742,79 @@ export class DbmlDiagramElement extends HTMLElement {
   }
 
   private selectTable(id: string): void {
+    this.applyTableSelection(id);
+    this.dispatchEvent(
+      new CustomEvent('table-selected', { detail: { tableId: id }, bubbles: true }),
+    );
+  }
+
+  /** Apply selection visual without emitting an event. Shared by selectTable and revealTable. */
+  private applyTableSelection(id: string): void {
     if (this.selectedTableId && this.selectedTableId !== id) {
       this.tableEls.get(this.selectedTableId)?.classList.remove('is-selected');
     }
     this.selectedTableId = id;
     this.tableEls.get(id)?.classList.add('is-selected');
-    this.dispatchEvent(
-      new CustomEvent('table-selected', { detail: { tableId: id }, bubbles: true }),
+  }
+
+  // ---- Public API: reveal table on external selection ----
+
+  /**
+   * Make the given table visible in the viewport (panning smoothly if needed),
+   * mark it selected, and briefly pulse it so it's easy to locate visually.
+   * Called when selection comes from the structure or detail pane; does NOT emit
+   * `table-selected` to prevent feedback loops.
+   */
+  revealTable(id: string): void {
+    // 1. Apply selection visual.
+    this.applyTableSelection(id);
+
+    // 2. Pan to the table if it's outside the current viewport.
+    const pos = this.positions.get(id);
+    if (!pos) return;
+
+    const vw = this.viewportEl.clientWidth;
+    const vh = this.viewportEl.clientHeight;
+    if (vw === 0 || vh === 0) return;
+
+    const { scale, tx, ty } = this.viewport;
+    // Canvas-space top-left corner of the table.
+    const cx = pos.x + this.layoutOffset.x;
+    const cy = pos.y + this.layoutOffset.y;
+    const cw = pos.width;
+    const ch = pos.height;
+
+    // Map to viewport-space.
+    const vpLeft = cx * scale + tx;
+    const vpTop = cy * scale + ty;
+    const vpRight = (cx + cw) * scale + tx;
+    const vpBottom = (cy + ch) * scale + ty;
+
+    if (vpLeft < 0 || vpTop < 0 || vpRight > vw || vpBottom > vh) {
+      // Center the table in the viewport.
+      this.panTo(vw / 2 - (cx + cw / 2) * scale, vh / 2 - (cy + ch / 2) * scale);
+    }
+
+    // 3. Brief highlight so the table pops visually.
+    const el = this.tableEls.get(id);
+    if (el) {
+      el.classList.remove('is-revealed');
+      void el.offsetWidth; // force reflow so removing + re-adding restarts the animation
+      el.classList.add('is-revealed');
+      el.addEventListener('animationend', () => el.classList.remove('is-revealed'), { once: true });
+    }
+  }
+
+  /** Smoothly pan to (newTx, newTy) via a temporary CSS transition on the canvas. */
+  private panTo(newTx: number, newTy: number): void {
+    this.canvasEl.classList.add('is-panning-to');
+    this.viewport.tx = newTx;
+    this.viewport.ty = newTy;
+    this.applyViewport();
+    this.canvasEl.addEventListener(
+      'transitionend',
+      () => this.canvasEl.classList.remove('is-panning-to'),
+      { once: true },
     );
   }
 

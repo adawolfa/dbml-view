@@ -501,6 +501,7 @@ structure.addEventListener('selection-change', (event) => {
   const sel = (event as CustomEvent<Selection>).detail;
   currentSelection = sel;
   detail.setSelection(sel);
+  if (sel.kind === 'table') diagram.revealTable(sel.tableId);
   renderViews();
   const target = selectionToHash(sel);
   if (target && window.location.hash !== target) {

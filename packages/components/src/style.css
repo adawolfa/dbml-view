@@ -722,6 +722,11 @@ dbml-diagram {
   transform-origin: 0 0;
 }
 
+/* Smooth pan when revealTable() moves the viewport programmatically. */
+.dv-canvas.is-panning-to {
+  transition: transform 0.35s ease-out;
+}
+
 .dv-groups {
   position: absolute;
   top: 0;
@@ -913,4 +918,19 @@ dbml-diagram {
 
 .dv-row.is-edge-endpoint {
   background: var(--dv-accent-soft);
+}
+
+/* Brief pulse on a table that was just revealed from an external selection. */
+@keyframes dv-table-reveal {
+  0% {
+    box-shadow: 0 0 0 4px var(--dv-accent), 0 8px 24px rgba(15, 108, 189, 0.45);
+  }
+  100% {
+    box-shadow: 0 0 0 2px var(--dv-accent-soft), 0 4px 8px rgba(15, 108, 189, 0.2);
+  }
+}
+
+.dv-table.is-revealed {
+  /* Override the static box-shadow from is-selected while the animation plays. */
+  animation: dv-table-reveal 0.6s ease-out;
 }
