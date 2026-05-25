@@ -588,11 +588,37 @@ export class DbmlStructureElement extends HTMLElement {
         this.hiddenSet.tables.add(id);
       }
     } else if (kind === 'schema') {
-      if (this.hiddenSet.schemas.has(id)) this.hiddenSet.schemas.delete(id);
-      else this.hiddenSet.schemas.add(id);
+      if (this.hiddenSet.schemas.has(id)) {
+        this.hiddenSet.schemas.delete(id);
+      } else {
+        this.hiddenSet.schemas.add(id);
+      }
+      // Clear any individual table overrides in this schema so the group toggle
+      // always has "all or nothing" semantics — in both directions, every member
+      // ends up in a consistent state (all hidden via schema, or all visible).
+      if (this.database) {
+        for (const t of this.database.tables) {
+          if ((t.schemaName ?? DEFAULT_SCHEMA) === id) {
+            this.hiddenSet.tables.delete(tableId(t));
+          }
+        }
+      }
     } else if (kind === 'tablegroup') {
-      if (this.hiddenSet.tableGroups.has(id)) this.hiddenSet.tableGroups.delete(id);
-      else this.hiddenSet.tableGroups.add(id);
+      if (this.hiddenSet.tableGroups.has(id)) {
+        this.hiddenSet.tableGroups.delete(id);
+      } else {
+        this.hiddenSet.tableGroups.add(id);
+      }
+      // Clear individual table overrides within this group (same "all or nothing"
+      // contract as schemas above).
+      if (this.database) {
+        const tg = this.database.tableGroups.find((g) => tableGroupKey(g) === id);
+        if (tg) {
+          for (const m of tg.tables) {
+            this.hiddenSet.tables.delete(`${m.schemaName || DEFAULT_SCHEMA}.${m.name}`);
+          }
+        }
+      }
     }
     if (this.database) {
       this.effectiveHidden = computeHiddenTableIds(this.database, this.hiddenSet);
