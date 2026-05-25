@@ -89,6 +89,8 @@ const viewSections: Record<View, HTMLElement> = {
   diagram: mustGet<HTMLElement>('view-diagram'),
 };
 
+const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+
 const activeViews = new Set<View>(['structure', 'detail']);
 const panelWidths: Record<View, number> = {
   structure: loadPanelWidth('structure'),
@@ -216,6 +218,19 @@ document.addEventListener('keydown', (event) => {
       closeSettingsDropdown();
       settingsTrigger.focus();
     }
+  }
+
+  // Inside the Tauri shell, WebView2 has no native find bar, so Ctrl+F is dead.
+  // Repurpose it to focus the structure-panel search (opening the panel first
+  // if it's hidden). In the browser, leave the native find UI alone.
+  if (isTauri && (event.ctrlKey || event.metaKey) && !event.altKey && event.key === 'f') {
+    event.preventDefault();
+    if (!activeViews.has('structure')) {
+      activeViews.add('structure');
+      persistViews();
+      renderViews();
+    }
+    structure.focusSearch();
   }
 });
 

@@ -130,6 +130,14 @@ export class DbmlStructureElement extends HTMLElement {
     };
   }
 
+  /** Focus the search input and select any current value (e.g. for Ctrl+F). */
+  focusSearch(): void {
+    const search = this.querySelector<HTMLInputElement>('[data-search]');
+    if (!search) return;
+    search.focus();
+    search.select();
+  }
+
   /**
    * Sync the tree's highlight + auto-expansion to an externally-driven
    * selection (hash navigation, diagram clicks, …). Does NOT emit
