@@ -29,6 +29,7 @@ import {
   indexRefsByTable,
   otherEndpointOf,
   relationArrow,
+  scrollBehavior,
   selfEndpoint,
 } from './shared';
 
@@ -205,7 +206,7 @@ export class DbmlDetailElement extends HTMLElement {
     const id = `${tId}.${columnName}`;
     const escaped = window.CSS && CSS.escape ? CSS.escape(id) : id;
     const row = this.querySelector(`#${escaped}`);
-    row?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    row?.scrollIntoView({ block: 'nearest', behavior: scrollBehavior() });
   }
 
   private renderError(errors: { line: number; column: number; message: string }[]): void {

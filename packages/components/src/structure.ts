@@ -35,6 +35,7 @@ import {
   indexRefsByTable,
   otherEndpointOf,
   relationArrow,
+  scrollBehavior,
   searchMatch,
   selfEndpoint,
   tableGroupKey,
@@ -429,7 +430,7 @@ export class DbmlStructureElement extends HTMLElement {
     const target = this.matchTargetEl(match);
     if (!target) return;
     target.classList.add('is-search-active');
-    target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    target.scrollIntoView({ block: 'nearest', behavior: scrollBehavior() });
   }
 
   private matchTargetEl(match: SearchMatch): HTMLElement | null {
@@ -935,7 +936,7 @@ export class DbmlStructureElement extends HTMLElement {
         `[data-node="enum"][data-enum-id="${cssEscape(sel.enumId)}"]`,
       );
     }
-    target?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    target?.scrollIntoView({ block: 'nearest', behavior: scrollBehavior() });
   }
 
   // ---- Cross-panel hover (public API) ----
