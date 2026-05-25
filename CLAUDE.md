@@ -25,7 +25,7 @@ Run from the repo root.
 - `pnpm lint` — Biome check
 - `pnpm format` — Biome format (writes)
 
-When working outside the main worktree (e.g. in `.claude/worktrees/*`), always start the preview on a random port (e.g. `pnpm dev --port 0` or a randomly chosen high port) so parallel agents on other tasks don't collide on the default Vite port.
+When working outside the main worktree (e.g. in `.claude/worktrees/*`), `pnpm dev` already uses a random OS-assigned port by default — no extra flags needed.
 
 ## Conventions
 
