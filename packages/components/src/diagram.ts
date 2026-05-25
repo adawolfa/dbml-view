@@ -24,6 +24,7 @@ import {
   parseDbml,
   tableId,
 } from '@dbml-view/parser';
+import type { HoverState } from './shared';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const MIN_SCALE = 0.15;
@@ -60,8 +61,14 @@ export class DbmlDiagramElement extends HTMLElement {
   private tableEls = new Map<string, HTMLElement>();
   private edgeEls = new Map<string, SVGGElement>();
   private edgesByTable = new Map<string, Set<string>>();
+  /** Maps canonically-sorted "colA|colB" → edgeId for cross-panel hover lookup. */
+  private edgesByColumnPair = new Map<string, string>();
   private hoveredTableId: string | null = null;
   private hoveredEdgeId: string | null = null;
+  /** Column ID internally hovered (mouse over a column row in the diagram canvas). */
+  private hoveredColumnId: string | null = null;
+  /** Column ID that was externally highlighted (not from edge hover) and must be cleared separately. */
+  private externalColumnId: string | null = null;
   private selectedTableId: string | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private intersectionObserver: IntersectionObserver | null = null;
@@ -239,6 +246,7 @@ export class DbmlDiagramElement extends HTMLElement {
   private renderEdges(edges: RoutedEdge[], canvasWidth: number, canvasHeight: number): void {
     this.edgeEls.clear();
     this.edgesByTable.clear();
+    this.edgesByColumnPair.clear();
     while (this.edgesEl.firstChild) this.edgesEl.removeChild(this.edgesEl.firstChild);
     this.edgesEl.setAttribute('width', String(canvasWidth));
     this.edgesEl.setAttribute('height', String(canvasHeight));
@@ -275,6 +283,8 @@ export class DbmlDiagramElement extends HTMLElement {
       this.edgeEls.set(edge.id, group);
       track(this.edgesByTable, edge.from.tableId, edge.id);
       track(this.edgesByTable, edge.to.tableId, edge.id);
+      const [pairA, pairB] = [edge.from.columnId, edge.to.columnId].sort();
+      this.edgesByColumnPair.set(`${pairA}|${pairB}`, edge.id);
     }
   }
 
@@ -328,11 +338,53 @@ export class DbmlDiagramElement extends HTMLElement {
     this.viewportEl.addEventListener('pointercancel', endPan);
 
     this.nodesEl.addEventListener('pointerover', (event) => {
-      const el = (event.target as HTMLElement).closest<HTMLElement>('[data-table-id]');
-      const id = el?.dataset.tableId ?? null;
-      if (id !== this.hoveredTableId) this.setHovered(id);
+      const target = event.target as HTMLElement;
+      const tableEl = target.closest<HTMLElement>('[data-table-id]');
+      const newTableId = tableEl?.dataset.tableId ?? null;
+      const colEl = target.closest<HTMLElement>('[data-column-id]');
+      const newColId = colEl?.dataset.columnId ?? null;
+
+      const tableChanged = newTableId !== this.hoveredTableId;
+      const colChanged = newColId !== this.hoveredColumnId;
+      if (!tableChanged && !colChanged) return;
+
+      // Keep column highlight in sync with the pointer position.
+      if (colChanged) {
+        if (this.hoveredColumnId) {
+          this.nodesEl
+            .querySelector(`[data-column-id="${cssEscape(this.hoveredColumnId)}"]`)
+            ?.classList.remove('is-edge-endpoint');
+        }
+        this.hoveredColumnId = newColId;
+        if (newColId) {
+          this.nodesEl
+            .querySelector(`[data-column-id="${cssEscape(newColId)}"]`)
+            ?.classList.add('is-edge-endpoint');
+        }
+      }
+
+      if (tableChanged) this.applyTableHover(newTableId);
+
+      // Emit the finest-grained state available.
+      const state: HoverState =
+        newColId && newTableId
+          ? { kind: 'column', tableId: newTableId, columnId: newColId }
+          : newTableId
+            ? { kind: 'table', tableId: newTableId }
+            : { kind: 'none' };
+      this.dispatchEvent(
+        new CustomEvent<HoverState>('hover-change', { detail: state, bubbles: true }),
+      );
     });
-    this.nodesEl.addEventListener('pointerleave', () => this.setHovered(null));
+    this.nodesEl.addEventListener('pointerleave', () => {
+      if (this.hoveredColumnId) {
+        this.nodesEl
+          .querySelector(`[data-column-id="${cssEscape(this.hoveredColumnId)}"]`)
+          ?.classList.remove('is-edge-endpoint');
+        this.hoveredColumnId = null;
+      }
+      this.setHovered(null);
+    });
 
     // Body clicks still select the table. Header clicks go through the drag
     // path, which falls back to selection when movement is below the threshold.
@@ -480,12 +532,14 @@ export class DbmlDiagramElement extends HTMLElement {
     const canvasWidth = Number.parseFloat(this.canvasEl.style.width) || 0;
     const canvasHeight = Number.parseFloat(this.canvasEl.style.height) || 0;
     this.renderEdges(result.edges, canvasWidth, canvasHeight);
-    // Re-apply hover/selection visuals if the dragged table was hovered.
-    if (this.hoveredTableId) {
-      for (const edgeId of this.edgesByTable.get(this.hoveredTableId) ?? []) {
-        this.edgeEls.get(edgeId)?.classList.add('is-related');
-      }
-    }
+    // Re-apply hover/selection visuals after edges are re-rendered.
+    // Reset the tracked IDs first so applyTableHover/applyEdgeHover don't early-exit.
+    const prevTableId = this.hoveredTableId;
+    const prevEdgeId = this.hoveredEdgeId;
+    this.hoveredTableId = null;
+    this.hoveredEdgeId = null;
+    if (prevTableId) this.applyTableHover(prevTableId);
+    if (prevEdgeId) this.applyEdgeHover(prevEdgeId);
   }
 
   /** Zoom keeping the viewport-relative point (cx, cy) anchored under the cursor. */
@@ -521,7 +575,9 @@ export class DbmlDiagramElement extends HTMLElement {
     this.applyViewport();
   }
 
-  private setHoveredEdge(id: string | null): void {
+  // ---- Visual-only hover primitives (no event emission) ----
+
+  private applyEdgeHover(id: string | null): void {
     if (this.hoveredEdgeId === id) return;
     if (this.hoveredEdgeId) {
       const prev = this.edgeEls.get(this.hoveredEdgeId);
@@ -562,7 +618,8 @@ export class DbmlDiagramElement extends HTMLElement {
     }
   }
 
-  private setHovered(id: string | null): void {
+  private applyTableHover(id: string | null): void {
+    if (this.hoveredTableId === id) return;
     if (this.hoveredTableId) {
       const prev = this.tableEls.get(this.hoveredTableId);
       prev?.classList.remove('is-hovered');
@@ -575,6 +632,75 @@ export class DbmlDiagramElement extends HTMLElement {
       this.tableEls.get(id)?.classList.add('is-hovered');
       for (const edgeId of this.edgesByTable.get(id) ?? []) {
         this.edgeEls.get(edgeId)?.classList.add('is-related');
+      }
+    }
+  }
+
+  // ---- Internal handlers: apply visual + emit hover-change ----
+
+  private setHoveredEdge(id: string | null): void {
+    if (this.hoveredEdgeId === id) return;
+    this.applyEdgeHover(id);
+    const el = id ? this.edgeEls.get(id) : null;
+    const state: HoverState = el
+      ? { kind: 'edge', colA: el.dataset.fromColumn ?? '', colB: el.dataset.toColumn ?? '' }
+      : { kind: 'none' };
+    this.dispatchEvent(
+      new CustomEvent<HoverState>('hover-change', { detail: state, bubbles: true }),
+    );
+  }
+
+  private setHovered(id: string | null): void {
+    if (this.hoveredTableId === id) return;
+    this.applyTableHover(id);
+    const state: HoverState = id ? { kind: 'table', tableId: id } : { kind: 'none' };
+    this.dispatchEvent(
+      new CustomEvent<HoverState>('hover-change', { detail: state, bubbles: true }),
+    );
+  }
+
+  // ---- Public API: receive hover from other panels (no re-emission) ----
+
+  /**
+   * Apply a hover state driven by another panel. Does NOT emit `hover-change`
+   * to prevent feedback loops. The app shell routes events between panels.
+   */
+  setExternalHover(state: HoverState): void {
+    // Clear any internally-hovered column (user's mouse was in the diagram canvas).
+    if (this.hoveredColumnId) {
+      this.nodesEl
+        .querySelector(`[data-column-id="${cssEscape(this.hoveredColumnId)}"]`)
+        ?.classList.remove('is-edge-endpoint');
+      this.hoveredColumnId = null;
+    }
+    // Clear any externally-applied column highlight (tracked separately
+    // since it doesn't go through applyEdgeHover / applyTableHover).
+    if (this.externalColumnId) {
+      this.nodesEl
+        .querySelector(`[data-column-id="${cssEscape(this.externalColumnId)}"]`)
+        ?.classList.remove('is-edge-endpoint');
+      this.externalColumnId = null;
+    }
+    this.applyTableHover(null);
+    this.applyEdgeHover(null);
+    switch (state.kind) {
+      case 'table':
+        this.applyTableHover(state.tableId);
+        break;
+      case 'column': {
+        this.applyTableHover(state.tableId);
+        const colEl = this.nodesEl.querySelector(`[data-column-id="${cssEscape(state.columnId)}"]`);
+        if (colEl) {
+          colEl.classList.add('is-edge-endpoint');
+          this.externalColumnId = state.columnId;
+        }
+        break;
+      }
+      case 'edge': {
+        const [pairA, pairB] = [state.colA, state.colB].sort();
+        const edgeId = this.edgesByColumnPair.get(`${pairA}|${pairB}`);
+        if (edgeId) this.applyEdgeHover(edgeId);
+        break;
       }
     }
   }

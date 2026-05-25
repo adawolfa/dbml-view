@@ -9,6 +9,7 @@ import type {
   DbmlDetailElement,
   DbmlDiagramElement,
   DbmlStructureElement,
+  HoverState,
   Selection,
 } from '@dbml-view/components';
 import { t } from '@dbml-view/i18n';
@@ -516,6 +517,26 @@ diagram.addEventListener('table-selected', (event) => {
   applySelection(sel);
   const target = selectionToHash(sel);
   if (window.location.hash !== target) history.replaceState(null, '', target);
+});
+
+// Cross-panel hover synchronisation. Each panel emits `hover-change`; the app
+// shell routes it to the OTHER two panels only (no echo back to the source).
+diagram.addEventListener('hover-change', (event) => {
+  const state = (event as CustomEvent<HoverState>).detail;
+  structure.setExternalHover(state);
+  detail.setExternalHover(state);
+});
+
+structure.addEventListener('hover-change', (event) => {
+  const state = (event as CustomEvent<HoverState>).detail;
+  diagram.setExternalHover(state);
+  detail.setExternalHover(state);
+});
+
+detail.addEventListener('hover-change', (event) => {
+  const state = (event as CustomEvent<HoverState>).detail;
+  diagram.setExternalHover(state);
+  structure.setExternalHover(state);
 });
 
 // Detail emits 'jump-to' when the user clicks a cross-link inside it.

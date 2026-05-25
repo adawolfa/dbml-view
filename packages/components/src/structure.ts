@@ -19,6 +19,7 @@ import {
 import { t } from '@dbml-view/i18n';
 
 import {
+  type HoverState,
   type RefEntry,
   type Selection,
   type TreeGroup,
@@ -26,6 +27,7 @@ import {
   escapeAttr,
   escapeHtml,
   formatColumnType,
+  hoverStateEquals,
   indexRefsByTable,
   otherEndpointOf,
   relationArrow,
@@ -46,6 +48,10 @@ export class DbmlStructureElement extends HTMLElement {
   private expandedGroups = new Set<string>();
   private expandedTables = new Set<string>();
   private rendered = false;
+  /** Hover state applied from another panel. Cleared when this panel emits its own hover. */
+  private externalHover: HoverState = { kind: 'none' };
+  /** Tracks which hover state is currently being emitted so we can deduplicate. */
+  private internalHover: HoverState = { kind: 'none' };
 
   connectedCallback(): void {
     if (!this.rendered) {
@@ -112,6 +118,25 @@ export class DbmlStructureElement extends HTMLElement {
     });
 
     const tree = this.querySelector<HTMLElement>('[data-tree]');
+    tree?.addEventListener('mouseover', (event) => {
+      const node = (event.target as HTMLElement).closest<HTMLElement>('[data-node]');
+      const state = node ? this.hoverStateFromNode(node) : { kind: 'none' as const };
+      if (hoverStateEquals(state, this.internalHover)) return;
+      this.internalHover = state;
+      this.dispatchEvent(
+        new CustomEvent<HoverState>('hover-change', { detail: state, bubbles: true }),
+      );
+    });
+    tree?.addEventListener('mouseleave', () => {
+      if (this.internalHover.kind === 'none') return;
+      this.internalHover = { kind: 'none' };
+      this.dispatchEvent(
+        new CustomEvent<HoverState>('hover-change', {
+          detail: { kind: 'none' },
+          bubbles: true,
+        }),
+      );
+    });
     tree?.addEventListener('click', (event) => {
       const node = (event.target as HTMLElement).closest<HTMLElement>('[data-node]');
       if (!node) return;
@@ -150,6 +175,7 @@ export class DbmlStructureElement extends HTMLElement {
     if (!container) return;
     if (!this.database) {
       container.innerHTML = `<p class="dv-empty">${escapeHtml(t('structure.empty.no_dbml'))}</p>`;
+      this.applyExternalHoverToDom();
       return;
     }
     const groups = buildTree(this.database);
@@ -185,6 +211,7 @@ export class DbmlStructureElement extends HTMLElement {
       }
       if (matchingTables.size === 0 && matchingEnums.size === 0) {
         container.innerHTML = `<p class="dv-empty">${escapeHtml(t('structure.empty.no_matches'))}</p>`;
+        this.applyExternalHoverToDom();
         return;
       }
     }
@@ -232,6 +259,7 @@ export class DbmlStructureElement extends HTMLElement {
       })
       .join('');
     container.innerHTML = `<ul class="dv-tree">${html}</ul>`;
+    this.applyExternalHoverToDom();
   }
 
   private renderTreeTable(
@@ -357,6 +385,9 @@ export class DbmlStructureElement extends HTMLElement {
     const targetId = endpointTableId(other);
     const arrow = relationArrow(selfEnd.relation, other.relation);
     const fieldsLabel = `${selfEnd.fieldNames.join(', ')} ${arrow} ${other.tableName}.${other.fieldNames.join(', ')}`;
+    // First field column IDs for cross-panel edge hover matching.
+    const fromColId = selfEnd.fieldNames[0] ? `${selfId}.${selfEnd.fieldNames[0]}` : '';
+    const toColId = other.fieldNames[0] ? `${targetId}.${other.fieldNames[0]}` : '';
     return `
       <li>
         <button
@@ -364,6 +395,8 @@ export class DbmlStructureElement extends HTMLElement {
           class="dv-tree-node dv-tree-node-relation"
           data-node="relation"
           data-target-table="${escapeAttr(targetId)}"
+          data-from-column-id="${escapeAttr(fromColId)}"
+          data-to-column-id="${escapeAttr(toColId)}"
           title="${escapeAttr(fieldsLabel)}"
         >
           <span class="dv-tree-rel-arrow">${arrow}</span>
@@ -493,6 +526,88 @@ export class DbmlStructureElement extends HTMLElement {
     target?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
+  // ---- Cross-panel hover (public API) ----
+
+  /**
+   * Apply a hover highlight driven by another panel. Directly toggles CSS
+   * classes on the existing DOM — no re-render. Does NOT emit `hover-change`.
+   */
+  setExternalHover(state: HoverState): void {
+    this.externalHover = state;
+    this.applyExternalHoverToDom();
+  }
+
+  private hoverStateFromNode(node: HTMLElement): HoverState {
+    const kind = node.dataset.node;
+    switch (kind) {
+      case 'table':
+        return { kind: 'table', tableId: node.dataset.tableId ?? '' };
+      case 'column': {
+        const tId = node.dataset.tableId ?? '';
+        const colName = node.dataset.column ?? '';
+        return { kind: 'column', tableId: tId, columnId: `${tId}.${colName}` };
+      }
+      case 'relation': {
+        const fromColumnId = node.dataset.fromColumnId ?? '';
+        const toColumnId = node.dataset.toColumnId ?? '';
+        if (fromColumnId && toColumnId) {
+          return { kind: 'edge', colA: fromColumnId, colB: toColumnId };
+        }
+        // Fall back to table hover for the target if column IDs aren't set.
+        const target = node.dataset.targetTable ?? '';
+        return target ? { kind: 'table', tableId: target } : { kind: 'none' };
+      }
+      default:
+        return { kind: 'none' };
+    }
+  }
+
+  private applyExternalHoverToDom(): void {
+    // Clear all previously applied external hover classes.
+    for (const el of this.querySelectorAll<HTMLElement>('.is-hovered')) {
+      el.classList.remove('is-hovered');
+    }
+    const state = this.externalHover;
+    if (state.kind === 'none') return;
+
+    if (state.kind === 'table') {
+      this.querySelector(
+        `[data-node="table"][data-table-id="${cssEscape(state.tableId)}"]`,
+      )?.classList.add('is-hovered');
+    } else if (state.kind === 'column') {
+      // Highlight the column node.
+      const colName = state.columnId.slice(state.tableId.length + 1);
+      this.querySelector(
+        `[data-node="column"][data-table-id="${cssEscape(state.tableId)}"][data-column="${cssEscape(colName)}"]`,
+      )?.classList.add('is-hovered');
+      // Also subtly highlight the parent table row.
+      this.querySelector(
+        `[data-node="table"][data-table-id="${cssEscape(state.tableId)}"]`,
+      )?.classList.add('is-hovered');
+    } else if (state.kind === 'edge') {
+      // Highlight every relation node whose column pair matches, in either table.
+      for (const node of this.querySelectorAll<HTMLElement>('[data-node="relation"]')) {
+        const f = node.dataset.fromColumnId ?? '';
+        const t = node.dataset.toColumnId ?? '';
+        if ((f === state.colA && t === state.colB) || (f === state.colB && t === state.colA)) {
+          node.classList.add('is-hovered');
+        }
+      }
+      // Also highlight the table nodes for both endpoints so there is visible
+      // feedback even when the tables are collapsed (no relation nodes rendered).
+      for (const colId of [state.colA, state.colB]) {
+        const lastDot = colId.lastIndexOf('.');
+        if (lastDot === -1) continue;
+        const tId = colId.slice(0, lastDot);
+        this.querySelector(`[data-node="table"][data-table-id="${cssEscape(tId)}"]`)?.classList.add(
+          'is-hovered',
+        );
+      }
+    }
+  }
+
+  // ---- Internal event dispatch ----
+
   private notify(): void {
     this.dispatchEvent(
       new CustomEvent<Selection>('selection-change', {
@@ -528,7 +643,7 @@ function cssEscape(value: string): string {
 }
 
 // Re-export for consumers that want to type their wiring.
-export type { Selection, TreeGroup } from './shared';
+export type { HoverState, Selection, TreeGroup } from './shared';
 
 if (!customElements.get(DbmlStructureElement.tagName)) {
   customElements.define(DbmlStructureElement.tagName, DbmlStructureElement);

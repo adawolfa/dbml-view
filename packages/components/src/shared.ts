@@ -22,6 +22,29 @@ export type Selection =
   | { kind: 'table'; tableId: string; columnName?: string }
   | { kind: 'enum'; enumId: string };
 
+/**
+ * Cross-panel hover state broadcast via `hover-change` CustomEvents.
+ * - `table`  — a whole table is hovered (diagram node or structure row)
+ * - `column` — a single column is hovered (diagram row, structure column node, or detail row)
+ * - `edge`   — a relationship edge is hovered (diagram SVG edge or structure relation node)
+ *              `colA`/`colB` are the two endpoint columnIds in any order.
+ */
+export type HoverState =
+  | { kind: 'none' }
+  | { kind: 'table'; tableId: string }
+  | { kind: 'column'; tableId: string; columnId: string }
+  | { kind: 'edge'; colA: string; colB: string };
+
+export function hoverStateEquals(a: HoverState, b: HoverState): boolean {
+  if (a.kind !== b.kind) return false;
+  if (a.kind === 'table' && b.kind === 'table') return a.tableId === b.tableId;
+  if (a.kind === 'column' && b.kind === 'column') return a.columnId === b.columnId;
+  if (a.kind === 'edge' && b.kind === 'edge') {
+    return (a.colA === b.colA && a.colB === b.colB) || (a.colA === b.colB && a.colB === b.colA);
+  }
+  return true; // both 'none'
+}
+
 export type TreeGroup = {
   id: string;
   label: string;

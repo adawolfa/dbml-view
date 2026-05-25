@@ -3,4 +3,4 @@
 export { DbmlStructureElement } from './structure';
 export { DbmlDetailElement } from './detail';
 export { DbmlDiagramElement } from './diagram';
-export type { Selection } from './shared';
+export type { Selection, HoverState } from './shared';
