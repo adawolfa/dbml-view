@@ -54,37 +54,53 @@ export type TreeGroup = {
 };
 
 /**
- * Group tables + enums for the tree. Tables in a `TableGroup` go under that
- * group; everything else falls back to a synthetic per-schema group, with
- * enums always living under their schema (TableGroups don't claim enums).
- * Stable ordering: real groups first (alphabetical), then schema groups
+ * Group tables + enums for the tree.
+ *
+ * **Schema-mode** (any table lives outside the default "public" schema):
+ * `TableGroup` declarations are ignored entirely — they are a diagram-visual
+ * concept, and mixing them with real schemas in the structure view would be
+ * confusing. Every table and enum is placed under its schema group.
+ *
+ * **Default-schema-only mode** (all tables are in "public"):
+ * `TableGroup` declarations are honoured. Tables go under their named group;
+ * unclaimed tables fall into a synthetic schema group. Enums always belong to
+ * their schema group regardless.
+ *
+ * Stable ordering: table groups first (alphabetical), then schema groups
  * (alphabetical).
  */
 export function buildTree(db: Database): TreeGroup[] {
+  // If any table uses a non-default schema, groups are ignored in this view.
+  const hasNonDefaultSchema = db.tables.some(
+    (t) => (t.schemaName ?? DEFAULT_SCHEMA) !== DEFAULT_SCHEMA,
+  );
+
   const claimed = new Set<string>();
   const groups: TreeGroup[] = [];
 
-  for (const tg of db.tableGroups) {
-    const tables: Table[] = [];
-    for (const ref of tg.tables) {
-      const id = `${ref.schemaName ?? DEFAULT_SCHEMA}.${ref.name}`;
-      const table = db.tables.find((t) => tableId(t) === id);
-      if (table && !claimed.has(id)) {
-        tables.push(table);
-        claimed.add(id);
+  if (!hasNonDefaultSchema) {
+    for (const tg of db.tableGroups) {
+      const tables: Table[] = [];
+      for (const ref of tg.tables) {
+        const id = `${ref.schemaName ?? DEFAULT_SCHEMA}.${ref.name}`;
+        const table = db.tables.find((t) => tableId(t) === id);
+        if (table && !claimed.has(id)) {
+          tables.push(table);
+          claimed.add(id);
+        }
       }
+      if (tables.length === 0) continue;
+      const label = tg.name ?? '(unnamed group)';
+      groups.push({
+        id: `tg:${tg.schemaName ?? DEFAULT_SCHEMA}.${label}`,
+        label,
+        kind: 'tablegroup',
+        tables: tables.slice().sort((a, b) => a.name.localeCompare(b.name)),
+        enums: [],
+      });
     }
-    if (tables.length === 0) continue;
-    const label = tg.name ?? '(unnamed group)';
-    groups.push({
-      id: `tg:${tg.schemaName ?? DEFAULT_SCHEMA}.${label}`,
-      label,
-      kind: 'tablegroup',
-      tables: tables.slice().sort((a, b) => a.name.localeCompare(b.name)),
-      enums: [],
-    });
+    groups.sort((a, b) => a.label.localeCompare(b.label));
   }
-  groups.sort((a, b) => a.label.localeCompare(b.label));
 
   const schemas = new Set<string>();
   const tablesBySchema = new Map<string, Table[]>();
