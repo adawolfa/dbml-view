@@ -68,12 +68,9 @@ export const en = {
 
   // --- Settings dropdown ---
   'app.settings.open': 'Settings',
-  'app.settings.theme.label': 'Theme',
-  'app.settings.theme.system': 'System',
   'app.settings.theme.light': 'Light',
   'app.settings.theme.dark': 'Dark',
   'app.settings.language.label': 'Language',
-  'app.settings.font.label': 'Font',
-  'app.settings.font.mono': 'Cascadia Code',
-  'app.settings.font.proportional': 'Aptos',
+  'app.settings.font.mono': 'Mono',
+  'app.settings.font.proportional': 'Sans',
 } as const;

@@ -4,9 +4,7 @@
 
 import '@dbml-view/components/style.css';
 
-import {
-  register as registerComponents,
-} from '@dbml-view/components';
+import { register as registerComponents } from '@dbml-view/components';
 import type {
   DbmlDetailElement,
   DbmlDiagramElement,
@@ -57,12 +55,15 @@ const togglesEl = mustGet<HTMLElement>('view-toggles');
 const viewsEl = mustGet<HTMLElement>('views');
 const settingsTrigger = mustGet<HTMLButtonElement>('settings-trigger');
 const settingsDropdown = mustGet<HTMLElement>('settings-dropdown');
-const themeSelect = mustGet<HTMLSelectElement>('theme-select');
-const themeSelectLabel = mustGet<HTMLElement>('theme-select-label');
+const themeLightBtn = mustGet<HTMLButtonElement>('theme-light');
+const themeDarkBtn = mustGet<HTMLButtonElement>('theme-dark');
+const themeLightLabel = mustGet<HTMLElement>('theme-light-label');
+const themeDarkLabel = mustGet<HTMLElement>('theme-dark-label');
+const fontMonoBtn = mustGet<HTMLButtonElement>('font-mono');
+const fontPropBtn = mustGet<HTMLButtonElement>('font-proportional');
+const fontMonoLabel = mustGet<HTMLElement>('font-mono-label');
+const fontPropLabel = mustGet<HTMLElement>('font-proportional-label');
 const langSelect = mustGet<HTMLSelectElement>('lang-select');
-const langSelectLabel = mustGet<HTMLElement>('lang-select-label');
-const fontSelect = mustGet<HTMLSelectElement>('font-select');
-const fontSelectLabel = mustGet<HTMLElement>('font-select-label');
 
 const structure = mustGet<DbmlStructureElement>('structure');
 const detail = mustGet<DbmlDetailElement>('detail');
@@ -510,18 +511,22 @@ function initTranslations(): void {
   const settingsLabel = t('app.settings.open');
   settingsTrigger.title = settingsLabel;
   settingsTrigger.setAttribute('aria-label', settingsLabel);
-  themeSelectLabel.textContent = t('app.settings.theme.label');
-  langSelectLabel.textContent = t('app.settings.language.label');
-  fontSelectLabel.textContent = t('app.settings.font.label');
-  for (const opt of Array.from(themeSelect.options)) {
-    if (opt.value === 'system') opt.textContent = t('app.settings.theme.system');
-    else if (opt.value === 'light') opt.textContent = t('app.settings.theme.light');
-    else if (opt.value === 'dark') opt.textContent = t('app.settings.theme.dark');
-  }
-  for (const opt of Array.from(fontSelect.options)) {
-    if (opt.value === 'mono') opt.textContent = t('app.settings.font.mono');
-    else if (opt.value === 'proportional') opt.textContent = t('app.settings.font.proportional');
-  }
+
+  const lightLabel = t('app.settings.theme.light');
+  const darkLabel = t('app.settings.theme.dark');
+  themeLightLabel.textContent = lightLabel;
+  themeDarkLabel.textContent = darkLabel;
+  themeLightBtn.title = lightLabel;
+  themeDarkBtn.title = darkLabel;
+
+  const monoLabel = t('app.settings.font.mono');
+  const propLabel = t('app.settings.font.proportional');
+  fontMonoLabel.textContent = monoLabel;
+  fontPropLabel.textContent = propLabel;
+  fontMonoBtn.title = monoLabel;
+  fontPropBtn.title = propLabel;
+
+  langSelect.setAttribute('aria-label', t('app.settings.language.label'));
 }
 
 function mustGet<T extends HTMLElement>(id: string): T {
@@ -554,28 +559,39 @@ function applyTheme(): void {
   document.documentElement.setAttribute('data-theme', effectiveTheme());
 }
 
-// Initialise the theme <select> to reflect the stored preference.
-themeSelect.value = storedTheme() ?? 'system';
+function refreshThemeButtons(): void {
+  const active = effectiveTheme();
+  themeLightBtn.setAttribute('aria-pressed', active === 'light' ? 'true' : 'false');
+  themeDarkBtn.setAttribute('aria-pressed', active === 'dark' ? 'true' : 'false');
+}
 
-themeSelect.addEventListener('change', () => {
-  const val = themeSelect.value;
+function setTheme(next: Theme): void {
+  // Picking the mode that already matches the system unsets the stored override
+  // so the app reverts to following system preference.
+  const systemTheme: Theme = darkMql.matches ? 'dark' : 'light';
   try {
-    if (val === 'system') {
+    if (next === systemTheme) {
       localStorage.removeItem(LS_THEME_KEY);
-    } else if (val === 'light' || val === 'dark') {
-      localStorage.setItem(LS_THEME_KEY, val);
+    } else {
+      localStorage.setItem(LS_THEME_KEY, next);
     }
   } catch {
     // ignore
   }
   applyTheme();
-});
+  refreshThemeButtons();
+}
+
+themeLightBtn.addEventListener('click', () => setTheme('light'));
+themeDarkBtn.addEventListener('click', () => setTheme('dark'));
 
 darkMql.addEventListener('change', () => {
   if (storedTheme() === null) applyTheme();
+  refreshThemeButtons();
 });
 
 applyTheme();
+refreshThemeButtons();
 
 // --- Locale: persist and switch on change (reload to re-render all components). ---
 
@@ -612,33 +628,45 @@ function storedFont(): FontMode | null {
   }
 }
 
+function effectiveFont(): FontMode {
+  return storedFont() ?? 'mono';
+}
+
 function applyFont(): void {
-  const font = storedFont() ?? 'mono';
-  if (font === 'proportional') {
+  if (effectiveFont() === 'proportional') {
     document.documentElement.setAttribute('data-font', 'proportional');
   } else {
     document.documentElement.removeAttribute('data-font');
   }
 }
 
-// Initialise the font <select> to reflect the stored preference.
-fontSelect.value = storedFont() ?? 'mono';
+function refreshFontButtons(): void {
+  const active = effectiveFont();
+  fontMonoBtn.setAttribute('aria-pressed', active === 'mono' ? 'true' : 'false');
+  fontPropBtn.setAttribute('aria-pressed', active === 'proportional' ? 'true' : 'false');
+}
 
-fontSelect.addEventListener('change', () => {
-  const val = fontSelect.value;
+function setFont(next: FontMode): void {
+  // 'mono' is the default — picking it clears any stored override so the app
+  // mirrors the theme behaviour of "picking the default unsets the preference".
   try {
-    if (val === 'mono') {
+    if (next === 'mono') {
       localStorage.removeItem(LS_FONT_KEY);
-    } else if (val === 'proportional') {
-      localStorage.setItem(LS_FONT_KEY, val);
+    } else {
+      localStorage.setItem(LS_FONT_KEY, next);
     }
   } catch {
     // ignore
   }
   applyFont();
-});
+  refreshFontButtons();
+}
+
+fontMonoBtn.addEventListener('click', () => setFont('mono'));
+fontPropBtn.addEventListener('click', () => setFont('proportional'));
 
 applyFont();
+refreshFontButtons();
 
 // --- Selection wiring: structure ↔ detail ↔ diagram via URL hash. ---
 
