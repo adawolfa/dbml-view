@@ -2,20 +2,26 @@
 
 :where(dbml-structure, dbml-diagram) {
   --dv-bg: #ffffff;
-  --dv-fg: #111827;
-  --dv-muted: #6b7280;
-  --dv-border: #e5e7eb;
-  --dv-accent: #2563eb;
-  --dv-accent-soft: #eff6ff;
+  --dv-fg: #242424;
+  --dv-muted: #605e5c;
+  --dv-border: #e1dfdd;
+  --dv-border-strong: #c8c6c4;
+  --dv-accent: #0f6cbd;
+  --dv-accent-hover: #115ea3;
+  --dv-accent-soft: #ebf3fc;
   --dv-table-bg: #ffffff;
-  --dv-table-header-bg: #f3f4f6;
-  --dv-edge: #94a3b8;
-  --dv-edge-hover: #2563eb;
+  --dv-table-header-bg: #f5f5f5;
+  --dv-edge: #8a8886;
+  --dv-edge-hover: #0f6cbd;
+  --dv-canvas-bg: #faf9f8;
 
   display: block;
   color: var(--dv-fg);
   background: var(--dv-bg);
-  font: 13px / 1.4 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font:
+    13px / 1.4 "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* ---- <dbml-structure> ---- */
@@ -29,11 +35,13 @@ dbml-structure {
   border: 1px solid var(--dv-border);
   border-radius: 6px;
   overflow: hidden;
+  background: var(--dv-bg);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 0 2px rgba(0, 0, 0, 0.06);
 }
 
 .dv-rail {
   border-right: 1px solid var(--dv-border);
-  background: #fafafa;
+  background: #faf9f8;
   overflow: auto;
   display: flex;
   flex-direction: column;
@@ -42,7 +50,7 @@ dbml-structure {
 .dv-search {
   position: sticky;
   top: 0;
-  background: #fafafa;
+  background: #faf9f8;
   padding: 0.5rem;
   border-bottom: 1px solid var(--dv-border);
   z-index: 1;
@@ -50,16 +58,27 @@ dbml-structure {
 
 .dv-search input {
   width: 100%;
-  padding: 0.35rem 0.5rem;
-  border: 1px solid var(--dv-border);
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--dv-border-strong);
   border-radius: 4px;
   font: inherit;
   background: #fff;
+  color: var(--dv-fg);
+  transition: border-color 80ms ease, box-shadow 80ms ease;
+}
+
+.dv-search input::placeholder {
+  color: var(--dv-muted);
+}
+
+.dv-search input:hover {
+  border-color: #8a8886;
 }
 
 .dv-search input:focus {
-  outline: 2px solid var(--dv-accent);
-  outline-offset: -1px;
+  outline: none;
+  border-color: var(--dv-accent);
+  box-shadow: 0 0 0 1px var(--dv-accent);
 }
 
 /* --- Tree --- */
@@ -92,7 +111,7 @@ dbml-structure {
   align-items: center;
   gap: 0.4rem;
   width: 100%;
-  padding: 0.2rem 0.5rem 0.2rem 0.25rem;
+  padding: 0.25rem 0.5rem 0.25rem 0.25rem;
   border: 0;
   background: transparent;
   text-align: left;
@@ -100,10 +119,11 @@ dbml-structure {
   color: var(--dv-fg);
   cursor: pointer;
   border-left: 2px solid transparent;
+  transition: background 80ms ease;
 }
 
 .dv-tree-node:hover {
-  background: var(--dv-accent-soft);
+  background: #f3f2f1;
 }
 
 .dv-tree-chevron {
@@ -145,7 +165,7 @@ dbml-structure {
 }
 
 .dv-tree-node-table .dv-tree-table-name {
-  font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-family: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -154,7 +174,12 @@ dbml-structure {
 .dv-tree-node-table.is-active {
   background: var(--dv-accent-soft);
   border-left-color: var(--dv-accent);
-  font-weight: 500;
+  color: var(--dv-accent-hover);
+  font-weight: 600;
+}
+
+.dv-tree-node-table.is-active:hover {
+  background: var(--dv-accent-soft);
 }
 
 .dv-tree-section {
@@ -176,7 +201,7 @@ dbml-structure {
 
 .dv-tree-node-column {
   padding-left: 1.1rem;
-  font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-family: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
   font-size: 12px;
 }
 
@@ -188,13 +213,13 @@ dbml-structure {
 
 .dv-tree-column-type {
   margin-left: auto;
-  color: #6d28d9;
+  color: #8764b8;
   font-size: 11px;
   white-space: nowrap;
 }
 
 .dv-tree-flag {
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: "Segoe UI Variable", "Segoe UI", -apple-system, system-ui, sans-serif;
   font-size: 0.6rem;
   font-weight: 600;
   letter-spacing: 0.05em;
@@ -204,8 +229,8 @@ dbml-structure {
 }
 
 .dv-tree-flag-pk {
-  background: #fef3c7;
-  color: #92400e;
+  background: #fff4ce;
+  color: #614a19;
 }
 
 .dv-tree-node-column.is-active {
@@ -215,7 +240,7 @@ dbml-structure {
 
 .dv-tree-node-relation {
   padding-left: 1.1rem;
-  font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-family: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
   font-size: 12px;
   color: var(--dv-fg);
 }
@@ -244,6 +269,7 @@ dbml-structure {
 .dv-pane {
   padding: 1rem 1.25rem;
   overflow: auto;
+  background: var(--dv-bg);
 }
 
 .dv-empty {
@@ -252,7 +278,7 @@ dbml-structure {
 }
 
 .dv-error {
-  color: #b91c1c;
+  color: #a4262c;
 }
 
 .dv-error h2 {
@@ -268,8 +294,8 @@ dbml-structure {
 .dv-error-pos {
   display: inline-block;
   min-width: 3.5rem;
-  font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
-  color: #ef4444;
+  font-family: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
+  color: #c50f1f;
 }
 
 .dv-detail-header {
@@ -281,11 +307,15 @@ dbml-structure {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--dv-muted);
+  font-weight: 600;
 }
 
 .dv-detail-name {
   margin: 0.1rem 0 0.25rem;
-  font-size: 1.25rem;
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--dv-fg);
 }
 
 .dv-detail-id {
@@ -295,16 +325,16 @@ dbml-structure {
 
 .dv-note {
   margin: 0.5rem 0 0;
-  padding: 0.5rem 0.75rem;
-  background: #fffbeb;
-  border-left: 3px solid #f59e0b;
+  padding: 0.6rem 0.75rem;
+  background: #fff4ce;
+  border-left: 3px solid #f7b502;
   border-radius: 2px;
-  color: #78350f;
+  color: #614a19;
 }
 
 .dv-section-title {
   margin: 1.25rem 0 0.5rem;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -323,12 +353,13 @@ dbml-structure {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--dv-muted);
-  padding: 0.35rem 0.5rem;
+  padding: 0.4rem 0.5rem;
   border-bottom: 1px solid var(--dv-border);
+  background: #faf9f8;
 }
 
 .dv-columns tbody td {
-  padding: 0.35rem 0.5rem;
+  padding: 0.4rem 0.5rem;
   border-bottom: 1px solid var(--dv-border);
   vertical-align: top;
 }
@@ -337,18 +368,22 @@ dbml-structure {
   border-bottom: none;
 }
 
+.dv-columns tbody tr:hover td {
+  background: #faf9f8;
+}
+
 .dv-columns tbody tr.is-highlighted td {
   background: var(--dv-accent-soft);
 }
 
 .dv-col-name {
-  font-weight: 500;
-  font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-weight: 600;
+  font-family: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
 }
 
 .dv-col-type {
-  font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
-  color: #6d28d9;
+  font-family: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
+  color: #8764b8;
 }
 
 .dv-col-flags {
@@ -362,35 +397,36 @@ dbml-structure {
 
 .dv-badge {
   display: inline-block;
-  padding: 0.05rem 0.35rem;
+  padding: 0.05rem 0.4rem;
   margin-right: 0.25rem;
   font-size: 0.65rem;
   font-weight: 600;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   border-radius: 3px;
-  background: #f3f4f6;
-  color: #374151;
+  background: #f3f2f1;
+  color: #323130;
+  text-transform: uppercase;
 }
 
 .dv-badge-pk {
-  background: #fef3c7;
-  color: #92400e;
+  background: #fff4ce;
+  color: #614a19;
 }
 .dv-badge-fk {
-  background: #dbeafe;
-  color: #1e40af;
+  background: #ebf3fc;
+  color: #115ea3;
 }
 .dv-badge-unique {
-  background: #ede9fe;
-  color: #5b21b6;
+  background: #e9d8fd;
+  color: #5c2e91;
 }
 .dv-badge-auto {
-  background: #d1fae5;
-  color: #065f46;
+  background: #dff6dd;
+  color: #0e6b25;
 }
 .dv-badge-not-null {
-  background: #fee2e2;
-  color: #991b1b;
+  background: #fde7e9;
+  color: #a4262c;
 }
 
 .dv-indexes,
@@ -402,7 +438,7 @@ dbml-structure {
 
 .dv-indexes li,
 .dv-refs li {
-  padding: 0.25rem 0;
+  padding: 0.35rem 0;
   border-bottom: 1px solid var(--dv-border);
 }
 
@@ -412,7 +448,7 @@ dbml-structure {
 }
 
 .dv-refs code {
-  font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-family: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
   font-size: 0.8rem;
 }
 
@@ -423,6 +459,7 @@ dbml-structure {
 
 .dv-refs a:hover {
   text-decoration: underline;
+  color: var(--dv-accent-hover);
 }
 
 .dv-ref-arrow {
@@ -446,33 +483,46 @@ dbml-diagram {
   border: 1px solid var(--dv-border);
   border-radius: 6px;
   overflow: hidden;
-  background: #f8fafc;
+  background: var(--dv-canvas-bg);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 0 2px rgba(0, 0, 0, 0.06);
 }
 
 .dv-diagram-toolbar {
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  padding: 0.4rem 0.5rem;
+  padding: 0.35rem 0.5rem;
   background: #fff;
   border-bottom: 1px solid var(--dv-border);
   flex-shrink: 0;
 }
 
 .dv-diagram-toolbar button {
-  border: 1px solid var(--dv-border);
-  background: #fff;
-  padding: 0.25rem 0.5rem;
-  border-radius: 3px;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 0 0.5rem;
+  height: 26px;
+  border-radius: 4px;
   cursor: pointer;
   font: inherit;
   font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--dv-fg);
   min-width: 2rem;
+  transition:
+    background 80ms ease,
+    border-color 80ms ease,
+    color 80ms ease;
 }
 
 .dv-diagram-toolbar button:hover {
-  border-color: var(--dv-accent);
+  background: #f3f2f1;
+  border-color: var(--dv-border);
   color: var(--dv-accent);
+}
+
+.dv-diagram-toolbar button:active {
+  background: #ededeb;
 }
 
 .dv-diagram-status {
@@ -483,7 +533,7 @@ dbml-diagram {
 }
 
 .dv-diagram-status .dv-error {
-  color: #b91c1c;
+  color: #a4262c;
   margin-left: 0.5rem;
 }
 
@@ -492,7 +542,8 @@ dbml-diagram {
   flex: 1;
   overflow: hidden;
   cursor: grab;
-  background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
+  background-color: var(--dv-canvas-bg);
+  background-image: radial-gradient(#d2d0ce 1px, transparent 1px);
   background-size: 16px 16px;
 }
 
@@ -534,43 +585,51 @@ dbml-diagram {
   border: 1px solid var(--dv-border);
   border-radius: 6px;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 0 2px rgba(0, 0, 0, 0.08);
   min-width: 200px;
   max-width: 320px;
   cursor: pointer;
-  transition: box-shadow 120ms, border-color 120ms;
+  transition:
+    box-shadow 120ms ease,
+    border-color 120ms ease,
+    transform 120ms ease;
 }
 
 .dv-table.is-hovered {
   border-color: var(--dv-accent);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.18);
+  box-shadow:
+    0 4px 8px rgba(15, 108, 189, 0.16),
+    0 0 2px rgba(15, 108, 189, 0.2);
   z-index: 2;
 }
 
 .dv-table.is-selected {
   border-color: var(--dv-accent);
-  box-shadow: 0 0 0 2px var(--dv-accent-soft), 0 4px 12px rgba(37, 99, 235, 0.2);
+  box-shadow:
+    0 0 0 2px var(--dv-accent-soft),
+    0 4px 8px rgba(15, 108, 189, 0.2);
   z-index: 2;
 }
 
 .dv-table-header {
-  padding: 0.4rem 0.6rem;
-  background: var(--dv-table-header-bg);
+  padding: 0.45rem 0.65rem;
+  background: linear-gradient(180deg, #fafafa 0%, #f3f2f1 100%);
   border-bottom: 1px solid var(--dv-border);
   font-weight: 600;
 }
 
 .dv-table-schema {
   display: block;
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   color: var(--dv-muted);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   font-weight: 600;
 }
 
 .dv-table-name {
-  font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-family: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
+  color: var(--dv-fg);
 }
 
 .dv-row {
@@ -578,9 +637,9 @@ dbml-diagram {
   grid-template-columns: 1fr auto auto;
   align-items: baseline;
   gap: 0.5rem;
-  padding: 0.25rem 0.6rem;
-  border-top: 1px solid #f1f5f9;
-  font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
+  padding: 0.28rem 0.65rem;
+  border-top: 1px solid #f3f2f1;
+  font-family: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
   font-size: 12px;
   line-height: 1.4;
 }
@@ -592,20 +651,21 @@ dbml-diagram {
 }
 
 .dv-row-type {
-  color: #6d28d9;
+  color: #8764b8;
   font-size: 11px;
 }
 
 .dv-row-flags {
-  color: #94a3b8;
+  color: #a19f9d;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .dv-edge-group {
   color: var(--dv-edge);
-  transition: color 120ms;
+  transition: color 120ms ease;
   /* Parent <svg> sets pointer-events: none; opt edges back in so they can be hovered. */
   pointer-events: auto;
   cursor: pointer;
@@ -623,7 +683,7 @@ dbml-diagram {
   fill: none;
   stroke: currentColor;
   stroke-width: 1.5;
-  transition: stroke-width 120ms;
+  transition: stroke-width 120ms ease;
 }
 
 .dv-edge-group.is-related .dv-edge {
