@@ -1,6 +1,7 @@
 import { en } from './en.js';
 
 export { en } from './en.js';
+export { cs } from './cs.js';
 
 /** Union of all valid translation keys. */
 export type TranslationKey = keyof typeof en;

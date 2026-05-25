@@ -346,7 +346,13 @@ body {
 }
 
 
-.theme-toggle {
+/* Settings gear button + dropdown. */
+.settings-group {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.settings-trigger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -356,32 +362,64 @@ body {
   height: 30px;
   cursor: pointer;
   color: var(--app-fg);
-  flex-shrink: 0;
-  transition: background 80ms ease, border-color 80ms ease, color 80ms ease;
+  transition: background 80ms ease, border-color 80ms ease;
 }
 
-.theme-toggle:hover {
+.settings-trigger:hover {
   background: var(--app-neutral-hover);
   border-color: var(--app-border);
 }
 
-.theme-toggle:active {
+.settings-trigger:active,
+.settings-trigger[aria-expanded='true'] {
   background: var(--app-neutral-pressed);
 }
 
-.theme-toggle-icon {
+.settings-trigger-icon {
   width: 16px;
   height: 16px;
 }
 
-.theme-toggle .theme-toggle-icon-sun {
-  display: none;
+.settings-dropdown {
+  position: absolute;
+  top: calc(100% + 3px);
+  right: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.4rem 0.65rem;
+  padding: 0.6rem 0.75rem;
+  min-width: 210px;
+  background: var(--app-surface);
+  border: 1px solid var(--app-border-strong);
+  box-shadow: var(--app-shadow-4);
+  z-index: 100;
 }
 
-:root[data-theme="dark"] .theme-toggle .theme-toggle-icon-sun {
-  display: block;
+.settings-label {
+  font-size: 0.85rem;
+  color: var(--app-fg);
+  white-space: nowrap;
+  cursor: default;
 }
 
-:root[data-theme="dark"] .theme-toggle .theme-toggle-icon-moon {
-  display: none;
+.settings-select {
+  font: inherit;
+  font-size: 0.85rem;
+  background: var(--app-surface);
+  color: var(--app-fg);
+  border: 1px solid var(--app-border-strong);
+  padding: 0.2rem 0.3rem;
+  cursor: pointer;
+  width: 100%;
+  transition: border-color 80ms ease;
+}
+
+.settings-select:hover {
+  border-color: var(--app-accent);
+}
+
+.settings-select:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: -1px;
 }
