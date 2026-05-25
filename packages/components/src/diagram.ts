@@ -497,7 +497,7 @@ const TEMPLATE = `
 `;
 
 const EXPORT_CSS = `
-.dv-table { position: absolute; box-sizing: border-box; background: #fff; border: 1px solid #d1d5db; border-radius: 6px; font: 13px / 1.4 ui-sans-serif, system-ui, sans-serif; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.dv-table { position: absolute; box-sizing: border-box; background: #fff; border: 1px solid #d1d5db; font: 13px / 1.4 ui-sans-serif, system-ui, sans-serif; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
 .dv-table-header { padding: 0.4rem 0.6rem; background: #f3f4f6; border-bottom: 1px solid #d1d5db; font-weight: 600; }
 .dv-table-schema { font-size: 0.65rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em; display: block; }
 .dv-row { display: grid; grid-template-columns: 1fr auto auto; gap: 0.5rem; padding: 0.25rem 0.6rem; border-top: 1px solid #f1f5f9; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }

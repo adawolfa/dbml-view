@@ -11,7 +11,6 @@
   --dv-accent-soft: #ebf3fc;
   --dv-table-bg: #ffffff;
   --dv-table-header-bg: #f5f5f5;
-  --dv-table-header-gradient: linear-gradient(180deg, #fafafa 0%, #f3f2f1 100%);
   --dv-edge: #8a8886;
   --dv-edge-hover: #0f6cbd;
   --dv-canvas-bg: #faf9f8;
@@ -64,7 +63,6 @@
   --dv-accent-soft: #1a3a52;
   --dv-table-bg: #2a2a2a;
   --dv-table-header-bg: #333333;
-  --dv-table-header-gradient: linear-gradient(180deg, #353535 0%, #2c2c2c 100%);
   --dv-edge: #6b6b6b;
   --dv-edge-hover: #4cc2ff;
   --dv-canvas-bg: #1a1a1a;
@@ -107,7 +105,6 @@ dbml-structure {
   height: 100%;
   min-height: 320px;
   border: 1px solid var(--dv-border);
-  border-radius: 6px;
   overflow: hidden;
   background: var(--dv-rail-bg);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 0 2px rgba(0, 0, 0, 0.06);
@@ -132,7 +129,6 @@ dbml-structure {
   width: 100%;
   padding: 0.35rem 0.6rem;
   border: 1px solid var(--dv-border-strong);
-  border-radius: 4px;
   font: inherit;
   background: var(--dv-input-bg);
   color: var(--dv-fg);
@@ -226,7 +222,6 @@ dbml-structure {
   color: var(--dv-muted);
   background: var(--dv-table-header-bg);
   padding: 0.05rem 0.3rem;
-  border-radius: 3px;
   flex-shrink: 0;
 }
 
@@ -295,7 +290,6 @@ dbml-structure {
   font-size: 0.6rem;
   font-weight: 600;
   letter-spacing: 0.05em;
-  border-radius: 3px;
   padding: 0 0.25rem;
   flex-shrink: 0;
 }
@@ -353,7 +347,6 @@ dbml-structure {
   color: var(--dv-muted);
   background: var(--dv-table-header-bg);
   padding: 0.05rem 0.3rem;
-  border-radius: 3px;
   flex-shrink: 0;
 }
 
@@ -399,7 +392,6 @@ dbml-detail {
   height: 100%;
   min-height: 320px;
   border: 1px solid var(--dv-border);
-  border-radius: 6px;
   overflow: hidden;
   background: var(--dv-bg);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 0 2px rgba(0, 0, 0, 0.06);
@@ -470,7 +462,6 @@ dbml-detail {
   color: var(--dv-muted);
   background: var(--dv-table-header-bg);
   padding: 0.1rem 0.4rem;
-  border-radius: 3px;
 }
 
 .dv-col-type-enum {
@@ -498,7 +489,6 @@ dbml-detail {
   padding: 0.6rem 0.75rem;
   background: var(--dv-note-bg);
   border-left: 3px solid var(--dv-note-border);
-  border-radius: 2px;
   color: var(--dv-note-fg);
 }
 
@@ -572,7 +562,6 @@ dbml-detail {
   font-size: 0.65rem;
   font-weight: 600;
   letter-spacing: 0.04em;
-  border-radius: 3px;
   background: var(--dv-badge-bg);
   color: var(--dv-badge-fg);
   text-transform: uppercase;
@@ -651,7 +640,6 @@ dbml-diagram {
   height: 100%;
   min-height: 320px;
   border: 1px solid var(--dv-border);
-  border-radius: 6px;
   overflow: hidden;
   background: var(--dv-canvas-bg);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 0 2px rgba(0, 0, 0, 0.06);
@@ -672,7 +660,6 @@ dbml-diagram {
   background: transparent;
   padding: 0 0.5rem;
   height: 26px;
-  border-radius: 4px;
   cursor: pointer;
   font: inherit;
   font-size: 0.8rem;
@@ -752,7 +739,6 @@ dbml-diagram {
   pointer-events: auto;
   background: var(--dv-table-bg);
   border: 1px solid var(--dv-border);
-  border-radius: 6px;
   overflow: hidden;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 0 2px rgba(0, 0, 0, 0.08);
   min-width: 200px;
@@ -775,7 +761,7 @@ dbml-diagram {
 
 .dv-table-header {
   padding: 0.45rem 0.65rem;
-  background: var(--dv-table-header-gradient);
+  background: var(--dv-table-header-bg);
   border-bottom: 1px solid var(--dv-border);
   font-weight: 600;
 }
