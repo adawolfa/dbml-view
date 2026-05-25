@@ -93,15 +93,23 @@ body {
   white-space: nowrap;
 }
 
-/* File button — replaces the title; doubles as open trigger + opened-file label. */
+/* Grouped open button: main trigger + chevron addon + dropdown. */
+.file-group {
+  display: inline-flex;
+  align-items: stretch;
+  position: relative;
+  height: 30px;
+  flex-shrink: 0;
+}
+
 .file-button {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
   border: 1px solid var(--app-border-strong);
+  border-right: none;
   background: var(--app-surface);
   padding: 0 0.75rem;
-  height: 30px;
   cursor: pointer;
   font: inherit;
   font-size: 0.85rem;
@@ -130,6 +138,74 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.file-dropdown-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--app-border-strong);
+  border-left: 1px solid var(--app-border);
+  background: var(--app-surface);
+  padding: 0 0.4rem;
+  cursor: pointer;
+  color: var(--app-muted);
+  flex-shrink: 0;
+  transition: background 80ms ease, color 80ms ease;
+}
+
+.file-dropdown-trigger:hover {
+  background: var(--app-neutral-hover);
+  color: var(--app-fg);
+}
+
+.file-dropdown-trigger:active,
+.file-dropdown-trigger[aria-expanded='true'] {
+  background: var(--app-neutral-pressed);
+  color: var(--app-fg);
+}
+
+.file-dropdown-chevron {
+  width: 12px;
+  height: 12px;
+}
+
+.file-dropdown {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 0;
+  min-width: 100%;
+  background: var(--app-surface);
+  border: 1px solid var(--app-border-strong);
+  box-shadow: var(--app-shadow-4);
+  z-index: 100;
+  padding: 3px 0;
+}
+
+.file-dropdown-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0.35rem 0.75rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--app-fg);
+  text-align: left;
+  white-space: nowrap;
+  transition: background 80ms ease;
+}
+
+.file-dropdown-item:hover {
+  background: var(--app-neutral-hover);
+}
+
+.file-dropdown-item:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: -2px;
+  background: var(--app-neutral-hover);
 }
 
 /* View toggle buttons — independent on/off, at least one always on. */
@@ -269,42 +345,6 @@ body {
   color: var(--app-fg);
 }
 
-.sample-picker {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.sample-label {
-  font-size: 0.75rem;
-  color: var(--app-muted);
-  margin-right: 0.25rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.sample-picker button {
-  border: 1px solid transparent;
-  background: transparent;
-  padding: 0 0.55rem;
-  height: 24px;
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.8rem;
-  color: var(--app-fg);
-  transition: background 80ms ease, border-color 80ms ease, color 80ms ease;
-}
-
-.sample-picker button:hover:not([disabled]) {
-  background: var(--app-neutral-hover);
-  border-color: var(--app-border);
-}
-
-.sample-picker button[disabled] {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
 
 .theme-toggle {
   display: inline-flex;

@@ -65,7 +65,7 @@ export const en = {
   'app.theme.switch_to_dark': 'Switch to dark theme',
   // The {extension} placeholder renders as a <code> element in the app shell.
   'app.dropzone.prompt': 'Drop a {extension} file here or click to browse.',
-  'app.dropzone.hint': 'Or load a sample from the header.',
+  'app.dropzone.hint': 'Or load a sample from the dropdown next to Open.',
   'app.previous_file': '(previous)',
   'app.error.load_url': "Couldn't load {label}: {message}",
 } as const;

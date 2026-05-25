@@ -42,6 +42,8 @@ const dropzone = mustGet<HTMLElement>('dropzone');
 const fileInput = mustGet<HTMLInputElement>('file-input');
 const fileButton = mustGet<HTMLButtonElement>('file-button');
 const fileButtonLabel = mustGet<HTMLElement>('file-button-label');
+const fileDropdownTrigger = mustGet<HTMLButtonElement>('file-dropdown-trigger');
+const fileDropdown = mustGet<HTMLElement>('file-dropdown');
 const status = mustGet<HTMLElement>('status');
 const togglesEl = mustGet<HTMLElement>('view-toggles');
 const viewsEl = mustGet<HTMLElement>('views');
@@ -114,16 +116,51 @@ for (const [path, source] of Object.entries(samples)) {
   if (name) samplesByName.set(name, source);
 }
 
-for (const button of document.querySelectorAll<HTMLButtonElement>('[data-sample]')) {
-  const name = button.dataset.sample;
-  if (!name || !samplesByName.has(name)) {
-    button.disabled = true;
-    continue;
-  }
-  button.addEventListener('click', () => {
+// Populate the samples dropdown.
+for (const [name] of samplesByName) {
+  const item = document.createElement('button');
+  item.type = 'button';
+  item.className = 'file-dropdown-item';
+  item.setAttribute('role', 'menuitem');
+  item.textContent = name.replace(/\.dbml$/, '');
+  fileDropdown.appendChild(item);
+  item.addEventListener('click', () => {
     const source = samplesByName.get(name);
     if (source) applySource(source, name);
+    closeFileDropdown();
   });
+}
+
+fileDropdownTrigger.addEventListener('click', () => {
+  if (fileDropdown.hidden) {
+    openFileDropdown();
+  } else {
+    closeFileDropdown();
+  }
+});
+
+document.addEventListener('click', (event) => {
+  if (!fileDropdown.hidden) {
+    const group = fileDropdownTrigger.closest('.file-group');
+    if (!group?.contains(event.target as Node)) closeFileDropdown();
+  }
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && !fileDropdown.hidden) {
+    closeFileDropdown();
+    fileDropdownTrigger.focus();
+  }
+});
+
+function openFileDropdown(): void {
+  fileDropdown.hidden = false;
+  fileDropdownTrigger.setAttribute('aria-expanded', 'true');
+}
+
+function closeFileDropdown(): void {
+  fileDropdown.hidden = true;
+  fileDropdownTrigger.setAttribute('aria-expanded', 'false');
 }
 
 async function loadFile(file: File): Promise<void> {
