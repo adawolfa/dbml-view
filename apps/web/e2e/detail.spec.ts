@@ -97,6 +97,24 @@ test('table detail without selection shows the picker hint and a count', async (
   await expect(page.locator('#detail')).toContainText(/\d+ enum/);
 });
 
+test('switching to a file without the selected table hides the detail panel', async ({ page }) => {
+  await page.goto('/');
+  await loadSample(page, 'edge-cases');
+  await page.locator('#structure [data-node="table"]', { hasText: 'fat_table' }).click();
+  await expect(page.locator('#view-detail')).toBeVisible();
+  await expect(page.locator('#detail .dv-detail-name')).toHaveText('fat_table');
+
+  // small.dbml has no `fat_table` — the stale hash selection must not keep the
+  // detail panel open with a "pick a table or enum" placeholder.
+  await loadSample(page, 'small');
+  await expect(page.locator('#view-detail')).toBeHidden();
+
+  // Round-trip: switching back picks up the preserved hash and re-resolves.
+  await loadSample(page, 'edge-cases');
+  await expect(page.locator('#view-detail')).toBeVisible();
+  await expect(page.locator('#detail .dv-detail-name')).toHaveText('fat_table');
+});
+
 test('hovering a row in the detail highlights the parent table in the tree', async ({ page }) => {
   await page.goto('/');
   await loadSample(page, 'medium');
