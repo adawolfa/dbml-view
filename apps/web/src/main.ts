@@ -12,14 +12,17 @@ import type {
   HoverState,
   Selection,
 } from '@dbml-view/components';
-import { t } from '@dbml-view/i18n';
+import { t, setLocale, cs } from '@dbml-view/i18n';
 import { parseDbml } from '@dbml-view/parser';
 
 const LS_KEY = 'dbml-view:last-source';
 const LS_NAME_KEY = 'dbml-view:last-name';
 const LS_VIEWS_KEY = 'dbml-view:active-views';
 const LS_THEME_KEY = 'dbml-view:theme';
+const LS_LOCALE_KEY = 'dbml-view:locale';
 const LS_PANEL_WIDTH_PREFIX = 'dbml-view:panel-width:';
+
+type Locale = 'en' | 'cs';
 
 type Theme = 'light' | 'dark';
 
@@ -47,7 +50,12 @@ const fileDropdown = mustGet<HTMLElement>('file-dropdown');
 const status = mustGet<HTMLElement>('status');
 const togglesEl = mustGet<HTMLElement>('view-toggles');
 const viewsEl = mustGet<HTMLElement>('views');
-const themeToggle = mustGet<HTMLButtonElement>('theme-toggle');
+const settingsTrigger = mustGet<HTMLButtonElement>('settings-trigger');
+const settingsDropdown = mustGet<HTMLElement>('settings-dropdown');
+const themeSelect = mustGet<HTMLSelectElement>('theme-select');
+const themeSelectLabel = mustGet<HTMLElement>('theme-select-label');
+const langSelect = mustGet<HTMLSelectElement>('lang-select');
+const langSelectLabel = mustGet<HTMLElement>('lang-select-label');
 
 const structure = mustGet<DbmlStructureElement>('structure');
 const detail = mustGet<DbmlDetailElement>('detail');
@@ -67,6 +75,11 @@ const panelWidths: Record<View, number> = {
 };
 let hasSource = false;
 let currentSelection: Selection = { kind: 'none' };
+
+// Bootstrap locale before applying translations so all t() calls use the right
+// locale from the start.
+const activeLocale: Locale = storedLocale() ?? 'en';
+if (activeLocale === 'cs') setLocale(cs);
 
 // Apply translations to the static HTML elements that can't be reached from
 // component render methods (view toggles, file button initial state, dropzone).
@@ -139,17 +152,35 @@ fileDropdownTrigger.addEventListener('click', () => {
   }
 });
 
+settingsTrigger.addEventListener('click', () => {
+  if (settingsDropdown.hidden) {
+    openSettingsDropdown();
+  } else {
+    closeSettingsDropdown();
+  }
+});
+
 document.addEventListener('click', (event) => {
   if (!fileDropdown.hidden) {
     const group = fileDropdownTrigger.closest('.file-group');
     if (!group?.contains(event.target as Node)) closeFileDropdown();
   }
+  if (!settingsDropdown.hidden) {
+    const group = document.getElementById('settings-group');
+    if (!group?.contains(event.target as Node)) closeSettingsDropdown();
+  }
 });
 
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape' && !fileDropdown.hidden) {
-    closeFileDropdown();
-    fileDropdownTrigger.focus();
+  if (event.key === 'Escape') {
+    if (!fileDropdown.hidden) {
+      closeFileDropdown();
+      fileDropdownTrigger.focus();
+    }
+    if (!settingsDropdown.hidden) {
+      closeSettingsDropdown();
+      settingsTrigger.focus();
+    }
   }
 });
 
@@ -161,6 +192,16 @@ function openFileDropdown(): void {
 function closeFileDropdown(): void {
   fileDropdown.hidden = true;
   fileDropdownTrigger.setAttribute('aria-expanded', 'false');
+}
+
+function openSettingsDropdown(): void {
+  settingsDropdown.hidden = false;
+  settingsTrigger.setAttribute('aria-expanded', 'true');
+}
+
+function closeSettingsDropdown(): void {
+  settingsDropdown.hidden = true;
+  settingsTrigger.setAttribute('aria-expanded', 'false');
 }
 
 async function loadFile(file: File): Promise<void> {
@@ -453,6 +494,18 @@ function initTranslations(): void {
   if (dropzoneP1)
     dropzoneP1.innerHTML = t('app.dropzone.prompt', { extension: '<code>.dbml</code>' });
   if (dropzoneHint) dropzoneHint.textContent = t('app.dropzone.hint');
+
+  // Settings dropdown.
+  const settingsLabel = t('app.settings.open');
+  settingsTrigger.title = settingsLabel;
+  settingsTrigger.setAttribute('aria-label', settingsLabel);
+  themeSelectLabel.textContent = t('app.settings.theme.label');
+  langSelectLabel.textContent = t('app.settings.language.label');
+  for (const opt of Array.from(themeSelect.options)) {
+    if (opt.value === 'system') opt.textContent = t('app.settings.theme.system');
+    else if (opt.value === 'light') opt.textContent = t('app.settings.theme.light');
+    else if (opt.value === 'dark') opt.textContent = t('app.settings.theme.dark');
+  }
 }
 
 function mustGet<T extends HTMLElement>(id: string): T {
@@ -464,7 +517,7 @@ function mustGet<T extends HTMLElement>(id: string): T {
 const APP_PANEL_GAP_PX = 0; // gaps are removed in favor of explicit splitters
 const APP_SPLITTER_PX = 6;
 
-// --- Theme: follow system preference until the user explicitly toggles. ---
+// --- Theme: follow system preference unless the user picks light/dark. ---
 
 const darkMql = window.matchMedia('(prefers-color-scheme: dark)');
 
@@ -482,17 +535,20 @@ function effectiveTheme(): Theme {
 }
 
 function applyTheme(): void {
-  const theme = effectiveTheme();
-  document.documentElement.setAttribute('data-theme', theme);
-  const label = theme === 'dark' ? t('app.theme.switch_to_light') : t('app.theme.switch_to_dark');
-  themeToggle.title = label;
-  themeToggle.setAttribute('aria-label', label);
+  document.documentElement.setAttribute('data-theme', effectiveTheme());
 }
 
-themeToggle.addEventListener('click', () => {
-  const next: Theme = effectiveTheme() === 'dark' ? 'light' : 'dark';
+// Initialise the theme <select> to reflect the stored preference.
+themeSelect.value = storedTheme() ?? 'system';
+
+themeSelect.addEventListener('change', () => {
+  const val = themeSelect.value;
   try {
-    localStorage.setItem(LS_THEME_KEY, next);
+    if (val === 'system') {
+      localStorage.removeItem(LS_THEME_KEY);
+    } else if (val === 'light' || val === 'dark') {
+      localStorage.setItem(LS_THEME_KEY, val);
+    }
   } catch {
     // ignore
   }
@@ -504,6 +560,30 @@ darkMql.addEventListener('change', () => {
 });
 
 applyTheme();
+
+// --- Locale: persist and switch on change (reload to re-render all components). ---
+
+function storedLocale(): Locale | null {
+  try {
+    const v = localStorage.getItem(LS_LOCALE_KEY);
+    return v === 'en' || v === 'cs' ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+// Initialise the language <select> to reflect the stored locale.
+langSelect.value = activeLocale;
+
+langSelect.addEventListener('change', () => {
+  const next = langSelect.value;
+  try {
+    localStorage.setItem(LS_LOCALE_KEY, next);
+  } catch {
+    // ignore
+  }
+  window.location.reload();
+});
 
 // --- Selection wiring: structure ↔ detail ↔ diagram via URL hash. ---
 

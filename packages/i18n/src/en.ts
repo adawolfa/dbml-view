@@ -69,4 +69,12 @@ export const en = {
   'app.dropzone.hint': 'Or load a sample from the dropdown next to Open.',
   'app.previous_file': '(previous)',
   'app.error.load_url': "Couldn't load {label}: {message}",
+
+  // --- Settings dropdown ---
+  'app.settings.open': 'Settings',
+  'app.settings.theme.label': 'Theme',
+  'app.settings.theme.system': 'System',
+  'app.settings.theme.light': 'Light',
+  'app.settings.theme.dark': 'Dark',
+  'app.settings.language.label': 'Language',
 } as const;
