@@ -79,6 +79,62 @@ test('hovering a diagram table highlights the matching structure row', async ({ 
   ).toHaveClass(/is-hovered/);
 });
 
+test('hovering a relational column highlights only that column\'s edge, not all edges of the table', async ({
+  page,
+}) => {
+  // `shop.orders` participates in three edges: orders.user_id → users.id,
+  // orders.shipping_address_id → addresses.id, and order_items.order_id → orders.id.
+  // Hovering a single FK column should narrow the highlight to that one edge.
+  const userIdEdge = page.locator(
+    '#diagram .dv-edge-group[data-from-column="shop.orders.user_id"][data-to-column="auth.users.id"]',
+  );
+  const shippingEdge = page.locator(
+    '#diagram .dv-edge-group[data-from-column="shop.orders.shipping_address_id"][data-to-column="shop.addresses.id"]',
+  );
+  const orderItemsEdge = page.locator(
+    '#diagram .dv-edge-group[data-from-column="shop.order_items.order_id"][data-to-column="shop.orders.id"]',
+  );
+
+  // Sanity: the three edges exist.
+  await expect(userIdEdge).toHaveCount(1);
+  await expect(shippingEdge).toHaveCount(1);
+  await expect(orderItemsEdge).toHaveCount(1);
+
+  // Hover the `user_id` row inside the `shop.orders` table.
+  await page
+    .locator('#diagram .dv-table[data-table-id="shop.orders"] [data-column-id="shop.orders.user_id"]')
+    .hover();
+
+  // Only the specific edge for that column gets the related highlight.
+  await expect(userIdEdge).toHaveClass(/is-related/);
+  await expect(shippingEdge).not.toHaveClass(/is-related/);
+  await expect(orderItemsEdge).not.toHaveClass(/is-related/);
+});
+
+test('hovering a non-relational column still highlights all edges of the table', async ({
+  page,
+}) => {
+  // `status` on shop.orders is not part of any ref, so the highlight should
+  // fall back to the whole-table behaviour.
+  const userIdEdge = page.locator(
+    '#diagram .dv-edge-group[data-from-column="shop.orders.user_id"][data-to-column="auth.users.id"]',
+  );
+  const shippingEdge = page.locator(
+    '#diagram .dv-edge-group[data-from-column="shop.orders.shipping_address_id"][data-to-column="shop.addresses.id"]',
+  );
+  const orderItemsEdge = page.locator(
+    '#diagram .dv-edge-group[data-from-column="shop.order_items.order_id"][data-to-column="shop.orders.id"]',
+  );
+
+  await page
+    .locator('#diagram .dv-table[data-table-id="shop.orders"] [data-column-id="shop.orders.status"]')
+    .hover();
+
+  await expect(userIdEdge).toHaveClass(/is-related/);
+  await expect(shippingEdge).toHaveClass(/is-related/);
+  await expect(orderItemsEdge).toHaveClass(/is-related/);
+});
+
 test('renders TableGroup hulls behind member tables', async ({ page }) => {
   // The medium sample defines a `commerce` TableGroup, but multi-schema mode in
   // the structure tree ignores it. The diagram still draws the hull.

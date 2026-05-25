@@ -71,8 +71,14 @@ export class DbmlDiagramElement extends HTMLElement {
   private groupEls = new Map<string, { root: HTMLElement; label: HTMLElement }>();
   private edgeEls = new Map<string, SVGGElement>();
   private edgesByTable = new Map<string, Set<string>>();
+  /** edgeIds touching a column (either endpoint); used to scope the related-edge
+   * highlight to the column under the pointer instead of the whole table. */
+  private edgesByColumn = new Map<string, Set<string>>();
   /** Maps canonically-sorted "colA|colB" → edgeId for cross-panel hover lookup. */
   private edgesByColumnPair = new Map<string, string>();
+  /** Edges currently marked `is-related`. Tracked so per-column hovers can diff
+   * cleanly against the previous (possibly whole-table) set. */
+  private currentRelatedEdges = new Set<string>();
   private hoveredTableId: string | null = null;
   private hoveredEdgeId: string | null = null;
   /** Column ID internally hovered (mouse over a column row in the diagram canvas). */
@@ -342,7 +348,11 @@ export class DbmlDiagramElement extends HTMLElement {
   private renderEdges(edges: RoutedEdge[], canvasWidth: number, canvasHeight: number): void {
     this.edgeEls.clear();
     this.edgesByTable.clear();
+    this.edgesByColumn.clear();
     this.edgesByColumnPair.clear();
+    // The old SVG elements are gone — drop the tracking set so the next
+    // updateRelatedEdges() doesn't try to remove classes from stale nodes.
+    this.currentRelatedEdges = new Set();
     while (this.edgesEl.firstChild) this.edgesEl.removeChild(this.edgesEl.firstChild);
     this.edgesEl.setAttribute('width', String(canvasWidth));
     this.edgesEl.setAttribute('height', String(canvasHeight));
@@ -379,6 +389,8 @@ export class DbmlDiagramElement extends HTMLElement {
       this.edgeEls.set(edge.id, group);
       track(this.edgesByTable, edge.from.tableId, edge.id);
       track(this.edgesByTable, edge.to.tableId, edge.id);
+      track(this.edgesByColumn, edge.from.columnId, edge.id);
+      track(this.edgesByColumn, edge.to.columnId, edge.id);
       const [pairA, pairB] = [edge.from.columnId, edge.to.columnId].sort();
       this.edgesByColumnPair.set(`${pairA}|${pairB}`, edge.id);
     }
@@ -462,6 +474,7 @@ export class DbmlDiagramElement extends HTMLElement {
       }
 
       if (tableChanged) this.applyTableHover(newTableId);
+      else if (colChanged) this.updateRelatedEdges();
 
       // Emit the finest-grained state available.
       const state: HoverState =
@@ -845,19 +858,40 @@ export class DbmlDiagramElement extends HTMLElement {
   private applyTableHover(id: string | null): void {
     if (this.hoveredTableId === id) return;
     if (this.hoveredTableId) {
-      const prev = this.tableEls.get(this.hoveredTableId);
-      prev?.classList.remove('is-hovered');
-      for (const edgeId of this.edgesByTable.get(this.hoveredTableId) ?? []) {
-        this.edgeEls.get(edgeId)?.classList.remove('is-related');
-      }
+      this.tableEls.get(this.hoveredTableId)?.classList.remove('is-hovered');
     }
     this.hoveredTableId = id;
     if (id) {
       this.tableEls.get(id)?.classList.add('is-hovered');
-      for (const edgeId of this.edgesByTable.get(id) ?? []) {
-        this.edgeEls.get(edgeId)?.classList.add('is-related');
-      }
     }
+    this.updateRelatedEdges();
+  }
+
+  /**
+   * Recompute which edges should carry the `is-related` highlight based on
+   * the current table + column hover state. When the pointer is on a column
+   * that participates in any relationship, scope the highlight to that
+   * column's edges only — otherwise fall back to all edges of the hovered
+   * table.
+   */
+  private updateRelatedEdges(): void {
+    const next = new Set<string>();
+    if (this.hoveredTableId) {
+      const activeColumn = this.hoveredColumnId ?? this.externalColumnId;
+      const columnEdges = activeColumn ? this.edgesByColumn.get(activeColumn) : undefined;
+      const source =
+        columnEdges && columnEdges.size > 0
+          ? columnEdges
+          : this.edgesByTable.get(this.hoveredTableId);
+      if (source) for (const id of source) next.add(id);
+    }
+    for (const id of this.currentRelatedEdges) {
+      if (!next.has(id)) this.edgeEls.get(id)?.classList.remove('is-related');
+    }
+    for (const id of next) {
+      if (!this.currentRelatedEdges.has(id)) this.edgeEls.get(id)?.classList.add('is-related');
+    }
+    this.currentRelatedEdges = next;
   }
 
   // ---- Internal handlers: apply visual + emit hover-change ----
@@ -912,12 +946,15 @@ export class DbmlDiagramElement extends HTMLElement {
         this.applyTableHover(state.tableId);
         break;
       case 'column': {
-        this.applyTableHover(state.tableId);
         const colEl = this.nodesEl.querySelector(`[data-column-id="${cssEscape(state.columnId)}"]`);
         if (colEl) {
           colEl.classList.add('is-edge-endpoint');
+          // Set externalColumnId BEFORE applyTableHover so updateRelatedEdges
+          // can scope the highlight to this column's edges rather than the
+          // table's full set.
           this.externalColumnId = state.columnId;
         }
+        this.applyTableHover(state.tableId);
         break;
       }
       case 'edge': {
