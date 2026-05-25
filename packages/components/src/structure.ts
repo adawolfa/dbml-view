@@ -212,6 +212,8 @@ export class DbmlStructureElement extends HTMLElement {
         if (this.searchMatches.length > 0) {
           event.preventDefault();
           this.activateCurrentMatch();
+          this.clearSearch();
+          search.blur();
         }
       } else if (event.key === 'Escape') {
         if (search.value !== '') {
@@ -1106,8 +1108,8 @@ function makeTemplate(): string {
   const clearLabel = t('structure.search.clear');
   return `
     <div class="dv-search" role="search">
-      <span class="dv-search-icon" aria-hidden="true">${iconSearch()}</span>
       <input type="search" placeholder="${escapeAttr(t('structure.search.placeholder'))}" data-search />
+      <span class="dv-search-icon" aria-hidden="true">${iconSearch()}</span>
       <button
         type="button"
         class="dv-search-clear"

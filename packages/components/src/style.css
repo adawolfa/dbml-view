@@ -121,28 +121,42 @@ dbml-structure {
   min-height: 0;
 }
 
-/* Flex shell that puts the leading icon and trailing clear button on either
-   side of the input. The input flex-grows between them. */
+/* The container itself is the bordered input shell — fills the rail edge to
+   edge so there's no "box in a box" look. The icon sits absolutely positioned
+   on the left and disappears once the user starts typing (the placeholder
+   goes away too). The clear button sits flush against the right edge. */
 .dv-search {
   position: sticky;
   top: 0;
-  background: var(--dv-rail-bg);
-  padding: 0.5rem;
-  border-bottom: 1px solid var(--dv-border);
   z-index: 1;
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  background: var(--dv-input-bg);
+  border-bottom: 1px solid var(--dv-border-strong);
+  transition: border-color 80ms ease, box-shadow 80ms ease;
+}
+
+.dv-search:hover {
+  border-bottom-color: var(--dv-input-border-hover);
+}
+
+.dv-search:focus-within {
+  border-bottom-color: var(--dv-accent);
+  box-shadow: 0 1px 0 0 var(--dv-accent);
 }
 
 .dv-search-icon {
+  position: absolute;
+  left: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 14px;
   height: 14px;
   color: var(--dv-muted);
-  flex-shrink: 0;
+  pointer-events: none;
 }
 
 .dv-search-icon svg {
@@ -150,15 +164,24 @@ dbml-structure {
   height: 14px;
 }
 
+/* When the placeholder is gone (input has content), hide the leading icon. */
+.dv-search:has(input:not(:placeholder-shown)) .dv-search-icon {
+  display: none;
+}
+
 .dv-search input {
   flex: 1;
   min-width: 0;
-  padding: 0.35rem 0.4rem;
-  border: 1px solid var(--dv-border-strong);
+  padding: 0.45rem 0.5rem 0.45rem 1.85rem;
+  border: 0;
   font: inherit;
-  background: var(--dv-input-bg);
+  background: transparent;
   color: var(--dv-fg);
-  transition: border-color 80ms ease, box-shadow 80ms ease;
+}
+
+/* When the icon is hidden, reclaim its left padding so text starts flush. */
+.dv-search:has(input:not(:placeholder-shown)) input {
+  padding-left: 0.5rem;
 }
 
 /* Hide the native clear button — we render our own that's stylable + tied to a
@@ -172,14 +195,8 @@ dbml-structure {
   color: var(--dv-muted);
 }
 
-.dv-search input:hover {
-  border-color: var(--dv-input-border-hover);
-}
-
 .dv-search input:focus {
   outline: none;
-  border-color: var(--dv-accent);
-  box-shadow: 0 0 0 1px var(--dv-accent);
 }
 
 .dv-search-clear {
@@ -188,6 +205,7 @@ dbml-structure {
   justify-content: center;
   width: 20px;
   height: 20px;
+  margin-right: 0.35rem;
   padding: 0;
   border: 0;
   background: transparent;
