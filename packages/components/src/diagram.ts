@@ -801,9 +801,10 @@ function renderRow(table: Table, column: Column, pks: Set<string>, fks: Set<stri
 }
 
 function formatType(column: Column): string {
-  const { schemaName, type_name, args } = column.type;
-  const qualified = schemaName ? `${schemaName}.${type_name}` : type_name;
-  return args ? `${qualified}(${args})` : qualified;
+  // @dbml/parse already bakes args into type_name (e.g. "varchar(255)"),
+  // so we only need the schema prefix — appending `args` again would duplicate the parens.
+  const { schemaName, type_name } = column.type;
+  return schemaName ? `${schemaName}.${type_name}` : type_name;
 }
 
 function refsForTable(db: Database, id: string): Ref[] {

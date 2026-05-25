@@ -143,9 +143,10 @@ export function relationArrow(self: '1' | '*', other: '1' | '*'): string {
 }
 
 export function formatColumnType(column: Column): string {
-  const { schemaName, type_name, args } = column.type;
-  const qualified = schemaName ? `${schemaName}.${type_name}` : type_name;
-  return args ? `${qualified}(${args})` : qualified;
+  // @dbml/parse already bakes args into type_name (e.g. "varchar(255)"),
+  // so we only need the schema prefix — appending `args` again would duplicate the parens.
+  const { schemaName, type_name } = column.type;
+  return schemaName ? `${schemaName}.${type_name}` : type_name;
 }
 
 export function push<K, V>(map: Map<K, V[]>, key: K, value: V): void {
