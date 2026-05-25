@@ -19,7 +19,7 @@ import type {
   Selection,
 } from '@dbml-view/components';
 import { cs, setLocale, t } from '@dbml-view/i18n';
-import { parseDbml } from '@dbml-view/parser';
+import { enumId, parseDbml, tableId } from '@dbml-view/parser';
 import type { ParseError } from '@dbml-view/parser';
 
 const LS_KEY = 'dbml-view:last-source';
@@ -802,10 +802,29 @@ function selectionToHash(selection: Selection): string {
 
 /** Push a selection to the components without echoing the hash. */
 function applySelection(selection: Selection): void {
-  currentSelection = selection;
-  structure.setSelection(selection);
-  detail.setSelection(selection);
+  const resolved = resolveSelection(selection);
+  currentSelection = resolved;
+  structure.setSelection(resolved);
+  detail.setSelection(resolved);
   renderViews();
+}
+
+/**
+ * Drop a selection that points to a table/enum not present in the current
+ * database. Prevents stale hash selections from a previous file keeping the
+ * detail panel visible with an empty-state placeholder after switching files.
+ */
+function resolveSelection(selection: Selection): Selection {
+  if (!cachedDatabase) return selection;
+  if (selection.kind === 'table') {
+    const exists = cachedDatabase.tables.some((t) => tableId(t) === selection.tableId);
+    return exists ? selection : { kind: 'none' };
+  }
+  if (selection.kind === 'enum') {
+    const exists = cachedDatabase.enums.some((e) => enumId(e) === selection.enumId);
+    return exists ? selection : { kind: 'none' };
+  }
+  return selection;
 }
 
 function syncSelectionFromHash(): void {
