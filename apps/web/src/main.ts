@@ -10,6 +10,9 @@ import type { DbmlDiagramElement, DbmlStructureElement } from '@dbml-view/compon
 const LS_KEY = 'dbml-view:last-source';
 const LS_NAME_KEY = 'dbml-view:last-name';
 const LS_VIEWS_KEY = 'dbml-view:active-views';
+const LS_THEME_KEY = 'dbml-view:theme';
+
+type Theme = 'light' | 'dark';
 
 type View = 'structure' | 'diagram';
 const VIEWS: readonly View[] = ['structure', 'diagram'];
@@ -21,6 +24,7 @@ const fileButtonLabel = mustGet<HTMLElement>('file-button-label');
 const status = mustGet<HTMLElement>('status');
 const togglesEl = mustGet<HTMLElement>('view-toggles');
 const viewsEl = mustGet<HTMLElement>('views');
+const themeToggle = mustGet<HTMLButtonElement>('theme-toggle');
 
 const structure = mustGet<DbmlStructureElement>('structure');
 const diagram = mustGet<DbmlDiagramElement>('diagram');
@@ -176,6 +180,47 @@ function mustGet<T extends HTMLElement>(id: string): T {
   if (!el) throw new Error(`Bootstrap: missing #${id}`);
   return el as T;
 }
+
+// --- Theme: follow system preference until the user explicitly toggles. ---
+
+const darkMql = window.matchMedia('(prefers-color-scheme: dark)');
+
+function storedTheme(): Theme | null {
+  try {
+    const v = localStorage.getItem(LS_THEME_KEY);
+    return v === 'light' || v === 'dark' ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+function effectiveTheme(): Theme {
+  return storedTheme() ?? (darkMql.matches ? 'dark' : 'light');
+}
+
+function applyTheme(): void {
+  const theme = effectiveTheme();
+  document.documentElement.setAttribute('data-theme', theme);
+  const label = theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme';
+  themeToggle.title = label;
+  themeToggle.setAttribute('aria-label', label);
+}
+
+themeToggle.addEventListener('click', () => {
+  const next: Theme = effectiveTheme() === 'dark' ? 'light' : 'dark';
+  try {
+    localStorage.setItem(LS_THEME_KEY, next);
+  } catch {
+    // ignore
+  }
+  applyTheme();
+});
+
+darkMql.addEventListener('change', () => {
+  if (storedTheme() === null) applyTheme();
+});
+
+applyTheme();
 
 // Restore last set of active views.
 try {
