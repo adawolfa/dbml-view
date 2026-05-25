@@ -336,12 +336,8 @@ async function setWindowTitle(label: string | null): Promise<void> {
   const title = label ?? APP_TITLE;
   document.title = title;
   if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) return;
-  try {
-    const { getCurrentWindow } = await import('@tauri-apps/api/window');
-    await getCurrentWindow().setTitle(title);
-  } catch {
-    // Tauri runtime missing or IPC error — browser title fallback is fine.
-  }
+  const { getCurrentWindow } = await import('@tauri-apps/api/window');
+  await getCurrentWindow().setTitle(title);
 }
 
 function toggleView(view: View): void {
@@ -857,6 +853,21 @@ window.addEventListener('hashchange', () => {
   syncSelectionFromHash();
 });
 
+// Surface uncaught errors and promise rejections in the status bar so silent
+// failures (esp. Tauri IPC: permission gaps, missing commands) don't leave the
+// app in a broken-but-quiet state. Console still gets the full stack.
+function reportError(prefix: string, reason: unknown): void {
+  const message = reason instanceof Error ? reason.message : String(reason);
+  console.error(prefix, reason);
+  status.textContent = `${prefix} ${message}`;
+}
+window.addEventListener('error', (event) => {
+  reportError('Error:', event.error ?? event.message);
+});
+window.addEventListener('unhandledrejection', (event) => {
+  reportError('Unhandled promise rejection:', event.reason);
+});
+
 // Restore last set of active views.
 try {
   const stored = localStorage.getItem(LS_VIEWS_KEY);
@@ -899,12 +910,8 @@ async function bootstrap(): Promise<void> {
 
 async function showTauriWindow(): Promise<void> {
   if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) return;
-  try {
-    const { getCurrentWindow } = await import('@tauri-apps/api/window');
-    await getCurrentWindow().show();
-  } catch {
-    // ignore
-  }
+  const { getCurrentWindow } = await import('@tauri-apps/api/window');
+  await getCurrentWindow().show();
 }
 
 // Container resize: if the user shrinks the window such that the rightmost
@@ -933,22 +940,18 @@ window.addEventListener('resize', () => {
 // browser-only fallbacks (URL param, localStorage).
 async function bootstrapTauri(): Promise<boolean> {
   if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) return false;
-  try {
-    const [{ invoke }, { listen }] = await Promise.all([
-      import('@tauri-apps/api/core'),
-      import('@tauri-apps/api/event'),
-    ]);
-    type Payload = { name: string; source: string };
-    await listen<Payload>('dbml-open', (event) => {
-      applySource(event.payload.source, event.payload.name);
-    });
-    const initial = await invoke<Payload | null>('take_pending_open');
-    if (initial) {
-      applySource(initial.source, initial.name);
-      return true;
-    }
-  } catch {
-    // Tauri runtime missing or IPC error — fall back to browser behaviour.
+  const [{ invoke }, { listen }] = await Promise.all([
+    import('@tauri-apps/api/core'),
+    import('@tauri-apps/api/event'),
+  ]);
+  type Payload = { name: string; source: string };
+  await listen<Payload>('dbml-open', (event) => {
+    applySource(event.payload.source, event.payload.name);
+  });
+  const initial = await invoke<Payload | null>('take_pending_open');
+  if (initial) {
+    applySource(initial.source, initial.name);
+    return true;
   }
   return false;
 }
