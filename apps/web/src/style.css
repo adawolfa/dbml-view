@@ -177,7 +177,11 @@ body {
 }
 
 .views.is-split {
-  grid-template-columns: minmax(280px, 1fr) 2fr;
+  /* Structure pane defaults to ~50% of the window so its rail + detail leave
+     the detail at least ~30% of the viewport with the default rail width.
+     Both columns can shrink to 0 (structure scrolls horizontally if its own
+     min-widths overflow). */
+  grid-template-columns: 1fr 1fr;
 }
 
 .views > .view {
