@@ -11,9 +11,39 @@
   --dv-accent-soft: #ebf3fc;
   --dv-table-bg: #ffffff;
   --dv-table-header-bg: #f5f5f5;
+  --dv-table-header-gradient: linear-gradient(180deg, #fafafa 0%, #f3f2f1 100%);
   --dv-edge: #8a8886;
   --dv-edge-hover: #0f6cbd;
   --dv-canvas-bg: #faf9f8;
+  --dv-canvas-dot: #d2d0ce;
+  --dv-rail-bg: #faf9f8;
+  --dv-input-bg: #ffffff;
+  --dv-input-border-hover: #8a8886;
+  --dv-hover-bg: #f3f2f1;
+  --dv-row-hover-bg: #faf9f8;
+  --dv-row-border: #f3f2f1;
+  --dv-toolbar-bg: #ffffff;
+  --dv-toolbar-hover-bg: #f3f2f1;
+  --dv-toolbar-pressed-bg: #ededeb;
+  --dv-type-color: #8764b8;
+  --dv-flag-muted: #a19f9d;
+  --dv-error-fg: #a4262c;
+  --dv-error-pos-fg: #c50f1f;
+  --dv-note-bg: #fff4ce;
+  --dv-note-fg: #614a19;
+  --dv-note-border: #f7b502;
+  --dv-badge-bg: #f3f2f1;
+  --dv-badge-fg: #323130;
+  --dv-badge-pk-bg: #fff4ce;
+  --dv-badge-pk-fg: #614a19;
+  --dv-badge-fk-bg: #ebf3fc;
+  --dv-badge-fk-fg: #115ea3;
+  --dv-badge-unique-bg: #e9d8fd;
+  --dv-badge-unique-fg: #5c2e91;
+  --dv-badge-auto-bg: #dff6dd;
+  --dv-badge-auto-fg: #0e6b25;
+  --dv-badge-notnull-bg: #fde7e9;
+  --dv-badge-notnull-fg: #a4262c;
 
   display: block;
   color: var(--dv-fg);
@@ -22,6 +52,52 @@
     13px / 1.4 "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui,
     sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+:root[data-theme='dark'] :where(dbml-structure, dbml-diagram) {
+  --dv-bg: #242424;
+  --dv-fg: #e6e6e6;
+  --dv-muted: #a6a6a6;
+  --dv-border: #3d3d3d;
+  --dv-border-strong: #555555;
+  --dv-accent: #4cc2ff;
+  --dv-accent-hover: #76d1ff;
+  --dv-accent-soft: #1a3a52;
+  --dv-table-bg: #2a2a2a;
+  --dv-table-header-bg: #333333;
+  --dv-table-header-gradient: linear-gradient(180deg, #353535 0%, #2c2c2c 100%);
+  --dv-edge: #6b6b6b;
+  --dv-edge-hover: #4cc2ff;
+  --dv-canvas-bg: #1a1a1a;
+  --dv-canvas-dot: #3a3a3a;
+  --dv-rail-bg: #1f1f1f;
+  --dv-input-bg: #2a2a2a;
+  --dv-input-border-hover: #6b6b6b;
+  --dv-hover-bg: #2e2e2e;
+  --dv-row-hover-bg: #2e2e2e;
+  --dv-row-border: #333333;
+  --dv-toolbar-bg: #2a2a2a;
+  --dv-toolbar-hover-bg: #333333;
+  --dv-toolbar-pressed-bg: #3a3a3a;
+  --dv-type-color: #c8a8f0;
+  --dv-flag-muted: #6b6b6b;
+  --dv-error-fg: #ff8080;
+  --dv-error-pos-fg: #ff6060;
+  --dv-note-bg: #3d3320;
+  --dv-note-fg: #f0d68c;
+  --dv-note-border: #d4a017;
+  --dv-badge-bg: #3a3a3a;
+  --dv-badge-fg: #d4d4d4;
+  --dv-badge-pk-bg: #3d3320;
+  --dv-badge-pk-fg: #f0c674;
+  --dv-badge-fk-bg: #1a3142;
+  --dv-badge-fk-fg: #73aef0;
+  --dv-badge-unique-bg: #2e1f42;
+  --dv-badge-unique-fg: #c7a0f0;
+  --dv-badge-auto-bg: #1a2e1a;
+  --dv-badge-auto-fg: #7ec07e;
+  --dv-badge-notnull-bg: #3d1f1f;
+  --dv-badge-notnull-fg: #f08080;
 }
 
 /* ---- <dbml-structure> ---- */
@@ -42,7 +118,8 @@ dbml-structure {
 }
 
 .dv-rail {
-  background: #faf9f8;
+  border-right: 1px solid var(--dv-border);
+  background: var(--dv-rail-bg);
   overflow: auto;
   display: flex;
   flex-direction: column;
@@ -75,7 +152,7 @@ dbml-structure {
 .dv-search {
   position: sticky;
   top: 0;
-  background: #faf9f8;
+  background: var(--dv-rail-bg);
   padding: 0.5rem;
   border-bottom: 1px solid var(--dv-border);
   z-index: 1;
@@ -87,7 +164,7 @@ dbml-structure {
   border: 1px solid var(--dv-border-strong);
   border-radius: 4px;
   font: inherit;
-  background: #fff;
+  background: var(--dv-input-bg);
   color: var(--dv-fg);
   transition: border-color 80ms ease, box-shadow 80ms ease;
 }
@@ -97,7 +174,7 @@ dbml-structure {
 }
 
 .dv-search input:hover {
-  border-color: #8a8886;
+  border-color: var(--dv-input-border-hover);
 }
 
 .dv-search input:focus {
@@ -148,7 +225,7 @@ dbml-structure {
 }
 
 .dv-tree-node:hover {
-  background: #f3f2f1;
+  background: var(--dv-hover-bg);
 }
 
 .dv-tree-chevron {
@@ -238,7 +315,7 @@ dbml-structure {
 
 .dv-tree-column-type {
   margin-left: auto;
-  color: #8764b8;
+  color: var(--dv-type-color);
   font-size: 11px;
   white-space: nowrap;
 }
@@ -254,8 +331,8 @@ dbml-structure {
 }
 
 .dv-tree-flag-pk {
-  background: #fff4ce;
-  color: #614a19;
+  background: var(--dv-badge-pk-bg);
+  color: var(--dv-badge-pk-fg);
 }
 
 .dv-tree-node-column.is-active {
@@ -357,7 +434,7 @@ dbml-structure {
 }
 
 .dv-error {
-  color: #a4262c;
+  color: var(--dv-error-fg);
 }
 
 .dv-error h2 {
@@ -374,7 +451,7 @@ dbml-structure {
   display: inline-block;
   min-width: 3.5rem;
   font-family: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
-  color: #c50f1f;
+  color: var(--dv-error-pos-fg);
 }
 
 .dv-detail-header {
@@ -434,10 +511,10 @@ dbml-structure {
 .dv-note {
   margin: 0.5rem 0 0;
   padding: 0.6rem 0.75rem;
-  background: #fff4ce;
-  border-left: 3px solid #f7b502;
+  background: var(--dv-note-bg);
+  border-left: 3px solid var(--dv-note-border);
   border-radius: 2px;
-  color: #614a19;
+  color: var(--dv-note-fg);
 }
 
 .dv-section-title {
@@ -463,7 +540,7 @@ dbml-structure {
   color: var(--dv-muted);
   padding: 0.4rem 0.5rem;
   border-bottom: 1px solid var(--dv-border);
-  background: #faf9f8;
+  background: var(--dv-rail-bg);
 }
 
 .dv-columns tbody td {
@@ -477,7 +554,7 @@ dbml-structure {
 }
 
 .dv-columns tbody tr:hover td {
-  background: #faf9f8;
+  background: var(--dv-row-hover-bg);
 }
 
 .dv-columns tbody tr.is-highlighted td {
@@ -491,7 +568,7 @@ dbml-structure {
 
 .dv-col-type {
   font-family: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
-  color: #8764b8;
+  color: var(--dv-type-color);
 }
 
 .dv-col-flags {
@@ -511,30 +588,30 @@ dbml-structure {
   font-weight: 600;
   letter-spacing: 0.04em;
   border-radius: 3px;
-  background: #f3f2f1;
-  color: #323130;
+  background: var(--dv-badge-bg);
+  color: var(--dv-badge-fg);
   text-transform: uppercase;
 }
 
 .dv-badge-pk {
-  background: #fff4ce;
-  color: #614a19;
+  background: var(--dv-badge-pk-bg);
+  color: var(--dv-badge-pk-fg);
 }
 .dv-badge-fk {
-  background: #ebf3fc;
-  color: #115ea3;
+  background: var(--dv-badge-fk-bg);
+  color: var(--dv-badge-fk-fg);
 }
 .dv-badge-unique {
-  background: #e9d8fd;
-  color: #5c2e91;
+  background: var(--dv-badge-unique-bg);
+  color: var(--dv-badge-unique-fg);
 }
 .dv-badge-auto {
-  background: #dff6dd;
-  color: #0e6b25;
+  background: var(--dv-badge-auto-bg);
+  color: var(--dv-badge-auto-fg);
 }
 .dv-badge-not-null {
-  background: #fde7e9;
-  color: #a4262c;
+  background: var(--dv-badge-notnull-bg);
+  color: var(--dv-badge-notnull-fg);
 }
 
 .dv-indexes,
@@ -600,7 +677,7 @@ dbml-diagram {
   align-items: center;
   gap: 0.25rem;
   padding: 0.35rem 0.5rem;
-  background: #fff;
+  background: var(--dv-toolbar-bg);
   border-bottom: 1px solid var(--dv-border);
   flex-shrink: 0;
 }
@@ -624,13 +701,13 @@ dbml-diagram {
 }
 
 .dv-diagram-toolbar button:hover {
-  background: #f3f2f1;
+  background: var(--dv-toolbar-hover-bg);
   border-color: var(--dv-border);
   color: var(--dv-accent);
 }
 
 .dv-diagram-toolbar button:active {
-  background: #ededeb;
+  background: var(--dv-toolbar-pressed-bg);
 }
 
 .dv-diagram-status {
@@ -641,7 +718,7 @@ dbml-diagram {
 }
 
 .dv-diagram-status .dv-error {
-  color: #a4262c;
+  color: var(--dv-error-fg);
   margin-left: 0.5rem;
 }
 
@@ -651,7 +728,7 @@ dbml-diagram {
   overflow: hidden;
   cursor: grab;
   background-color: var(--dv-canvas-bg);
-  background-image: radial-gradient(#d2d0ce 1px, transparent 1px);
+  background-image: radial-gradient(var(--dv-canvas-dot) 1px, transparent 1px);
   background-size: 16px 16px;
   user-select: none;
   -webkit-user-select: none;
@@ -723,7 +800,7 @@ dbml-diagram {
 
 .dv-table-header {
   padding: 0.45rem 0.65rem;
-  background: linear-gradient(180deg, #fafafa 0%, #f3f2f1 100%);
+  background: var(--dv-table-header-gradient);
   border-bottom: 1px solid var(--dv-border);
   font-weight: 600;
 }
@@ -748,7 +825,7 @@ dbml-diagram {
   align-items: baseline;
   gap: 0.5rem;
   padding: 0.28rem 0.65rem;
-  border-top: 1px solid #f3f2f1;
+  border-top: 1px solid var(--dv-row-border);
   font-family: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
   font-size: 12px;
   line-height: 1.4;
@@ -761,12 +838,12 @@ dbml-diagram {
 }
 
 .dv-row-type {
-  color: #8764b8;
+  color: var(--dv-type-color);
   font-size: 11px;
 }
 
 .dv-row-flags {
-  color: #a19f9d;
+  color: var(--dv-flag-muted);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.04em;
