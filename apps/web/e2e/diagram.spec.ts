@@ -79,7 +79,7 @@ test('hovering a diagram table highlights the matching structure row', async ({ 
   ).toHaveClass(/is-hovered/);
 });
 
-test('hovering a relational column highlights only that column\'s edge, not all edges of the table', async ({
+test("hovering a relational column highlights only that column's edge, not all edges of the table", async ({
   page,
 }) => {
   // `shop.orders` participates in three edges: orders.user_id → users.id,
@@ -102,7 +102,9 @@ test('hovering a relational column highlights only that column\'s edge, not all 
 
   // Hover the `user_id` row inside the `shop.orders` table.
   await page
-    .locator('#diagram .dv-table[data-table-id="shop.orders"] [data-column-id="shop.orders.user_id"]')
+    .locator(
+      '#diagram .dv-table[data-table-id="shop.orders"] [data-column-id="shop.orders.user_id"]',
+    )
     .hover();
 
   // Only the specific edge for that column gets the related highlight.
@@ -127,7 +129,9 @@ test('hovering a non-relational column still highlights all edges of the table',
   );
 
   await page
-    .locator('#diagram .dv-table[data-table-id="shop.orders"] [data-column-id="shop.orders.status"]')
+    .locator(
+      '#diagram .dv-table[data-table-id="shop.orders"] [data-column-id="shop.orders.status"]',
+    )
     .hover();
 
   await expect(userIdEdge).toHaveClass(/is-related/);

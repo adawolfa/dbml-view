@@ -22,8 +22,7 @@ const args = process.argv.slice(2);
 
 // ── Windows MSVC toolchain lookup ────────────────────────────────────────────
 
-const VSWHERE =
-  'C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\vswhere.exe';
+const VSWHERE = 'C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\vswhere.exe';
 
 function findVcvars() {
   if (!existsSync(VSWHERE)) return null;

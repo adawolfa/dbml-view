@@ -32,9 +32,9 @@ test('hiding a single table removes it and its edges from the diagram', async ({
   // The edge connecting posts → users is gone with the table.
   await expect(page.locator('#diagram .dv-edge-group')).toHaveCount(0);
   // The tree row dims.
-  await expect(
-    page.locator('#structure .dv-tree-table[data-table-id="public.posts"]'),
-  ).toHaveClass(/is-hidden/);
+  await expect(page.locator('#structure .dv-tree-table[data-table-id="public.posts"]')).toHaveClass(
+    /is-hidden/,
+  );
 });
 
 test('clicking the eye again restores the hidden table', async ({ page }) => {
@@ -91,7 +91,9 @@ test('clicking a table toggle inside a hidden schema reveals only that table', a
 
   // Click the eye on shop.addresses (inside the shop schema group).
   await page
-    .locator('#structure .dv-tree-hide-toggle[data-hide-kind="table"][data-hide-id="shop.addresses"]')
+    .locator(
+      '#structure .dv-tree-hide-toggle[data-hide-kind="table"][data-hide-id="shop.addresses"]',
+    )
     .click();
 
   // shop.addresses + auth.users are now visible; other shop.* tables remain hidden.
@@ -104,9 +106,9 @@ test('clicking a table toggle inside a hidden schema reveals only that table', a
   ).not.toHaveClass(/is-hidden/);
   // Sibling shop tables are individually hidden.
   for (const id of ['shop.products', 'shop.orders', 'shop.order_items']) {
-    await expect(
-      page.locator(`#structure .dv-tree-table[data-table-id="${id}"]`),
-    ).toHaveClass(/is-hidden/);
+    await expect(page.locator(`#structure .dv-tree-table[data-table-id="${id}"]`)).toHaveClass(
+      /is-hidden/,
+    );
   }
 });
 
@@ -130,9 +132,7 @@ test('clicking a table toggle inside a hidden tablegroup reveals only that table
 
   // Click the eye on public.posts (inside the content tablegroup).
   await page
-    .locator(
-      '#structure .dv-tree-hide-toggle[data-hide-kind="table"][data-hide-id="public.posts"]',
-    )
+    .locator('#structure .dv-tree-hide-toggle[data-hide-kind="table"][data-hide-id="public.posts"]')
     .click();
 
   // posts + users are now visible; comments remains hidden.
@@ -181,9 +181,9 @@ test('hidden state survives a reload via localStorage', async ({ page }) => {
   await page.reload();
   await setViewToggle(page, 'diagram', true);
   await expect(page.locator('#diagram .dv-table')).toHaveCount(1);
-  await expect(
-    page.locator('#structure .dv-tree-table[data-table-id="public.posts"]'),
-  ).toHaveClass(/is-hidden/);
+  await expect(page.locator('#structure .dv-tree-table[data-table-id="public.posts"]')).toHaveClass(
+    /is-hidden/,
+  );
 });
 
 // ---- Group toggle: "all or nothing" when only some tables are individually hidden ----
@@ -194,7 +194,9 @@ test('schema toggle hides all tables when only some are individually hidden', as
   await setViewToggle(page, 'diagram', true);
   // medium: 5 tables. Individually hide shop.products so the schema is only partially hidden.
   await page
-    .locator('#structure .dv-tree-hide-toggle[data-hide-kind="table"][data-hide-id="shop.products"]')
+    .locator(
+      '#structure .dv-tree-hide-toggle[data-hide-kind="table"][data-hide-id="shop.products"]',
+    )
     .click();
   await expect(page.locator('#diagram .dv-table')).toHaveCount(4);
 
@@ -217,7 +219,9 @@ test('schema toggle un-hides all tables, clearing individual hides', async ({ pa
   await setViewToggle(page, 'diagram', true);
   // Individually hide shop.products.
   await page
-    .locator('#structure .dv-tree-hide-toggle[data-hide-kind="table"][data-hide-id="shop.products"]')
+    .locator(
+      '#structure .dv-tree-hide-toggle[data-hide-kind="table"][data-hide-id="shop.products"]',
+    )
     .click();
   // Hide the whole schema.
   await page
@@ -311,8 +315,12 @@ test('eye toggles stay aligned across rows regardless of count digit width', asy
   );
   // Force visibility so getBoundingClientRect reflects the laid-out position
   // even though the toggle is opacity:0 until hovered.
-  await usersToggle.evaluate((el) => ((el as HTMLElement).style.opacity = '1'));
-  await rolesToggle.evaluate((el) => ((el as HTMLElement).style.opacity = '1'));
+  await usersToggle.evaluate((el) => {
+    (el as HTMLElement).style.opacity = '1';
+  });
+  await rolesToggle.evaluate((el) => {
+    (el as HTMLElement).style.opacity = '1';
+  });
 
   const usersBox = await usersToggle.boundingBox();
   const rolesBox = await rolesToggle.boundingBox();

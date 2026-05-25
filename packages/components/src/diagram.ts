@@ -39,7 +39,6 @@ const DRAG_THRESHOLD = 3;
 
 type Viewport = { scale: number; tx: number; ty: number };
 
-
 export class DbmlDiagramElement extends HTMLElement {
   static readonly tagName = 'dbml-diagram';
 
@@ -571,9 +570,7 @@ export class DbmlDiagramElement extends HTMLElement {
 
   /** Show the toggle button only when the current layout has at least one group; sync pressed state. */
   private updateGroupsToggle(): void {
-    const btn = this.toolbarEl.querySelector<HTMLButtonElement>(
-      'button[data-act="groups-toggle"]',
-    );
+    const btn = this.toolbarEl.querySelector<HTMLButtonElement>('button[data-act="groups-toggle"]');
     if (!btn) return;
     const hasGroups = this.groups.length > 0;
     btn.hidden = !hasGroups;
