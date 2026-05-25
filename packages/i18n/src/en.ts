@@ -6,6 +6,7 @@ export const en = {
   'structure.empty.no_matches': 'No matches.',
   'structure.group.kind.tablegroup': 'Group',
   'structure.group.kind.schema': 'Schema',
+  'structure.group.kind.enums': 'Enums',
   'structure.section.columns': 'Columns',
   'structure.section.relations': 'Relations',
   'structure.pk.title': 'Primary key',

@@ -34,6 +34,9 @@ import {
   selfEndpoint,
 } from './shared';
 
+/** Stable ID for the synthetic "Enums" group rendered at the bottom of the tree. */
+const ENUMS_GROUP_ID = '__enums__';
+
 export class DbmlStructureElement extends HTMLElement {
   static readonly tagName = 'dbml-structure';
 
@@ -91,7 +94,8 @@ export class DbmlStructureElement extends HTMLElement {
     this.database = db;
     this.refsByTableId = indexRefsByTable(db);
     // Expand all groups by default; tables and enums stay collapsed until selected.
-    this.expandedGroups = new Set(buildTree(db).map((g) => g.id));
+    // Also pre-expand the synthetic Enums group so enums are visible on first load.
+    this.expandedGroups = new Set([...buildTree(db).map((g) => g.id), ENUMS_GROUP_ID]);
     if (!this.rendered) return;
     this.renderTree();
   }
@@ -217,27 +221,32 @@ export class DbmlStructureElement extends HTMLElement {
     }
 
     const showSchemaHeaders = hasMultipleSchemas(this.database);
+
+    // Collect all visible enums from all groups — enums always live in schema
+    // groups (never tablegroups), so flatMap is safe and preserves schema-then-
+    // name alphabetical order established by buildTree.
+    const allVisibleEnums = groups.flatMap((group) =>
+      q === '' ? group.enums : group.enums.filter((e) => matchingEnums.has(enumId(e))),
+    );
+
     const html = groups
       .map((group) => {
         const visibleTables =
           q === '' ? group.tables : group.tables.filter((t) => matchingTables.has(tableId(t)));
-        const visibleEnums =
-          q === '' ? group.enums : group.enums.filter((e) => matchingEnums.has(enumId(e)));
-        if (visibleTables.length === 0 && visibleEnums.length === 0) return '';
-        const childCount = visibleTables.length + visibleEnums.length;
+        // Enums are rendered separately at the bottom — skip them here.
+        if (visibleTables.length === 0) return '';
         const tablesHtml = visibleTables
           .map((t) => this.renderTreeTable(t, q, matchingColumns, matchingTables))
           .join('');
-        const enumsHtml = visibleEnums.map((e) => this.renderTreeEnum(e)).join('');
         // Single-schema DB: drop the redundant schema-group wrapper and show
-        // tables + enums directly. TableGroups still get their wrapper either way.
+        // tables directly. TableGroups still get their wrapper either way.
         if (group.kind === 'schema' && !showSchemaHeaders) {
-          return tablesHtml + enumsHtml;
+          return tablesHtml;
         }
         const groupOpen = q !== '' || this.expandedGroups.has(group.id);
         const chevron = groupOpen ? '▾' : '▸';
         const childrenHtml = groupOpen
-          ? `<ul class="dv-tree-children">${tablesHtml}${enumsHtml}</ul>`
+          ? `<ul class="dv-tree-children">${tablesHtml}</ul>`
           : '';
         return `
           <li class="dv-tree-group">
@@ -251,14 +260,49 @@ export class DbmlStructureElement extends HTMLElement {
               <span class="dv-tree-chevron">${chevron}</span>
               <span class="dv-tree-group-kind">${escapeHtml(group.kind === 'tablegroup' ? t('structure.group.kind.tablegroup') : t('structure.group.kind.schema'))}</span>
               <span class="dv-tree-group-name">${escapeHtml(group.label)}</span>
-              <span class="dv-tree-count">${childCount}</span>
+              <span class="dv-tree-count">${visibleTables.length}</span>
             </button>
             ${childrenHtml}
           </li>
         `;
       })
       .join('');
-    container.innerHTML = `<ul class="dv-tree">${html}</ul>`;
+
+    // Render all enums after all schema/tablegroup sections.
+    let enumsSectionHtml = '';
+    if (allVisibleEnums.length > 0) {
+      const enumsHtml = allVisibleEnums.map((e) => this.renderTreeEnum(e)).join('');
+      if (showSchemaHeaders) {
+        // Multi-schema: wrap in a collapsible synthetic "Enums" group so the
+        // section is visually consistent with the schema groups above it.
+        const groupOpen = q !== '' || this.expandedGroups.has(ENUMS_GROUP_ID);
+        const chevron = groupOpen ? '▾' : '▸';
+        const childrenHtml = groupOpen
+          ? `<ul class="dv-tree-children">${enumsHtml}</ul>`
+          : '';
+        enumsSectionHtml = `
+          <li class="dv-tree-group">
+            <button
+              type="button"
+              class="dv-tree-node dv-tree-node-group"
+              data-node="group"
+              data-group-id="${escapeAttr(ENUMS_GROUP_ID)}"
+              aria-expanded="${groupOpen}"
+            >
+              <span class="dv-tree-chevron">${chevron}</span>
+              <span class="dv-tree-group-kind">${escapeHtml(t('structure.group.kind.enums'))}</span>
+              <span class="dv-tree-count">${allVisibleEnums.length}</span>
+            </button>
+            ${childrenHtml}
+          </li>
+        `;
+      } else {
+        // Single-schema: enums are flat, matching the rest of the unwrapped layout.
+        enumsSectionHtml = enumsHtml;
+      }
+    }
+
+    container.innerHTML = `<ul class="dv-tree">${html}${enumsSectionHtml}</ul>`;
     this.applyExternalHoverToDom();
   }
 
@@ -477,12 +521,8 @@ export class DbmlStructureElement extends HTMLElement {
         }
       }
     } else if (sel.kind === 'enum') {
-      for (const group of buildTree(this.database)) {
-        if (group.enums.some((e) => enumId(e) === sel.enumId)) {
-          this.expandedGroups.add(group.id);
-          break;
-        }
-      }
+      // All enums are rendered in the synthetic ENUMS_GROUP_ID section.
+      this.expandedGroups.add(ENUMS_GROUP_ID);
     }
   }
 
@@ -493,21 +533,16 @@ export class DbmlStructureElement extends HTMLElement {
   private autoExpandGroupForSelection(): void {
     if (!this.database) return;
     const sel = this.selection;
-    const groups = buildTree(this.database);
     if (sel.kind === 'table') {
-      for (const group of groups) {
+      for (const group of buildTree(this.database)) {
         if (group.tables.some((t) => tableId(t) === sel.tableId)) {
           this.expandedGroups.add(group.id);
           break;
         }
       }
     } else if (sel.kind === 'enum') {
-      for (const group of groups) {
-        if (group.enums.some((e) => enumId(e) === sel.enumId)) {
-          this.expandedGroups.add(group.id);
-          break;
-        }
-      }
+      // All enums are rendered in the synthetic ENUMS_GROUP_ID section.
+      this.expandedGroups.add(ENUMS_GROUP_ID);
     }
   }
 
