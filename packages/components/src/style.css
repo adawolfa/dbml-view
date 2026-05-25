@@ -688,6 +688,44 @@ dbml-diagram {
   height: 14px;
 }
 
+.dv-diagram-toolbar-sep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--dv-border);
+  margin: 0 0.25rem;
+}
+
+.dv-diagram-toolbar-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--dv-border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.dv-diagram-toolbar-group button {
+  border: none;
+  border-left: 1px solid var(--dv-border);
+  border-radius: 0;
+  height: 24px;
+  padding: 0 0.55rem;
+  font-size: 0.75rem;
+}
+
+.dv-diagram-toolbar-group button:first-child {
+  border-left: none;
+}
+
+.dv-diagram-toolbar-group button.is-active {
+  background: var(--dv-toolbar-pressed-bg);
+  color: var(--dv-accent);
+}
+
+.dv-diagram-toolbar-group button.is-active:hover {
+  background: var(--dv-toolbar-pressed-bg);
+}
+
 .dv-diagram-status {
   margin-left: auto;
   font-size: 0.75rem;

@@ -39,6 +39,14 @@ const DRAG_THRESHOLD = 3;
 
 type Viewport = { scale: number; tx: number; ty: number };
 
+/**
+ * Column-visibility filter for the diagram view.
+ * - `all`  — every column is shown
+ * - `keys` — only PKs and any column that participates in a foreign-key edge
+ * - `fk`   — only columns that participate in a foreign-key edge (either side)
+ */
+type ColumnFilter = 'all' | 'keys' | 'fk';
+
 export class DbmlDiagramElement extends HTMLElement {
   static readonly tagName = 'dbml-diagram';
 
@@ -83,6 +91,7 @@ export class DbmlDiagramElement extends HTMLElement {
   private laidOutWhenVisible = false;
   /** Monotonic counter to discard async layout results that finished after a newer relayout was scheduled. */
   private layoutToken = 0;
+  private columnFilter: ColumnFilter = 'all';
 
   connectedCallback(): void {
     if (!this.rendered) {
@@ -196,7 +205,7 @@ export class DbmlDiagramElement extends HTMLElement {
     const showSchema = hasMultipleSchemas(db);
     for (const table of db.tables) {
       const id = tableId(table);
-      const el = buildTableElement(table, refsForTable(db, id), showSchema);
+      const el = buildTableElement(table, refsForTable(db, id), showSchema, this.columnFilter);
       el.dataset.tableId = id;
       this.nodesEl.appendChild(el);
       this.tableEls.set(id, el);
@@ -502,8 +511,40 @@ export class DbmlDiagramElement extends HTMLElement {
         case 'export-svg':
           this.exportSvg();
           break;
+        case 'cols-all':
+          this.setColumnFilter('all');
+          break;
+        case 'cols-keys':
+          this.setColumnFilter('keys');
+          break;
+        case 'cols-fk':
+          this.setColumnFilter('fk');
+          break;
       }
     });
+    this.updateColumnFilterButtons();
+  }
+
+  private setColumnFilter(filter: ColumnFilter): void {
+    if (this.columnFilter === filter) return;
+    this.columnFilter = filter;
+    this.updateColumnFilterButtons();
+    if (this.database) this.scheduleRelayout();
+  }
+
+  private updateColumnFilterButtons(): void {
+    const map: Record<ColumnFilter, string> = {
+      all: 'cols-all',
+      keys: 'cols-keys',
+      fk: 'cols-fk',
+    };
+    for (const [filter, act] of Object.entries(map)) {
+      const btn = this.toolbarEl.querySelector<HTMLButtonElement>(`button[data-act="${act}"]`);
+      if (!btn) continue;
+      const active = this.columnFilter === filter;
+      btn.classList.toggle('is-active', active);
+      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    }
   }
 
   /**
@@ -1017,6 +1058,12 @@ function makeTemplate(): string {
       <button type="button" data-act="fit" class="dv-diagram-toolbar-icon-btn" title="${escapeAttr(t('diagram.toolbar.fit.title'))}" aria-label="${escapeAttr(t('diagram.toolbar.fit.title'))}"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 6V3.5a1 1 0 0 1 1-1H6M10 2.5h2.5a1 1 0 0 1 1 1V6M13.5 10v2.5a1 1 0 0 1-1 1H10M6 13.5H3.5a1 1 0 0 1-1-1V10"/></svg></button>
       <button type="button" data-act="reset" title="${escapeAttr(t('diagram.toolbar.reset.title'))}">${escapeHtml(t('diagram.toolbar.reset.label'))}</button>
       <button type="button" data-act="export-svg" title="${escapeAttr(t('diagram.toolbar.export_svg.title'))}">${escapeHtml(t('diagram.toolbar.export_svg.label'))}</button>
+      <span class="dv-diagram-toolbar-sep" aria-hidden="true"></span>
+      <span class="dv-diagram-toolbar-group" role="group">
+        <button type="button" data-act="cols-all" aria-pressed="true" title="${escapeAttr(t('diagram.toolbar.cols.all.title'))}">${escapeHtml(t('diagram.toolbar.cols.all.label'))}</button>
+        <button type="button" data-act="cols-keys" aria-pressed="false" title="${escapeAttr(t('diagram.toolbar.cols.keys.title'))}">${escapeHtml(t('diagram.toolbar.cols.keys.label'))}</button>
+        <button type="button" data-act="cols-fk" aria-pressed="false" title="${escapeAttr(t('diagram.toolbar.cols.fk.title'))}">${escapeHtml(t('diagram.toolbar.cols.fk.label'))}</button>
+      </span>
       <span class="dv-diagram-status" data-status></span>
     </div>
     <div class="dv-diagram-viewport" data-viewport>
@@ -1143,30 +1190,63 @@ function endpointMarker(end: {
   return circle;
 }
 
-function buildTableElement(table: Table, refs: Ref[], showSchema: boolean): HTMLElement {
+function buildTableElement(
+  table: Table,
+  refs: Ref[],
+  showSchema: boolean,
+  filter: ColumnFilter,
+): HTMLElement {
   const id = tableId(table);
   const el = document.createElement('div');
   el.className = 'dv-table';
   const schema = table.schemaName ?? DEFAULT_SCHEMA;
   const pkColumns = new Set(table.fields.filter((c) => c.pk).map((c) => c.name));
+  // FK badge: column on the `*` (foreign-key-holder) side.
   const fkColumns = new Set<string>();
+  // Filter participants: any column on either side of any ref involving this table.
+  // The PK side is referenced *by* an FK, so it counts as "part of the FK" too.
+  const fkParticipants = new Set<string>();
   const selfId = id;
   for (const ref of refs) {
     const [a, b] = ref.endpoints;
     if (!a || !b) continue;
-    if (a.relation === '*' && endpointTableId(a) === selfId)
-      for (const f of a.fieldNames) fkColumns.add(f);
-    if (b.relation === '*' && endpointTableId(b) === selfId)
-      for (const f of b.fieldNames) fkColumns.add(f);
+    if (endpointTableId(a) === selfId) {
+      for (const f of a.fieldNames) fkParticipants.add(f);
+      if (a.relation === '*') for (const f of a.fieldNames) fkColumns.add(f);
+    }
+    if (endpointTableId(b) === selfId) {
+      for (const f of b.fieldNames) fkParticipants.add(f);
+      if (b.relation === '*') for (const f of b.fieldNames) fkColumns.add(f);
+    }
   }
+  const visibleRows = table.fields
+    .filter((c) => isColumnVisible(c, filter, pkColumns, fkParticipants))
+    .map((c) => renderRow(table, c, pkColumns, fkColumns))
+    .join('');
   el.innerHTML = `
     <div class="dv-table-header">
       ${showSchema ? `<span class="dv-table-schema">${escapeHtml(schema)}</span>` : ''}
       <span class="dv-table-name">${escapeHtml(table.name)}</span>
     </div>
-    ${table.fields.map((c) => renderRow(table, c, pkColumns, fkColumns)).join('')}
+    ${visibleRows}
   `;
   return el;
+}
+
+function isColumnVisible(
+  column: Column,
+  filter: ColumnFilter,
+  pks: Set<string>,
+  fkParticipants: Set<string>,
+): boolean {
+  switch (filter) {
+    case 'all':
+      return true;
+    case 'keys':
+      return pks.has(column.name) || fkParticipants.has(column.name);
+    case 'fk':
+      return fkParticipants.has(column.name);
+  }
 }
 
 function renderRow(table: Table, column: Column, pks: Set<string>, fks: Set<string>): string {
