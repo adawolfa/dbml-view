@@ -3,7 +3,9 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   root: '.',
   server: {
-    port: 0, // OS picks a free port — avoids conflicts between concurrent dev agents
+    // OS picks a free port by default — avoids conflicts between concurrent dev agents.
+    // If PORT is set (e.g. by the Claude preview harness), honour it.
+    port: process.env['PORT'] ? Number(process.env['PORT']) : 0,
   },
   build: {
     target: 'es2022',
