@@ -1,6 +1,6 @@
 // SPA shell. Loads a .dbml file (drop, picker, sample, or ?url=) and feeds it
 // into the structure + diagram components. Remembers the last file in
-// localStorage and the last active tab.
+// localStorage and the last set of active views.
 
 import '@dbml-view/components';
 import '@dbml-view/components/style.css';
@@ -9,42 +9,33 @@ import type { DbmlDiagramElement, DbmlStructureElement } from '@dbml-view/compon
 
 const LS_KEY = 'dbml-view:last-source';
 const LS_NAME_KEY = 'dbml-view:last-name';
-const LS_TAB_KEY = 'dbml-view:last-tab';
+const LS_VIEWS_KEY = 'dbml-view:active-views';
 
-type Tab = 'structure' | 'diagram' | 'split';
-const TABS: Tab[] = ['structure', 'diagram', 'split'];
+type View = 'structure' | 'diagram';
+const VIEWS: readonly View[] = ['structure', 'diagram'];
 
 const dropzone = mustGet<HTMLElement>('dropzone');
 const fileInput = mustGet<HTMLInputElement>('file-input');
-const openButton = mustGet<HTMLButtonElement>('open-button');
+const fileButton = mustGet<HTMLButtonElement>('file-button');
+const fileButtonLabel = mustGet<HTMLElement>('file-button-label');
 const status = mustGet<HTMLElement>('status');
-const tabsEl = mustGet<HTMLElement>('tabs');
+const togglesEl = mustGet<HTMLElement>('view-toggles');
+const viewsEl = mustGet<HTMLElement>('views');
 
-const structures: DbmlStructureElement[] = [
-  mustGet<DbmlStructureElement>('structure'),
-  mustGet<DbmlStructureElement>('structure-split'),
-];
-const diagrams: DbmlDiagramElement[] = [
-  mustGet<DbmlDiagramElement>('diagram'),
-  mustGet<DbmlDiagramElement>('diagram-split'),
-];
+const structure = mustGet<DbmlStructureElement>('structure');
+const diagram = mustGet<DbmlDiagramElement>('diagram');
 
-const views: Record<Tab, HTMLElement> = {
+const viewSections: Record<View, HTMLElement> = {
   structure: mustGet<HTMLElement>('view-structure'),
   diagram: mustGet<HTMLElement>('view-diagram'),
-  split: mustGet<HTMLElement>('view-split'),
 };
 
-let currentTab: Tab = 'structure';
+const activeViews = new Set<View>(['structure']);
 let hasSource = false;
-let lastSource = '';
 
-openButton.addEventListener('click', () => fileInput.click());
+fileButton.addEventListener('click', () => fileInput.click());
 
-dropzone.addEventListener('click', (event) => {
-  if ((event.target as HTMLElement).tagName === 'BUTTON') return;
-  fileInput.click();
-});
+dropzone.addEventListener('click', () => fileInput.click());
 
 dropzone.addEventListener('dragover', (event) => {
   event.preventDefault();
@@ -67,13 +58,11 @@ fileInput.addEventListener('change', async () => {
   if (file) await loadFile(file);
 });
 
-tabsEl.addEventListener('click', (event) => {
-  const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-tab]');
+togglesEl.addEventListener('click', (event) => {
+  const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-view]');
   if (!button || button.disabled) return;
-  const tab = button.dataset.tab as Tab | undefined;
-  if (tab && TABS.includes(tab)) {
-    selectTab(tab);
-  }
+  const view = button.dataset.view as View | undefined;
+  if (view && VIEWS.includes(view)) toggleView(view);
 });
 
 const samples = import.meta.glob('../../../samples/*.dbml', {
@@ -117,14 +106,13 @@ async function loadUrl(url: string, label: string): Promise<void> {
 }
 
 function applySource(source: string, label: string): void {
-  lastSource = source;
   hasSource = true;
   dropzone.hidden = true;
-  // Feed both copies; the active one becomes visible via selectTab.
-  for (const s of structures) s.source = source;
-  for (const d of diagrams) d.source = source;
-  showCurrentView();
-  status.textContent = label;
+  structure.source = source;
+  diagram.source = source;
+  setFileLabel(label);
+  status.textContent = '';
+  renderViews();
   try {
     localStorage.setItem(LS_KEY, source);
     localStorage.setItem(LS_NAME_KEY, label);
@@ -133,27 +121,53 @@ function applySource(source: string, label: string): void {
   }
 }
 
-function selectTab(tab: Tab): void {
-  currentTab = tab;
-  for (const button of tabsEl.querySelectorAll<HTMLButtonElement>('button[data-tab]')) {
-    button.classList.toggle('is-active', button.dataset.tab === tab);
+function setFileLabel(label: string): void {
+  fileButtonLabel.textContent = label;
+  fileButton.title = label;
+}
+
+function toggleView(view: View): void {
+  if (activeViews.has(view)) {
+    if (activeViews.size === 1) return; // keep at-least-one invariant
+    activeViews.delete(view);
+  } else {
+    activeViews.add(view);
   }
+  persistViews();
+  renderViews();
+}
+
+function setActiveViews(views: Iterable<View>): void {
+  activeViews.clear();
+  for (const v of views) activeViews.add(v);
+  if (activeViews.size === 0) activeViews.add('structure');
+  renderViews();
+}
+
+function persistViews(): void {
   try {
-    localStorage.setItem(LS_TAB_KEY, tab);
+    localStorage.setItem(LS_VIEWS_KEY, [...activeViews].join(','));
   } catch {
     // ignore
   }
-  showCurrentView();
 }
 
-function showCurrentView(): void {
+function renderViews(): void {
+  for (const button of togglesEl.querySelectorAll<HTMLButtonElement>('button[data-view]')) {
+    const view = button.dataset.view as View | undefined;
+    const on = view !== undefined && activeViews.has(view);
+    button.classList.toggle('is-active', on);
+    button.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
   if (!hasSource) {
-    for (const v of Object.values(views)) v.hidden = true;
+    viewsEl.hidden = true;
     dropzone.hidden = false;
     return;
   }
-  for (const [name, el] of Object.entries(views) as [Tab, HTMLElement][]) {
-    el.hidden = name !== currentTab;
+  viewsEl.hidden = false;
+  viewsEl.classList.toggle('is-split', activeViews.size > 1);
+  for (const view of VIEWS) {
+    viewSections[view].hidden = !activeViews.has(view);
   }
 }
 
@@ -163,15 +177,21 @@ function mustGet<T extends HTMLElement>(id: string): T {
   return el as T;
 }
 
-// Restore last tab.
+// Restore last set of active views.
 try {
-  const storedTab = localStorage.getItem(LS_TAB_KEY) as Tab | null;
-  if (storedTab && TABS.includes(storedTab)) {
-    selectTab(storedTab);
+  const stored = localStorage.getItem(LS_VIEWS_KEY);
+  if (stored) {
+    const restored = stored
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s): s is View => (VIEWS as readonly string[]).includes(s));
+    if (restored.length > 0) setActiveViews(restored);
   }
 } catch {
   // ignore
 }
+
+renderViews();
 
 // Bootstrap: ?url=… > last-stored source > drop zone.
 const urlParam = new URLSearchParams(window.location.search).get('url');
@@ -188,11 +208,9 @@ if (urlParam) {
 }
 
 // Cross-component sync: when the user clicks a table in the diagram, also
-// reveal it in the structure view (helps in split mode).
-for (const d of diagrams) {
-  d.addEventListener('table-selected', (event) => {
-    const detail = (event as CustomEvent<{ tableId: string }>).detail;
-    if (!detail?.tableId) return;
-    window.location.hash = `#table:${encodeURIComponent(detail.tableId)}`;
-  });
-}
+// reveal it in the structure view (helps when both are visible).
+diagram.addEventListener('table-selected', (event) => {
+  const detail = (event as CustomEvent<{ tableId: string }>).detail;
+  if (!detail?.tableId) return;
+  window.location.hash = `#table:${encodeURIComponent(detail.tableId)}`;
+});

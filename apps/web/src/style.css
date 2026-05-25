@@ -9,6 +9,9 @@
   --app-accent-hover: #115ea3;
   --app-accent-pressed: #0c3b5e;
   --app-accent-soft: #ebf3fc;
+  --app-accent-soft-hover: #dceaf7;
+  --app-neutral-hover: #f3f2f1;
+  --app-neutral-pressed: #ededeb;
   --app-shadow-2: 0 1px 2px rgba(0, 0, 0, 0.04), 0 0 2px rgba(0, 0, 0, 0.06);
   --app-shadow-4: 0 2px 4px rgba(0, 0, 0, 0.06), 0 0 2px rgba(0, 0, 0, 0.08);
 }
@@ -42,7 +45,7 @@ body {
 .app-header {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 0.75rem;
   padding: 0 1rem;
   height: 48px;
   background: var(--app-surface);
@@ -50,28 +53,6 @@ body {
   box-shadow: var(--app-shadow-2);
   position: relative;
   z-index: 2;
-}
-
-.app-header h1 {
-  margin: 0;
-  font-size: 0.95rem;
-  font-weight: 600;
-  letter-spacing: -0.005em;
-  color: var(--app-accent);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.app-header h1::before {
-  content: "";
-  display: inline-block;
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
-  background:
-    linear-gradient(135deg, #0f6cbd 0%, #115ea3 100%);
-  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.12);
 }
 
 .app-header-actions {
@@ -90,67 +71,59 @@ body {
   white-space: nowrap;
 }
 
-/* Office "pivot" style tabs — underline indicator, no fill */
-.tabs {
-  display: flex;
-  align-self: stretch;
-  gap: 0;
-  margin-left: -0.25rem;
-}
-
-.tabs button {
-  position: relative;
-  border: 0;
-  background: transparent;
-  padding: 0 0.85rem;
+/* File button — replaces the title; doubles as open trigger + opened-file label. */
+.file-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid var(--app-border-strong);
+  background: var(--app-surface);
+  padding: 0 0.75rem;
+  height: 30px;
+  border-radius: 4px;
   cursor: pointer;
   font: inherit;
-  font-size: 0.875rem;
+  font-size: 0.85rem;
   font-weight: 600;
-  color: var(--app-muted);
-  border-radius: 0;
-  transition: color 80ms ease;
-}
-
-.tabs button::after {
-  content: "";
-  position: absolute;
-  left: 0.5rem;
-  right: 0.5rem;
-  bottom: 0;
-  height: 2px;
-  background: transparent;
-  border-radius: 2px 2px 0 0;
-  transition: background-color 120ms ease;
-}
-
-.tabs button:hover:not([disabled]) {
   color: var(--app-fg);
+  max-width: 280px;
+  transition:
+    background 80ms ease,
+    border-color 80ms ease;
 }
 
-.tabs button:hover:not([disabled])::after {
-  background: var(--app-border-strong);
+.file-button:hover {
+  background: var(--app-neutral-hover);
 }
 
-.tabs button.is-active {
+.file-button:active {
+  background: var(--app-neutral-pressed);
+}
+
+.file-button-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
   color: var(--app-accent);
 }
 
-.tabs button.is-active::after {
-  background: var(--app-accent);
+.file-button-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.tabs button[disabled] {
-  opacity: 0.4;
-  cursor: not-allowed;
+/* View toggle buttons — independent on/off, at least one always on. */
+.view-toggles {
+  display: flex;
+  gap: 0.25rem;
 }
 
-/* Fluent-style buttons */
-#open-button {
-  border: 1px solid var(--app-border-strong);
-  background: var(--app-surface);
-  padding: 0 0.875rem;
-  height: 28px;
+.view-toggles button {
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 0 0.85rem;
+  height: 30px;
   border-radius: 4px;
   cursor: pointer;
   font: inherit;
@@ -159,16 +132,28 @@ body {
   color: var(--app-fg);
   transition:
     background 80ms ease,
-    border-color 80ms ease;
+    border-color 80ms ease,
+    color 80ms ease;
 }
 
-#open-button:hover {
-  background: #f5f5f5;
-  border-color: var(--app-border-strong);
+.view-toggles button:hover:not(.is-active):not([disabled]) {
+  background: var(--app-neutral-hover);
 }
 
-#open-button:active {
-  background: #ededeb;
+.view-toggles button.is-active {
+  background: var(--app-accent-soft);
+  border-color: var(--app-accent-soft);
+  color: var(--app-accent);
+}
+
+.view-toggles button.is-active:hover {
+  background: var(--app-accent-soft-hover);
+  border-color: var(--app-accent-soft-hover);
+}
+
+.view-toggles button[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 #app {
@@ -179,19 +164,25 @@ body {
   min-height: 0;
 }
 
-#app > section {
+#app > .views,
+#app > .dropzone {
   flex: 1;
   min-height: 0;
 }
 
-.view-split {
+.views {
   display: grid;
-  grid-template-columns: minmax(280px, 1fr) 2fr;
+  grid-template-columns: 1fr;
   gap: 12px;
 }
 
-.view-split > * {
+.views.is-split {
+  grid-template-columns: minmax(280px, 1fr) 2fr;
+}
+
+.views > .view {
   min-height: 0;
+  min-width: 0;
 }
 
 .dropzone {
@@ -201,7 +192,6 @@ body {
   flex-direction: column;
   gap: 0.5rem;
   min-height: 240px;
-  flex: 1;
   border: 2px dashed var(--app-border-strong);
   border-radius: 8px;
   background: var(--app-surface);
@@ -231,7 +221,7 @@ body {
 }
 
 .dropzone code {
-  background: #f3f2f1;
+  background: var(--app-neutral-hover);
   padding: 0.05rem 0.35rem;
   border-radius: 3px;
   font-family: "Cascadia Code", ui-monospace, "Cascadia Mono", Menlo, monospace;
@@ -243,8 +233,6 @@ body {
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  padding-right: 0.75rem;
-  border-right: 1px solid var(--app-border);
 }
 
 .sample-label {
@@ -273,7 +261,7 @@ body {
 }
 
 .sample-picker button:hover:not([disabled]) {
-  background: #f3f2f1;
+  background: var(--app-neutral-hover);
   border-color: var(--app-border);
 }
 
