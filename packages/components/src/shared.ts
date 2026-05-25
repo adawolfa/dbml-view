@@ -9,6 +9,7 @@ import {
   type Enum,
   type Ref,
   type Table,
+  type TableGroup,
   allRefs,
   endpointTableId,
   tableId,
@@ -21,6 +22,65 @@ export type Selection =
   | { kind: 'none' }
   | { kind: 'table'; tableId: string; columnName?: string }
   | { kind: 'enum'; enumId: string };
+
+/**
+ * Set of items hidden from the diagram. Stored as three flat sets so toggling
+ * a schema or tablegroup is O(1); membership of a single table can be
+ * overridden independently. See {@link computeHiddenTableIds} for how these
+ * three buckets combine into the effective list passed to the diagram.
+ */
+export type HiddenSet = {
+  /** Individual table IDs (`schema.name`). */
+  tables: Set<string>;
+  /** Schema names — every table under a hidden schema is hidden. */
+  schemas: Set<string>;
+  /** TableGroup keys (`schema.name`) — every member table is hidden. */
+  tableGroups: Set<string>;
+};
+
+export function emptyHiddenSet(): HiddenSet {
+  return { tables: new Set(), schemas: new Set(), tableGroups: new Set() };
+}
+
+export function hiddenSetIsEmpty(set: HiddenSet): boolean {
+  return set.tables.size === 0 && set.schemas.size === 0 && set.tableGroups.size === 0;
+}
+
+/** Stable key for a TableGroup: `schema.name`. Matches dbml/parse's empty-vs-null
+ * quirk by falling back to the default schema for both falsy values. */
+export function tableGroupKey(group: Pick<TableGroup, 'name' | 'schemaName'>): string {
+  return `${group.schemaName || DEFAULT_SCHEMA}.${group.name ?? ''}`;
+}
+
+/**
+ * Effective set of hidden table IDs given the three-bucket {@link HiddenSet}.
+ * A table is hidden if any of:
+ *   - its id is in `tables`
+ *   - its schema is in `schemas`
+ *   - it belongs to a tablegroup whose key is in `tableGroups`
+ */
+export function computeHiddenTableIds(db: Database, hidden: HiddenSet): Set<string> {
+  const out = new Set<string>();
+  // Direct table membership.
+  for (const id of hidden.tables) out.add(id);
+  // Schema membership.
+  if (hidden.schemas.size > 0) {
+    for (const t of db.tables) {
+      const schema = t.schemaName ?? DEFAULT_SCHEMA;
+      if (hidden.schemas.has(schema)) out.add(tableId(t));
+    }
+  }
+  // TableGroup membership.
+  if (hidden.tableGroups.size > 0) {
+    for (const tg of db.tableGroups) {
+      if (!hidden.tableGroups.has(tableGroupKey(tg))) continue;
+      for (const member of tg.tables) {
+        out.add(`${member.schemaName || DEFAULT_SCHEMA}.${member.name}`);
+      }
+    }
+  }
+  return out;
+}
 
 /**
  * Cross-panel hover state broadcast via `hover-change` CustomEvents.

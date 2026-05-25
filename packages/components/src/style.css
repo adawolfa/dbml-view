@@ -355,6 +355,87 @@ dbml-structure {
   background: var(--dv-accent-soft);
 }
 
+/* --- Hide-from-diagram toggle (eye icon) --- */
+
+.dv-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding-right: 0.5rem;
+}
+
+.dv-tree-row > .dv-tree-node {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Count chip lives directly in the row when a hide toggle is present, so it
+   sits to the right of the toggle. visibility: hidden — like the toggle — so
+   layout doesn't shift on hover. */
+.dv-tree-row > .dv-tree-count {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  color: var(--dv-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.dv-tree-hide-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  background: transparent;
+  color: var(--dv-muted);
+  cursor: pointer;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 80ms ease, color 80ms ease, background 80ms ease;
+  border-radius: 3px;
+}
+
+.dv-tree-hide-toggle svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Show on row hover, or when keyboard-focused. */
+.dv-tree-row:hover .dv-tree-hide-toggle,
+.dv-tree-hide-toggle:focus-visible {
+  opacity: 1;
+}
+
+.dv-tree-hide-toggle:hover {
+  color: var(--dv-accent);
+  background: var(--dv-toolbar-hover-bg);
+}
+
+/* When the item is hidden the icon stays visible so the user can toggle back. */
+.dv-tree-hide-toggle.is-hidden-target {
+  opacity: 1;
+  color: var(--dv-accent);
+}
+
+/* A table hidden indirectly through a parent schema/tablegroup — toggle is
+   informational only; click is ignored in the handler. */
+.dv-tree-hide-toggle.is-disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.dv-tree-hide-toggle.is-disabled:hover {
+  background: transparent;
+}
+
+/* Dim hidden rows so the structure tree reflects which items are gone from
+   the diagram. The label itself is still readable and toggleable. */
+.dv-tree-group.is-hidden > .dv-tree-row > .dv-tree-node,
+.dv-tree-table.is-hidden > .dv-tree-row > .dv-tree-node {
+  opacity: 0.55;
+}
+
 .dv-tree-node-enum-value {
   padding-left: 1.1rem;
   font-family: var(--dv-code-font);

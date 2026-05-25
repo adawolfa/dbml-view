@@ -19,11 +19,14 @@ import {
 import { t } from '@dbml-view/i18n';
 
 import {
+  type HiddenSet,
   type HoverState,
   type RefEntry,
   type Selection,
   type TreeGroup,
   buildTree,
+  computeHiddenTableIds,
+  emptyHiddenSet,
   escapeAttr,
   escapeHtml,
   formatColumnType,
@@ -47,6 +50,8 @@ export class DbmlStructureElement extends HTMLElement {
   private refsByTableId = new Map<string, RefEntry[]>();
   private expandedGroups = new Set<string>();
   private expandedTables = new Set<string>();
+  private hiddenSet: HiddenSet = emptyHiddenSet();
+  private effectiveHidden: Set<string> = new Set();
   private rendered = false;
   /** Hover state applied from another panel. Cleared when this panel emits its own hover. */
   private externalHover: HoverState = { kind: 'none' };
@@ -92,8 +97,36 @@ export class DbmlStructureElement extends HTMLElement {
     this.refsByTableId = indexRefsByTable(db);
     // Expand all groups by default; tables stay collapsed until selected.
     this.expandedGroups = new Set(buildTree(db).map((g) => g.id));
+    this.effectiveHidden = computeHiddenTableIds(db, this.hiddenSet);
     if (!this.rendered) return;
     this.renderTree();
+  }
+
+  /**
+   * Apply an externally-managed {@link HiddenSet} (e.g. restored from
+   * localStorage). Replaces the current state and re-renders the tree;
+   * does NOT emit `visibility-change` — pushes flow one way only.
+   */
+  setHiddenSet(next: HiddenSet): void {
+    this.hiddenSet = {
+      tables: new Set(next.tables),
+      schemas: new Set(next.schemas),
+      tableGroups: new Set(next.tableGroups),
+    };
+    if (this.database) {
+      this.effectiveHidden = computeHiddenTableIds(this.database, this.hiddenSet);
+    }
+    if (!this.rendered) return;
+    this.renderTree();
+  }
+
+  /** Current {@link HiddenSet}. The returned object is a fresh shallow copy. */
+  getHiddenSet(): HiddenSet {
+    return {
+      tables: new Set(this.hiddenSet.tables),
+      schemas: new Set(this.hiddenSet.schemas),
+      tableGroups: new Set(this.hiddenSet.tableGroups),
+    };
   }
 
   /**
@@ -146,6 +179,15 @@ export class DbmlStructureElement extends HTMLElement {
       );
     });
     tree?.addEventListener('click', (event) => {
+      // Eye toggle takes precedence over the surrounding node click so the
+      // user can show/hide without selecting/expanding the row underneath.
+      const hideBtn = (event.target as HTMLElement).closest<HTMLElement>('[data-hide-toggle]');
+      if (hideBtn) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.toggleHidden(hideBtn);
+        return;
+      }
       const node = (event.target as HTMLElement).closest<HTMLElement>('[data-node]');
       if (!node) return;
       event.preventDefault();
@@ -250,20 +292,25 @@ export class DbmlStructureElement extends HTMLElement {
         const groupOpen = q !== '' || this.expandedGroups.has(group.id);
         const chevron = groupOpen ? '▾' : '▸';
         const childrenHtml = groupOpen ? `<ul class="dv-tree-children">${tablesHtml}</ul>` : '';
+        const hideToggle = this.renderHideToggle(group);
+        const hiddenClass = this.isGroupHidden(group) ? ' is-hidden' : '';
         return `
-          <li class="dv-tree-group">
-            <button
-              type="button"
-              class="dv-tree-node dv-tree-node-group"
-              data-node="group"
-              data-group-id="${escapeAttr(group.id)}"
-              aria-expanded="${groupOpen}"
-            >
-              <span class="dv-tree-chevron">${chevron}</span>
-              ${group.kind === 'tablegroup' ? iconTableGroup() : iconSchema()}
-              <span class="dv-tree-group-name">${escapeHtml(group.label)}</span>
+          <li class="dv-tree-group${hiddenClass}" data-group-id="${escapeAttr(group.id)}">
+            <div class="dv-tree-row">
+              <button
+                type="button"
+                class="dv-tree-node dv-tree-node-group"
+                data-node="group"
+                data-group-id="${escapeAttr(group.id)}"
+                aria-expanded="${groupOpen}"
+              >
+                <span class="dv-tree-chevron">${chevron}</span>
+                ${group.kind === 'tablegroup' ? iconTableGroup() : iconSchema()}
+                <span class="dv-tree-group-name">${escapeHtml(group.label)}</span>
+              </button>
+              ${hideToggle}
               <span class="dv-tree-count">${visibleTables.length}</span>
-            </button>
+            </div>
             ${childrenHtml}
           </li>
         `;
@@ -331,20 +378,25 @@ export class DbmlStructureElement extends HTMLElement {
       `
       : '';
 
+    const hideToggle = this.renderTableHideToggle(id);
+    const hiddenClass = this.effectiveHidden.has(id) ? ' is-hidden' : '';
     return `
-      <li class="dv-tree-table${active ? ' is-active' : ''}">
-        <button
-          type="button"
-          class="dv-tree-node dv-tree-node-table${active ? ' is-active' : ''}"
-          data-node="table"
-          data-table-id="${escapeAttr(id)}"
-          aria-expanded="${expanded}"
-        >
-          <span class="dv-tree-chevron">${chevron}</span>
-          ${iconTable()}
-          <span class="dv-tree-table-name">${escapeHtml(table.name)}</span>
+      <li class="dv-tree-table${active ? ' is-active' : ''}${hiddenClass}" data-table-id="${escapeAttr(id)}">
+        <div class="dv-tree-row">
+          <button
+            type="button"
+            class="dv-tree-node dv-tree-node-table${active ? ' is-active' : ''}"
+            data-node="table"
+            data-table-id="${escapeAttr(id)}"
+            aria-expanded="${expanded}"
+          >
+            <span class="dv-tree-chevron">${chevron}</span>
+            ${iconTable()}
+            <span class="dv-tree-table-name">${escapeHtml(table.name)}</span>
+          </button>
+          ${hideToggle}
           <span class="dv-tree-count">${table.fields.length}</span>
-        </button>
+        </div>
         ${childrenHtml}
       </li>
     `;
@@ -428,6 +480,75 @@ export class DbmlStructureElement extends HTMLElement {
     if (this.expandedGroups.has(id)) this.expandedGroups.delete(id);
     else this.expandedGroups.add(id);
     this.renderTree();
+  }
+
+  // ---- Hide-from-diagram toggle ----
+
+  /** Render the eye-toggle button for a schema or tablegroup row. */
+  private renderHideToggle(group: TreeGroup): string {
+    if (group.kind === 'tablegroup') {
+      // The tree's group.id encodes `tg:<schema>.<name>`; for the hide set we
+      // need the bare `<schema>.<name>` so the diagram-side computation matches.
+      const key = group.id.startsWith('tg:') ? group.id.slice(3) : group.id;
+      const hidden = this.hiddenSet.tableGroups.has(key);
+      return makeHideToggle('tablegroup', key, hidden, group.label);
+    }
+    // Schema group — the id is `sc:<schema>`, the key is just the schema name.
+    const schema = group.id.startsWith('sc:') ? group.id.slice(3) : group.label;
+    const hidden = this.hiddenSet.schemas.has(schema);
+    return makeHideToggle('schema', schema, hidden, group.label);
+  }
+
+  private renderTableHideToggle(id: string): string {
+    const directlyHidden = this.hiddenSet.tables.has(id);
+    // A table can also be hidden via its schema or tablegroup. In that case
+    // its own toggle becomes disabled (visually shown as hidden but inactive)
+    // — toggling the parent is the only way back.
+    const transitivelyHidden = !directlyHidden && this.effectiveHidden.has(id);
+    return makeHideToggle(
+      'table',
+      id,
+      directlyHidden || transitivelyHidden,
+      id,
+      transitivelyHidden,
+    );
+  }
+
+  private isGroupHidden(group: TreeGroup): boolean {
+    if (group.kind === 'tablegroup') {
+      const key = group.id.startsWith('tg:') ? group.id.slice(3) : group.id;
+      return this.hiddenSet.tableGroups.has(key);
+    }
+    const schema = group.id.startsWith('sc:') ? group.id.slice(3) : group.label;
+    return this.hiddenSet.schemas.has(schema);
+  }
+
+  /** Toggle hidden state from a clicked eye button. */
+  private toggleHidden(btn: HTMLElement): void {
+    const kind = btn.dataset.hideKind;
+    const id = btn.dataset.hideId ?? '';
+    if (!kind || !id) return;
+    if (btn.dataset.disabled === 'true') return;
+    if (kind === 'table') {
+      if (this.hiddenSet.tables.has(id)) this.hiddenSet.tables.delete(id);
+      else this.hiddenSet.tables.add(id);
+    } else if (kind === 'schema') {
+      if (this.hiddenSet.schemas.has(id)) this.hiddenSet.schemas.delete(id);
+      else this.hiddenSet.schemas.add(id);
+    } else if (kind === 'tablegroup') {
+      if (this.hiddenSet.tableGroups.has(id)) this.hiddenSet.tableGroups.delete(id);
+      else this.hiddenSet.tableGroups.add(id);
+    }
+    if (this.database) {
+      this.effectiveHidden = computeHiddenTableIds(this.database, this.hiddenSet);
+    }
+    this.renderTree();
+    this.dispatchEvent(
+      new CustomEvent<HiddenSet>('visibility-change', {
+        detail: this.getHiddenSet(),
+        bubbles: true,
+      }),
+    );
   }
 
   /** Single click on a table node: select it (notifies detail) without expanding.
@@ -634,6 +755,55 @@ function iconSchema(): string {
 
 function iconTableGroup(): string {
   return `<svg class="dv-tree-node-icon" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 3.5C1 2.95 1.45 2.5 2 2.5H4.5L5.5 3.5H10C10.55 3.5 11 3.95 11 4.5V9C11 9.55 10.55 10 10 10H2C1.45 10 1 9.55 1 9V3.5Z"/></svg>`;
+}
+
+/**
+ * Eye / eye-slash toggle for hiding an item from the diagram. The button is
+ * hidden by CSS until the row is hovered or the item is already hidden (then
+ * it stays visible so the user can find their way back).
+ *
+ * `transitive` = true means this table is hidden indirectly through a parent
+ * schema or tablegroup; the icon shows the hidden state but clicks do nothing
+ * because the parent must be un-hidden first.
+ */
+function makeHideToggle(
+  kind: 'table' | 'schema' | 'tablegroup',
+  id: string,
+  hidden: boolean,
+  label: string,
+  transitive = false,
+): string {
+  const icon = hidden ? iconEyeSlash() : iconEye();
+  const action = hidden ? t('structure.hide.show') : t('structure.hide.hide');
+  const title = `${action}: ${label}`;
+  const classes = [
+    'dv-tree-hide-toggle',
+    hidden ? 'is-hidden-target' : '',
+    transitive ? 'is-disabled' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  return `
+    <button
+      type="button"
+      class="${classes}"
+      data-hide-toggle
+      data-hide-kind="${kind}"
+      data-hide-id="${escapeAttr(id)}"
+      ${transitive ? 'data-disabled="true"' : ''}
+      title="${escapeAttr(title)}"
+      aria-label="${escapeAttr(title)}"
+      aria-pressed="${hidden}"
+    >${icon}</button>
+  `;
+}
+
+function iconEye(): string {
+  return `<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 7C2.6 4.3 4.7 3 7 3C9.3 3 11.4 4.3 13 7C11.4 9.7 9.3 11 7 11C4.7 11 2.6 9.7 1 7Z"/><circle cx="7" cy="7" r="1.7"/></svg>`;
+}
+
+function iconEyeSlash(): string {
+  return `<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5C1.85 5.2 1.35 6.05 1 7C2.6 9.7 4.7 11 7 11C7.95 11 8.85 10.78 9.65 10.35"/><path d="M5.4 3.3C5.9 3.1 6.45 3 7 3C9.3 3 11.4 4.3 13 7C12.45 7.93 11.85 8.7 11.2 9.3"/><path d="M5.4 5.4C5.07 5.81 4.87 6.34 4.87 6.92C4.87 8.18 5.86 9.2 7.08 9.2C7.65 9.2 8.17 8.99 8.58 8.65"/><line x1="2" y1="2" x2="12" y2="12"/></svg>`;
 }
 
 function iconEnum(): string {

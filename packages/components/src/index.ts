@@ -8,7 +8,8 @@ import { DbmlStructureElement, registerStructureElement } from './structure';
 export { DbmlStructureElement, registerStructureElement };
 export { DbmlDetailElement, registerDetailElement };
 export { DbmlDiagramElement, registerDiagramElement };
-export type { Selection, HoverState } from './shared';
+export type { Selection, HoverState, HiddenSet } from './shared';
+export { computeHiddenTableIds, emptyHiddenSet, hiddenSetIsEmpty } from './shared';
 
 /** Register all custom elements. Call this after setLocale() so that the initial
  * render uses the correct translations. */

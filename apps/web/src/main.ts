@@ -4,11 +4,17 @@
 
 import '@dbml-view/components/style.css';
 
-import { register as registerComponents } from '@dbml-view/components';
+import {
+  computeHiddenTableIds,
+  emptyHiddenSet,
+  hiddenSetIsEmpty,
+  register as registerComponents,
+} from '@dbml-view/components';
 import type {
   DbmlDetailElement,
   DbmlDiagramElement,
   DbmlStructureElement,
+  HiddenSet,
   HoverState,
   Selection,
 } from '@dbml-view/components';
@@ -23,6 +29,8 @@ const LS_THEME_KEY = 'dbml-view:theme';
 const LS_LOCALE_KEY = 'dbml-view:locale';
 const LS_FONT_KEY = 'dbml-view:font';
 const LS_PANEL_WIDTH_PREFIX = 'dbml-view:panel-width:';
+/** Hidden-from-diagram state, keyed by file label so two files don't bleed. */
+const LS_HIDDEN_PREFIX = 'dbml-view:hidden:';
 
 type Locale = 'en' | 'cs';
 
@@ -89,6 +97,7 @@ const panelWidths: Record<View, number> = {
 };
 let hasSource = false;
 let currentSelection: Selection = { kind: 'none' };
+let currentFileLabel: string | null = null;
 
 // Bootstrap locale before registering components so that connectedCallback()
 // (triggered by customElements.define) already sees the correct locale.
@@ -255,10 +264,15 @@ function applySource(source: string, label: string): void {
     return;
   }
   hasSource = true;
+  currentFileLabel = label;
+  cachedDatabase = result.db;
   dropzone.hidden = true;
+  const hidden = loadHiddenSet(label);
   structure.setDatabase(result.db);
+  structure.setHiddenSet(hidden);
   detail.setDatabase(result.db);
   diagram.source = source;
+  diagram.setHiddenTableIds(computeHiddenTableIds(result.db, hidden));
   setFileLabel(label);
   void setWindowTitle(label);
   status.textContent = '';
@@ -840,6 +854,56 @@ detail.addEventListener('hover-change', (event) => {
   diagram.setExternalHover(state);
   structure.setExternalHover(state);
 });
+
+// Cached so the visibility handler doesn't have to re-parse on every toggle.
+let cachedDatabase: import('@dbml-view/parser').Database | null = null;
+
+// Structure emits 'visibility-change' when the user toggles an eye icon.
+// Forward the effective hidden table IDs to the diagram and persist.
+structure.addEventListener('visibility-change', (event) => {
+  const hidden = (event as CustomEvent<HiddenSet>).detail;
+  if (!cachedDatabase) return;
+  diagram.setHiddenTableIds(computeHiddenTableIds(cachedDatabase, hidden));
+  saveHiddenSet(currentFileLabel, hidden);
+});
+
+function loadHiddenSet(label: string | null): HiddenSet {
+  if (!label) return emptyHiddenSet();
+  try {
+    const raw = localStorage.getItem(`${LS_HIDDEN_PREFIX}${label}`);
+    if (!raw) return emptyHiddenSet();
+    const parsed = JSON.parse(raw) as {
+      tables?: string[];
+      schemas?: string[];
+      tableGroups?: string[];
+    };
+    return {
+      tables: new Set(parsed.tables ?? []),
+      schemas: new Set(parsed.schemas ?? []),
+      tableGroups: new Set(parsed.tableGroups ?? []),
+    };
+  } catch {
+    return emptyHiddenSet();
+  }
+}
+
+function saveHiddenSet(label: string | null, hidden: HiddenSet): void {
+  if (!label) return;
+  try {
+    if (hiddenSetIsEmpty(hidden)) {
+      localStorage.removeItem(`${LS_HIDDEN_PREFIX}${label}`);
+      return;
+    }
+    const payload = {
+      tables: [...hidden.tables],
+      schemas: [...hidden.schemas],
+      tableGroups: [...hidden.tableGroups],
+    };
+    localStorage.setItem(`${LS_HIDDEN_PREFIX}${label}`, JSON.stringify(payload));
+  } catch {
+    // ignore
+  }
+}
 
 // Detail emits 'jump-to' when the user clicks a cross-link inside it.
 detail.addEventListener('jump-to', (event) => {

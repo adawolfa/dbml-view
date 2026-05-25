@@ -111,8 +111,10 @@ test.describe('multi-schema sample', () => {
     const authGroup = structure.locator('[data-node="group"]', { hasText: 'auth' });
     await expect(authGroup).toBeVisible();
     await expect(authGroup).toHaveAttribute('aria-expanded', 'true');
-    // The group exposes its member count as a chip.
-    await expect(authGroup.locator('.dv-tree-count')).toHaveText('1');
+    // The group exposes its member count as a chip — it sits next to the
+    // row button (not inside it) so the eye toggle can slot between them.
+    const authRow = structure.locator('.dv-tree-group[data-group-id="sc:auth"]');
+    await expect(authRow.locator('> .dv-tree-row > .dv-tree-count')).toHaveText('1');
     await authGroup.click();
     await expect(authGroup).toHaveAttribute('aria-expanded', 'false');
     // Members are no longer reachable when collapsed.

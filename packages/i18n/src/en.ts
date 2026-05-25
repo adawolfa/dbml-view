@@ -7,6 +7,8 @@ export const en = {
   'structure.section.columns': 'Columns',
   'structure.section.relations': 'Relations',
   'structure.pk.title': 'Primary key',
+  'structure.hide.hide': 'Hide from diagram',
+  'structure.hide.show': 'Show in diagram',
 
   // --- Detail panel ---
   'detail.error.heading': "Couldn't parse this DBML",
