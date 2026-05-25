@@ -108,7 +108,15 @@ export class DbmlStructureElement extends HTMLElement {
   setSelection(selection: Selection): void {
     if (selectionEquals(this.selection, selection)) return;
     this.selection = selection;
-    this.autoExpandForSelection();
+    // Only expand the table itself when a column is specified — we need to open
+    // it to make the column visible. For plain table selections (e.g. diagram
+    // clicks) only expand the containing group so the table row scrolls into
+    // view without expanding its column list.
+    if (selection.kind === 'table' && selection.columnName !== undefined) {
+      this.autoExpandForSelection();
+    } else {
+      this.autoExpandGroupForSelection();
+    }
     if (!this.rendered) return;
     this.renderTree();
     this.scrollSelectionIntoView();
