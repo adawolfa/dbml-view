@@ -14,7 +14,7 @@ export type {
   TablePartial,
 } from '@dbml/parse';
 
-import type { Column, Database, Ref, Table } from '@dbml/parse';
+import type { Column, Database, Enum, Ref, Table } from '@dbml/parse';
 
 // Types not re-exported from the @dbml/parse barrel — derive them from the
 // public ones via indexed access. Same upstream shape, no internal-path import.
@@ -45,6 +45,28 @@ export function columnId(
   column: Pick<Column, 'name'>,
 ): string {
   return `${tableId(table)}.${column.name}`;
+}
+
+/** `schema.enum` — stable across runs, safe in URL hashes and DOM ids. */
+export function enumId(en: Pick<Enum, 'name' | 'schemaName'>): string {
+  return `${en.schemaName ?? DEFAULT_SCHEMA}.${en.name}`;
+}
+
+/** Look up an enum by its stable id. Returns undefined if not present. */
+export function findEnum(db: Database, id: string): Enum | undefined {
+  return db.enums.find((e) => enumId(e) === id);
+}
+
+/**
+ * True when an enum is referenced by a column's type. Matches by name + schema,
+ * treating a column type with no schema as belonging to the default schema —
+ * same convention DBML uses for unqualified enum references.
+ */
+export function columnUsesEnum(column: Pick<Column, 'type'>, en: Pick<Enum, 'name' | 'schemaName'>): boolean {
+  if (column.type.type_name !== en.name) return false;
+  const enumSchema = en.schemaName ?? DEFAULT_SCHEMA;
+  const colSchema = column.type.schemaName ?? DEFAULT_SCHEMA;
+  return colSchema === enumSchema;
 }
 
 /** Same shape as `tableId`, but built from a Ref endpoint (which carries name + schema). */

@@ -4,8 +4,11 @@ export {
   DEFAULT_SCHEMA,
   tableId,
   columnId,
+  enumId,
   endpointTableId,
   findTable,
+  findEnum,
+  columnUsesEnum,
   hasMultipleSchemas,
   allRefs,
 } from './types';
