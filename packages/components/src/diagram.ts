@@ -6,6 +6,7 @@
 import { t } from '@dbml-view/i18n';
 import {
   type LayoutResult,
+  type PositionedGroup,
   type PositionedTable,
   type RoutedEdge,
   type TableMeasure,
@@ -48,6 +49,7 @@ export class DbmlDiagramElement extends HTMLElement {
   private viewportEl!: HTMLElement;
   private canvasEl!: HTMLElement;
   private nodesEl!: HTMLElement;
+  private groupsEl!: HTMLElement;
   private edgesEl!: SVGSVGElement;
   private statusEl!: HTMLElement;
   private toolbarEl!: HTMLElement;
@@ -84,6 +86,7 @@ export class DbmlDiagramElement extends HTMLElement {
       this.viewportEl = this.querySelector<HTMLElement>('[data-viewport]')!;
       this.canvasEl = this.querySelector<HTMLElement>('[data-canvas]')!;
       this.nodesEl = this.querySelector<HTMLElement>('[data-nodes]')!;
+      this.groupsEl = this.querySelector<HTMLElement>('[data-groups]')!;
       this.edgesEl = this.querySelector<SVGSVGElement>('[data-edges]')!;
       this.statusEl = this.querySelector<HTMLElement>('[data-status]')!;
       this.toolbarEl = this.querySelector<HTMLElement>('[data-toolbar]')!;
@@ -177,6 +180,7 @@ export class DbmlDiagramElement extends HTMLElement {
     this.edgeEls.clear();
     this.edgesByTable.clear();
     this.nodesEl.innerHTML = '';
+    this.groupsEl.innerHTML = '';
     while (this.edgesEl.firstChild) this.edgesEl.removeChild(this.edgesEl.firstChild);
 
     // Step 1+2: build tables and measure them in the visible canvas (already
@@ -233,6 +237,7 @@ export class DbmlDiagramElement extends HTMLElement {
       el.style.width = `${positioned.width}px`;
     }
 
+    this.renderGroups(result.groups);
     this.renderEdges(result.edges, canvasWidth, canvasHeight);
 
     this.canvasEl.style.visibility = 'visible';
@@ -241,6 +246,35 @@ export class DbmlDiagramElement extends HTMLElement {
 
   private applyTableTransform(el: HTMLElement, p: { x: number; y: number }): void {
     el.style.transform = `translate(${p.x + this.layoutOffset.x}px, ${p.y + this.layoutOffset.y}px)`;
+  }
+
+  /**
+   * Render TableGroup hulls underneath everything. Plain absolutely-positioned
+   * divs — easier than SVG for the label + border, and the canvas transform
+   * carries them along with tables and edges for free.
+   */
+  private renderGroups(groups: PositionedGroup[]): void {
+    this.groupsEl.innerHTML = '';
+    const dx = this.layoutOffset.x;
+    const dy = this.layoutOffset.y;
+    for (const g of groups) {
+      const el = document.createElement('div');
+      el.className = 'dv-group';
+      el.dataset.groupId = g.id;
+      el.style.transform = `translate(${g.x + dx}px, ${g.y + dy}px)`;
+      el.style.width = `${g.width}px`;
+      el.style.height = `${g.height}px`;
+      if (g.color) {
+        // DBML colors are arbitrary hex; soften the fill and use the same hue
+        // for the border / label background so the cluster reads as one thing.
+        el.style.setProperty('--dv-group-color', g.color);
+      }
+      const label = document.createElement('div');
+      label.className = 'dv-group-label';
+      label.textContent = g.name;
+      el.appendChild(label);
+      this.groupsEl.appendChild(el);
+    }
   }
 
   private renderEdges(edges: RoutedEdge[], canvasWidth: number, canvasHeight: number): void {
@@ -740,6 +774,11 @@ export class DbmlDiagramElement extends HTMLElement {
     const svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="${SVG_NS}" xmlns:xhtml="http://www.w3.org/1999/xhtml" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
   <style>${EXPORT_CSS}</style>
+  <foreignObject x="0" y="0" width="${width}" height="${height}">
+    <xhtml:div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;width:${width}px;height:${height}px">
+      ${this.groupsEl.outerHTML}
+    </xhtml:div>
+  </foreignObject>
   ${this.edgesEl.innerHTML}
   <foreignObject x="0" y="0" width="${width}" height="${height}">
     <xhtml:div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;width:${width}px;height:${height}px">
@@ -771,6 +810,7 @@ function makeTemplate(): string {
     </div>
     <div class="dv-diagram-viewport" data-viewport>
       <div class="dv-canvas" data-canvas>
+        <div class="dv-groups" data-groups></div>
         <svg class="dv-edges" data-edges xmlns="${SVG_NS}"></svg>
         <div class="dv-nodes" data-nodes></div>
       </div>
@@ -785,6 +825,8 @@ const EXPORT_CSS = `
 .dv-row { display: grid; grid-template-columns: 1fr auto auto; gap: 0.5rem; padding: 0.25rem 0.6rem; border-top: 1px solid #f1f5f9; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
 .dv-row-flags { color: #94a3b8; font-size: 10px; }
 .dv-row-type { color: #6d28d9; font-size: 11px; }
+.dv-group { position: absolute; top: 0; left: 0; box-sizing: border-box; background: rgba(148, 163, 184, 0.07); border: 1px dashed rgba(148, 163, 184, 0.6); border-radius: 6px; }
+.dv-group-label { position: absolute; top: 4px; left: 8px; padding: 0.1rem 0.45rem; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #475569; background: #f1f5f9; border: 1px solid rgba(148, 163, 184, 0.5); border-radius: 4px; }
 .dv-edge-group { color: #94a3b8; }
 .dv-edge { fill: none; stroke: currentColor; stroke-width: 1.5; }
 .dv-edge-hit { fill: none; stroke: transparent; stroke-width: 14; }
