@@ -418,8 +418,7 @@ dbml-structure {
   color: var(--dv-accent);
 }
 
-/* A table hidden indirectly through a parent schema/tablegroup — toggle is
-   informational only; click is ignored in the handler. */
+/* Reserved for a visually-disabled hide toggle (e.g. no action available). */
 .dv-tree-hide-toggle.is-disabled {
   cursor: default;
   opacity: 0.5;

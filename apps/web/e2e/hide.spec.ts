@@ -69,10 +69,84 @@ test('hiding a schema hides every table under it and dims their toggles', async 
   await expect(
     page.locator('#structure .dv-tree-group').filter({ hasText: 'shop' }).first(),
   ).toHaveClass(/is-hidden/);
-  // Per-table toggles under the hidden schema render as disabled (transitive).
+  // Per-table toggles under the hidden schema are still interactive (no
+  // data-disabled) — clicking one smart-unhides the group.
   await expect(
     page.locator('#structure .dv-tree-hide-toggle[data-hide-id="shop.products"]'),
-  ).toHaveAttribute('data-disabled', 'true');
+  ).not.toHaveAttribute('data-disabled');
+});
+
+// ---- Smart-unhide: clicking a table toggle while its group is hidden ----
+
+test('clicking a table toggle inside a hidden schema reveals only that table', async ({ page }) => {
+  await page.goto('/');
+  await loadSample(page, 'medium');
+  await setViewToggle(page, 'diagram', true);
+
+  // Hide the entire shop schema (4 tables disappear).
+  await page
+    .locator('#structure .dv-tree-hide-toggle[data-hide-kind="schema"][data-hide-id="shop"]')
+    .click();
+  await expect(page.locator('#diagram .dv-table')).toHaveCount(1);
+
+  // Click the eye on shop.addresses (inside the shop schema group).
+  await page
+    .locator('#structure .dv-tree-hide-toggle[data-hide-kind="table"][data-hide-id="shop.addresses"]')
+    .click();
+
+  // shop.addresses + auth.users are now visible; other shop.* tables remain hidden.
+  await expect(page.locator('#diagram .dv-table')).toHaveCount(2);
+  await expect(page.locator('#diagram .dv-table[data-table-id="shop.addresses"]')).toBeVisible();
+  await expect(page.locator('#diagram .dv-table[data-table-id="auth.users"]')).toBeVisible();
+  // The schema group is no longer marked hidden.
+  await expect(
+    page.locator('#structure .dv-tree-group').filter({ hasText: 'shop' }).first(),
+  ).not.toHaveClass(/is-hidden/);
+  // Sibling shop tables are individually hidden.
+  for (const id of ['shop.products', 'shop.orders', 'shop.order_items']) {
+    await expect(
+      page.locator(`#structure .dv-tree-table[data-table-id="${id}"]`),
+    ).toHaveClass(/is-hidden/);
+  }
+});
+
+test('clicking a table toggle inside a hidden tablegroup reveals only that table', async ({
+  page,
+}) => {
+  await page.goto('/');
+  // tablegroup.dbml has users (standalone) + posts/comments under the `content` TableGroup.
+  // All tables use the public schema so the tree renders tablegroup headers.
+  await loadSample(page, 'tablegroup');
+  await setViewToggle(page, 'diagram', true);
+
+  // Hide the `content` tablegroup (posts + comments disappear).
+  await page
+    .locator(
+      '#structure .dv-tree-hide-toggle[data-hide-kind="tablegroup"][data-hide-id="public.content"]',
+    )
+    .click();
+  // 3 tables → 1 visible (users).
+  await expect(page.locator('#diagram .dv-table')).toHaveCount(1);
+
+  // Click the eye on public.posts (inside the content tablegroup).
+  await page
+    .locator(
+      '#structure .dv-tree-hide-toggle[data-hide-kind="table"][data-hide-id="public.posts"]',
+    )
+    .click();
+
+  // posts + users are now visible; comments remains hidden.
+  await expect(page.locator('#diagram .dv-table')).toHaveCount(2);
+  await expect(page.locator('#diagram .dv-table[data-table-id="public.posts"]')).toBeVisible();
+  await expect(page.locator('#diagram .dv-table[data-table-id="public.users"]')).toBeVisible();
+  // The tablegroup group row is no longer hidden.
+  await expect(
+    page.locator('#structure .dv-tree-group').filter({ hasText: 'content' }).first(),
+  ).not.toHaveClass(/is-hidden/);
+  // Sibling tablegroup member (comments) is individually hidden.
+  await expect(
+    page.locator('#structure .dv-tree-table[data-table-id="public.comments"]'),
+  ).toHaveClass(/is-hidden/);
 });
 
 test('eye toggle sits between the row content and the count chip', async ({ page }) => {
