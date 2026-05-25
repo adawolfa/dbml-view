@@ -82,7 +82,10 @@ export function buildTree(db: Database): TreeGroup[] {
     for (const tg of db.tableGroups) {
       const tables: Table[] = [];
       for (const ref of tg.tables) {
-        const id = `${ref.schemaName ?? DEFAULT_SCHEMA}.${ref.name}`;
+        // @dbml/parse returns schemaName: "" (empty string) on TableGroupField
+        // when no schema is specified, but schemaName: null on Table. Use ||
+        // so both null and "" fall back to DEFAULT_SCHEMA and the lookup matches.
+        const id = `${ref.schemaName || DEFAULT_SCHEMA}.${ref.name}`;
         const table = db.tables.find((t) => tableId(t) === id);
         if (table && !claimed.has(id)) {
           tables.push(table);
@@ -92,7 +95,7 @@ export function buildTree(db: Database): TreeGroup[] {
       if (tables.length === 0) continue;
       const label = tg.name ?? '(unnamed group)';
       groups.push({
-        id: `tg:${tg.schemaName ?? DEFAULT_SCHEMA}.${label}`,
+        id: `tg:${tg.schemaName || DEFAULT_SCHEMA}.${label}`,
         label,
         kind: 'tablegroup',
         tables: tables.slice().sort((a, b) => a.name.localeCompare(b.name)),
