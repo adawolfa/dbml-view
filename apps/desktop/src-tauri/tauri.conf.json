@@ -1,0 +1,46 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "dbml-view",
+  "version": "0.0.0",
+  "identifier": "cz.klva.dbml-view",
+  "build": {
+    "beforeDevCommand": "pnpm --filter @dbml-view/web dev",
+    "beforeBuildCommand": "pnpm --filter @dbml-view/web build",
+    "frontendDist": "../../web/dist",
+    "devUrl": "http://localhost:5173"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "dbml-view",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 480,
+        "minHeight": 320
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["msi", "nsis"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico",
+      "icons/icon.png"
+    ],
+    "fileAssociations": [
+      {
+        "ext": ["dbml"],
+        "name": "DBML schema",
+        "description": "Database Markup Language file",
+        "role": "Viewer"
+      }
+    ]
+  }
+}

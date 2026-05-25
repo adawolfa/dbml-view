@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "@dbml-view/components": "workspace:*",
-    "@dbml-view/parser": "workspace:*"
+    "@dbml-view/parser": "workspace:*",
+    "@tauri-apps/api": "^2.1.1"
   },
   "devDependencies": {
     "vite": "^6.0.3"
