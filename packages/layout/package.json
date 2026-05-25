@@ -13,7 +13,7 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
-    "@dagrejs/dagre": "^1.1.4",
-    "@dbml-view/parser": "workspace:*"
+    "@dbml-view/parser": "workspace:*",
+    "elkjs": "^0.11.1"
   }
 }

@@ -1,13 +1,15 @@
 // Phase 3a: pure (Database + measured dims) → positioned tables + routed edges.
 //
-// Engine = dagre. Tables are dagre nodes; FK refs are dagre edges. We discard
-// dagre's edge waypoints and re-route every edge ourselves at the column-row
-// level so arrows attach to the exact FK/PK cell, not the table border.
+// Position engine = ELK (`elk.layered`). Tables become ELK nodes, FK refs are
+// ELK edges. ELK runs its layered crossing-minimization pass and gives us
+// table positions; we throw ELK's edge waypoints away and run our own
+// orthogonal router (grid-snapped, obstacle-aware) on top so arrows still
+// anchor at the exact FK/PK row rather than the table border.
 //
-// Self-refs are skipped by dagre's ranker so we route them by hand around the
-// right side of the table.
+// Self-refs aren't sent to ELK; we route them by hand around the right side
+// of the table.
 
-import dagre from '@dagrejs/dagre';
+import ELK, { type ElkNode } from 'elkjs/lib/elk.bundled.js';
 import {
   type Database,
   type Ref,
@@ -16,6 +18,8 @@ import {
   endpointTableId,
   tableId,
 } from '@dbml-view/parser';
+
+const elk = new ELK();
 
 export type Rect = { x: number; y: number; width: number; height: number };
 
@@ -65,20 +69,30 @@ export type LayoutResult = {
 };
 
 export type LayoutOptions = {
-  rankdir?: 'LR' | 'TB' | 'RL' | 'BT';
+  /** ELK direction. Maps to `elk.direction`. */
+  direction?: 'RIGHT' | 'LEFT' | 'DOWN' | 'UP';
+  /** Spacing between nodes inside the same layer. Maps to `elk.spacing.nodeNode`. */
   nodesep?: number;
+  /** Spacing between layers. Maps to `elk.layered.spacing.nodeNodeBetweenLayers`. */
   ranksep?: number;
   marginx?: number;
   marginy?: number;
 };
 
 const DEFAULTS: Required<LayoutOptions> = {
-  rankdir: 'LR',
-  nodesep: 40,
-  ranksep: 80,
+  direction: 'RIGHT',
+  nodesep: 60,
+  ranksep: 220,
   marginx: 24,
   marginy: 24,
 };
+
+/**
+ * Pad applied to a table's bounding box when used as an obstacle for edge
+ * routing. Keeps the chosen midX one grid column away from the nearest table
+ * edge so the rendered vertical doesn't graze a border.
+ */
+const OBSTACLE_PAD = 8;
 
 /** Horizontal gap between a table's edge and the first jog of an edge. */
 const EDGE_STUB = 24;
@@ -95,71 +109,112 @@ const CORNER_RADIUS = 8;
  */
 const CROSSING_EPSILON = 0.5;
 
-export function layout(
+/**
+ * Two edges whose midX values fall within this many pixels share a vertical
+ * jog axis (a "ladder"). They get redistributed across the channel by
+ * {@link distributeMidX} so each bend at a distinct x.
+ */
+const MID_X_BUCKET = 4;
+
+/**
+ * Grid step for routed edge bends. Every L-corner snaps to a multiple of this
+ * value on the x-axis; within a bundle, edges are assigned distinct grid
+ * columns so no two corners sit at the same x or on adjacent grid cells.
+ */
+const GRID = 24;
+
+/** Safety margin kept on each side of a redistributed channel so the new
+ * midX values never collide with a table's stub. */
+const CHANNEL_MARGIN = 4;
+
+export async function layout(
   db: Database,
   measures: Map<string, TableMeasure>,
   options: LayoutOptions = {},
-): LayoutResult {
+): Promise<LayoutResult> {
   const opts = { ...DEFAULTS, ...options };
 
-  const g = new dagre.graphlib.Graph({ directed: true, multigraph: true });
-  g.setGraph({
-    rankdir: opts.rankdir,
-    nodesep: opts.nodesep,
-    ranksep: opts.ranksep,
-    marginx: opts.marginx,
-    marginy: opts.marginy,
-  });
-  g.setDefaultEdgeLabel(() => ({}));
-
   const usableTables = db.tables.filter((t) => measures.has(tableId(t)));
-  for (const t of usableTables) {
-    const id = tableId(t);
-    const m = measures.get(id);
-    if (!m) continue;
-    g.setNode(id, { width: m.width, height: m.height });
-  }
+  const knownIds = new Set(usableTables.map((t) => tableId(t)));
 
-  // Only edges between known nodes; self-edges are rendered, not laid out.
+  // Collect refs to render. Same source-direction policy as before: prefer
+  // the `*` endpoint as the FK side so arrows point parent ← child.
   const renderedRefs: { ref: Ref; from: RefEndpoint; to: RefEndpoint }[] = [];
-  for (const [i, ref] of db.refs.entries()) {
+  for (const ref of db.refs) {
     const [a, b] = ref.endpoints;
     if (!a || !b) continue;
-    const aId = endpointTableId(a);
-    const bId = endpointTableId(b);
-    if (!g.hasNode(aId) || !g.hasNode(bId)) continue;
-    // Source = the `*` side when one exists, otherwise the parser's first endpoint.
+    if (!knownIds.has(endpointTableId(a)) || !knownIds.has(endpointTableId(b))) continue;
     const fromSide: RefEndpoint = a.relation === '*' || b.relation !== '*' ? a : b;
     const toSide: RefEndpoint = fromSide === a ? b : a;
     renderedRefs.push({ ref, from: fromSide, to: toSide });
-    if (endpointTableId(fromSide) !== endpointTableId(toSide)) {
-      g.setEdge(endpointTableId(fromSide), endpointTableId(toSide), {}, String(i));
-    }
   }
 
-  dagre.layout(g);
+  // Build the ELK graph: nodes are tables, edges are inter-table refs (self
+  // refs are routed by hand later, so we omit them from ELK's input).
+  const children: ElkNode[] = usableTables.map((t) => {
+    const id = tableId(t);
+    const m = measures.get(id)!;
+    return { id, width: m.width, height: m.height };
+  });
+
+  const elkEdges = renderedRefs
+    .map((entry, i) => {
+      const fromId = endpointTableId(entry.from);
+      const toId = endpointTableId(entry.to);
+      if (fromId === toId) return null;
+      return { id: String(i), sources: [fromId], targets: [toId] };
+    })
+    .filter((e): e is { id: string; sources: string[]; targets: string[] } => e !== null);
+
+  const elkGraph: ElkNode = {
+    id: 'root',
+    layoutOptions: {
+      'elk.algorithm': 'layered',
+      'elk.direction': opts.direction,
+      // Orthogonal edges so ELK assumes the same routing model we render
+      // with — even though we discard ELK's edge points, this still
+      // influences node ordering and layer spacing decisions.
+      'elk.edgeRouting': 'ORTHOGONAL',
+      'elk.spacing.nodeNode': String(opts.nodesep),
+      'elk.layered.spacing.nodeNodeBetweenLayers': String(opts.ranksep),
+      'elk.layered.spacing.edgeNodeBetweenLayers': '24',
+      'elk.layered.spacing.edgeEdgeBetweenLayers': '16',
+      'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
+      'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
+      'elk.layered.considerModelOrder.strategy': 'PREFER_EDGES',
+      'elk.padding': `[top=${opts.marginy},left=${opts.marginx},bottom=${opts.marginy},right=${opts.marginx}]`,
+    },
+    children,
+    edges: elkEdges,
+  };
+
+  const elkResult = await elk.layout(elkGraph);
 
   const tables: PositionedTable[] = [];
   const positions = new Map<string, PositionedTable>();
-  for (const id of g.nodes()) {
-    const node = g.node(id);
-    // dagre uses center coordinates; we convert to top-left.
+  for (const c of elkResult.children ?? []) {
     const positioned: PositionedTable = {
-      id,
-      x: node.x - node.width / 2,
-      y: node.y - node.height / 2,
-      width: node.width,
-      height: node.height,
+      id: c.id,
+      x: c.x ?? 0,
+      y: c.y ?? 0,
+      width: c.width ?? 0,
+      height: c.height ?? 0,
     };
     tables.push(positioned);
-    positions.set(id, positioned);
+    positions.set(c.id, positioned);
   }
 
-  const edges: RoutedEdge[] = [];
+  // Compute geometric route data without emitting paths yet — we need to
+  // redistribute midX values across colliding edges before we can serialize.
+  const rawRoutes: RawRoute[] = [];
   for (const [i, entry] of renderedRefs.entries()) {
-    const routed = routeEdge(String(i), entry, positions, measures);
-    if (routed) edges.push(routed);
+    const raw = computeRawRoute(String(i), entry, positions, measures);
+    if (raw) rawRoutes.push(raw);
   }
+
+  distributeMidX(rawRoutes, tables);
+
+  const edges: RoutedEdge[] = rawRoutes.map(rawToRoutedEdge);
 
   const decorated = decorateEdges(edges);
 
@@ -390,12 +445,27 @@ function emitHorizontalWithBumps(
   out.push('H', fmt(b.x));
 }
 
-function routeEdge(
+/**
+ * Geometric description of one edge, computed in two stages: first per edge
+ * in {@link computeRawRoute}, then redistributed by {@link distributeMidX} so
+ * edges sharing a jog axis are spread across the channel. The final SVG path
+ * is emitted from this struct via {@link rawToRoutedEdge}.
+ */
+type RawRoute = {
+  id: string;
+  from: RoutedEdgeEndpoint;
+  to: RoutedEdgeEndpoint;
+  midX: number;
+  isSelf: boolean;
+  selfTable: PositionedTable | null;
+};
+
+function computeRawRoute(
   edgeId: string,
   entry: { ref: Ref; from: RefEndpoint; to: RefEndpoint },
   positions: Map<string, PositionedTable>,
   measures: Map<string, TableMeasure>,
-): RoutedEdge | null {
+): RawRoute | null {
   const fromId = endpointTableId(entry.from);
   const toId = endpointTableId(entry.to);
   const fromPos = positions.get(fromId);
@@ -429,9 +499,19 @@ function routeEdge(
   const toY = toPos.y + toRow.top + toRow.height / 2;
   const fromX = fromSide === 'right' ? fromPos.x + fromPos.width : fromPos.x;
   const toX = toSide === 'left' ? toPos.x : toPos.x + toPos.width;
-  const path = isSelf
-    ? selfRefPath(fromPos, fromY, toY)
-    : orthogonalPath(fromX, fromY, fromSide, toX, toY, toSide);
+
+  const dirFrom = fromSide === 'right' ? 1 : -1;
+  const dirTo = toSide === 'right' ? 1 : -1;
+  const fromStubX = fromX + dirFrom * EDGE_STUB;
+  const toStubX = toX + dirTo * EDGE_STUB;
+  // Same-side cables share a jog on whichever side is further out.
+  const midX = isSelf
+    ? 0 // unused; self-refs render via selfRefPath
+    : fromSide === toSide
+      ? fromSide === 'right'
+        ? Math.max(fromStubX, toStubX)
+        : Math.min(fromStubX, toStubX)
+      : (fromStubX + toStubX) / 2;
 
   return {
     id: edgeId,
@@ -451,8 +531,18 @@ function routeEdge(
       x: toX,
       y: toY,
     },
-    path,
+    midX,
+    isSelf,
+    selfTable: isSelf ? fromPos : null,
   };
+}
+
+function rawToRoutedEdge(r: RawRoute): RoutedEdge {
+  const path =
+    r.isSelf && r.selfTable
+      ? selfRefPath(r.selfTable, r.from.y, r.to.y)
+      : orthogonalPathFromMid(r.from.x, r.from.y, r.midX, r.to.x, r.to.y);
+  return { id: r.id, from: r.from, to: r.to, path };
 }
 
 function columnIdFromEndpoint(endpoint: RefEndpoint, name: string): string {
@@ -460,28 +550,231 @@ function columnIdFromEndpoint(endpoint: RefEndpoint, name: string): string {
 }
 
 /**
- * Orthogonal jog: exit horizontally → vertical mid-segment → enter horizontally.
- * Same-side connections route around the table with a wider stub.
+ * Snap every edge's vertical jog to a global grid column (multiples of
+ * {@link GRID}) and ensure no two edges in the same bundle land in the same
+ * or an adjacent grid column. Without this, every FK between two rank
+ * columns computes the same `midX` and the bundle reads as a single thick
+ * vertical with horizontal rungs — the classic ladder look.
+ *
+ * Algorithm:
+ * 1. Bucket cross-side routes by their initial `midX` to find ladder
+ *    bundles, plus same-side routes (which loop around one table edge).
+ * 2. For each bundle, allocate distinct grid columns centered on the
+ *    bundle's desired midpoint, snapped to the grid.
+ * 3. Single-edge routes still snap to the grid so every bend in the
+ *    diagram lines up to the same lattice.
  */
-function orthogonalPath(
+function distributeMidX(routes: RawRoute[], tables: PositionedTable[]): void {
+  // Global record of (column, y-range) cells already claimed by some edge.
+  // Used after the per-bundle pass to detect cross-bundle collisions (two
+  // unrelated edges that happen to want the same grid column with
+  // overlapping y) and shift one of them.
+  const used: { col: number; yLo: number; yHi: number; routeId: string }[] = [];
+
+  const groups = new Map<string, RawRoute[]>();
+  for (const r of routes) {
+    if (r.isSelf) continue;
+    const key = `${Math.round(r.midX / MID_X_BUCKET)}|${r.from.side}|${r.to.side}`;
+    let arr = groups.get(key);
+    if (!arr) {
+      arr = [];
+      groups.set(key, arr);
+    }
+    arr.push(r);
+  }
+
+  for (const group of groups.values()) {
+    if (group.length === 0) continue;
+
+    // Order edges by y-midpoint so neighbouring grid columns correspond to
+    // neighbouring rows — the resulting jog pattern reads as a smooth fan.
+    group.sort((a, b) => (a.from.y + a.to.y) / 2 - (b.from.y + b.to.y) / 2);
+
+    const sample = group[0]!;
+    const n = group.length;
+    const sameSide = sample.from.side === sample.to.side;
+
+    // Channel bounds — the x interval inside which midX must fall to avoid
+    // U-turn paths. Same-side bundles get an open-ended channel on the far
+    // side of the table loop.
+    let lo: number;
+    let hi: number;
+    if (sameSide) {
+      const base = sample.midX;
+      const sign = sample.from.side === 'right' ? 1 : -1;
+      const depth = (n - 1) * GRID + GRID;
+      if (sign === 1) {
+        lo = base;
+        hi = base + depth;
+      } else {
+        lo = base - depth;
+        hi = base;
+      }
+    } else {
+      lo = Number.NEGATIVE_INFINITY;
+      hi = Number.POSITIVE_INFINITY;
+      for (const r of group) {
+        const fromStub = r.from.x + (r.from.side === 'right' ? EDGE_STUB : -EDGE_STUB);
+        const toStub = r.to.x + (r.to.side === 'right' ? EDGE_STUB : -EDGE_STUB);
+        const a = Math.min(fromStub, toStub);
+        const b = Math.max(fromStub, toStub);
+        if (a > lo) lo = a;
+        if (b < hi) hi = b;
+      }
+    }
+
+    // Bundle wants n distinct grid columns; total width (n-1)*GRID.
+    const center = (lo + hi) / 2;
+    const totalWidth = (n - 1) * GRID;
+    let startX = center - totalWidth / 2;
+
+    // Try to keep the bundle inside the channel. If it overflows, accept
+    // the overrun; widening the channel is dagre's job (ranksep).
+    if (hi - lo - CHANNEL_MARGIN * 2 >= totalWidth) {
+      if (startX < lo + CHANNEL_MARGIN) startX = lo + CHANNEL_MARGIN;
+      if (startX + totalWidth > hi - CHANNEL_MARGIN) {
+        startX = hi - CHANNEL_MARGIN - totalWidth;
+      }
+    }
+
+    // Snap startX onto the global grid so every column in this bundle is a
+    // grid multiple. All edges then sit at `startX + i*GRID`.
+    startX = Math.round(startX / GRID) * GRID;
+
+    group.forEach((r, i) => {
+      r.midX = startX + i * GRID;
+    });
+  }
+
+  // Cross-bundle collision + obstacle pass. Two routes from different
+  // bundles can pick the same or an adjacent grid column when their
+  // channels overlap; if their y-ranges also overlap, the two verticals
+  // merge visually. Independently, the desired column for an edge can fall
+  // inside an unrelated table — its vertical jog would pierce that table.
+  // Walk routes in deterministic order and push each to the nearest grid
+  // column that satisfies *both* constraints (no neighbour collision, no
+  // obstacle crossing on any of the three H/V/H segments).
+  const ordered = routes.filter((r) => !r.isSelf).slice();
+  ordered.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+  for (const r of ordered) {
+    const yLo = Math.min(r.from.y, r.to.y);
+    const yHi = Math.max(r.from.y, r.to.y);
+
+    // Obstacles for *this* edge: every table whose bbox we don't want to
+    // pierce, padded so the edge doesn't graze a border.
+    const obstacles: Obstacle[] = [];
+    for (const t of tables) {
+      if (t.id === r.from.tableId || t.id === r.to.tableId) continue;
+      obstacles.push({
+        x: t.x - OBSTACLE_PAD,
+        y: t.y - OBSTACLE_PAD,
+        xH: t.x + t.width + OBSTACLE_PAD,
+        yH: t.y + t.height + OBSTACLE_PAD,
+      });
+    }
+
+    const desiredCol = Math.round(r.midX / GRID);
+    // Tier 1: respect both collision *and* obstacle constraints, but only
+    // search within ~12 grid columns (~288 px) of the desired position.
+    // Past that the H-V-H shape distorts into a long U-turn, which reads
+    // worse than just letting the line clip through a table.
+    let chosen = findColumn(desiredCol, 12, (c) =>
+      !collides(used, c, yLo, yHi) &&
+      !pathHitsObstacle(r.from.x, r.from.y, c * GRID, r.to.x, r.to.y, obstacles),
+    );
+    // Tier 2: relax obstacle avoidance, still avoid bundle collisions, in a
+    // wider window so the cross-bundle pass keeps doing its job.
+    if (chosen === null) {
+      chosen = findColumn(desiredCol, 64, (c) => !collides(used, c, yLo, yHi));
+    }
+    // Tier 3: nothing free at all — keep the desired position and accept
+    // the visual collision.
+    const col = chosen ?? desiredCol;
+    r.midX = col * GRID;
+    used.push({ col, yLo, yHi, routeId: r.id });
+  }
+}
+
+type Obstacle = { x: number; y: number; xH: number; yH: number };
+
+/**
+ * Search outward from `desiredCol` in alternating directions (±1, ±2, …)
+ * for the closest grid column that satisfies `predicate`. Returns `null` if
+ * no column within `maxRadius` matches; the caller decides what fallback to
+ * use.
+ */
+function findColumn(
+  desiredCol: number,
+  maxRadius: number,
+  predicate: (col: number) => boolean,
+): number | null {
+  if (predicate(desiredCol)) return desiredCol;
+  for (let r = 1; r <= maxRadius; r++) {
+    if (predicate(desiredCol + r)) return desiredCol + r;
+    if (predicate(desiredCol - r)) return desiredCol - r;
+  }
+  return null;
+}
+
+/** A grid column is occupied if any already-placed edge claims this column
+ * or one immediately adjacent and shares overlapping y. */
+function collides(
+  used: { col: number; yLo: number; yHi: number }[],
+  col: number,
+  yLo: number,
+  yHi: number,
+): boolean {
+  for (const u of used) {
+    if (Math.abs(u.col - col) > 1) continue;
+    // Overlap with a 4-px slack so endpoints flush against a row aren't
+    // counted as collisions with that row's own edge.
+    if (u.yHi < yLo + 4 || u.yLo > yHi - 4) continue;
+    return true;
+  }
+  return false;
+}
+
+/**
+ * True if any of an H-V-H route's three segments would pass through any of
+ * the given obstacles. Used by {@link distributeMidX} to reject grid columns
+ * whose vertical jog would pierce an unrelated table, and to also keep the
+ * two horizontal stubs out of intermediate tables that happen to sit at the
+ * same row y.
+ */
+function pathHitsObstacle(
   fromX: number,
   fromY: number,
-  fromSide: EdgeSide,
+  midX: number,
   toX: number,
   toY: number,
-  toSide: EdgeSide,
-): string {
-  const dirFrom = fromSide === 'right' ? 1 : -1;
-  const dirTo = toSide === 'right' ? 1 : -1;
-  const fromStubX = fromX + dirFrom * EDGE_STUB;
-  const toStubX = toX + dirTo * EDGE_STUB;
-  // Same-side cables share a jog on whichever side is further out.
-  let midX: number;
-  if (fromSide === toSide) {
-    midX = fromSide === 'right' ? Math.max(fromStubX, toStubX) : Math.min(fromStubX, toStubX);
-  } else {
-    midX = (fromStubX + toStubX) / 2;
+  obstacles: Obstacle[],
+): boolean {
+  const h1Lo = Math.min(fromX, midX);
+  const h1Hi = Math.max(fromX, midX);
+  const vLo = Math.min(fromY, toY);
+  const vHi = Math.max(fromY, toY);
+  const h2Lo = Math.min(midX, toX);
+  const h2Hi = Math.max(midX, toX);
+  for (const o of obstacles) {
+    if (fromY > o.y && fromY < o.yH && h1Hi > o.x && h1Lo < o.xH) return true;
+    if (midX > o.x && midX < o.xH && vHi > o.y && vLo < o.yH) return true;
+    if (toY > o.y && toY < o.yH && h2Hi > o.x && h2Lo < o.xH) return true;
   }
+  return false;
+}
+
+/**
+ * Orthogonal jog with an externally chosen midX (the x of the vertical
+ * segment). Allows the bundle-distribution pass to assign each edge its own
+ * track without re-deriving the geometry.
+ */
+function orthogonalPathFromMid(
+  fromX: number,
+  fromY: number,
+  midX: number,
+  toX: number,
+  toY: number,
+): string {
   return [`M ${fmt(fromX)} ${fmt(fromY)}`, `H ${fmt(midX)}`, `V ${fmt(toY)}`, `H ${fmt(toX)}`].join(
     ' ',
   );

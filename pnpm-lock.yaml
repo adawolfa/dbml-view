@@ -48,12 +48,12 @@ importers:
 
   packages/layout:
     dependencies:
-      '@dagrejs/dagre':
-        specifier: ^1.1.4
-        version: 1.1.8
       '@dbml-view/parser':
         specifier: workspace:*
         version: link:../parser
+      elkjs:
+        specifier: ^0.11.1
+        version: 0.11.1
 
   packages/parser:
     dependencies:
@@ -115,13 +115,6 @@ packages:
     engines: {node: '>=14.21.3'}
     cpu: [x64]
     os: [win32]
-
-  '@dagrejs/dagre@1.1.8':
-    resolution: {integrity: sha512-5SEDlndt4W/LaVzPYJW+bSmSEZc9EzTf8rJ20WCKvjS5EAZAN0b+x0Yww7VMT4R3Wootkg+X9bUfUxazYw6Blw==}
-
-  '@dagrejs/graphlib@2.2.4':
-    resolution: {integrity: sha512-mepCf/e9+SKYy1d02/UkvSy6+6MoyXhVxP8lLDfA7BPE1X1d4dR0sZznmbM8/XVJ1GPM+Svnx7Xj6ZweByWUkw==}
-    engines: {node: '>17.0.0'}
 
   '@dbml/parse@3.14.1':
     resolution: {integrity: sha512-I906RBlLF04IWQlMUw10EIKimafZ4STb86BC8hGnezb+wJqtAtVLAX8hfbzMDnGpjthm4jg0oddxTLFTZrk80g==}
@@ -485,6 +478,9 @@ packages:
   '@types/estree@1.0.8':
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
 
+  elkjs@0.11.1:
+    resolution: {integrity: sha512-zxxR9k+rx5ktMwT/FwyLdPCrq7xN6e4VGGHH8hA01vVYKjTFik7nHOxBnAYtrgYUB1RpAiLvA1/U2YraWxyKKg==}
+
   esbuild@0.25.12:
     resolution: {integrity: sha512-bbPBYYrtZbkt6Os6FiTLCTFxvq4tt3JKall1vRwshA3fdVztsLAatFaZobhkBC8/BrPetoa0oksYoKXoG4ryJg==}
     engines: {node: '>=18'}
@@ -617,12 +613,6 @@ snapshots:
 
   '@biomejs/cli-win32-x64@1.9.4':
     optional: true
-
-  '@dagrejs/dagre@1.1.8':
-    dependencies:
-      '@dagrejs/graphlib': 2.2.4
-
-  '@dagrejs/graphlib@2.2.4': {}
 
   '@dbml/parse@3.14.1':
     dependencies:
@@ -831,6 +821,8 @@ snapshots:
       '@tauri-apps/cli-win32-x64-msvc': 2.11.2
 
   '@types/estree@1.0.8': {}
+
+  elkjs@0.11.1: {}
 
   esbuild@0.25.12:
     optionalDependencies:
