@@ -52,6 +52,8 @@ export class DbmlDiagramElement extends HTMLElement {
   private intersectionObserver: IntersectionObserver | null = null;
   private pendingRelayout = false;
   private laidOutWhenVisible = false;
+  /** Monotonic counter to discard async layout results that finished after a newer relayout was scheduled. */
+  private layoutToken = 0;
 
   connectedCallback(): void {
     if (!this.rendered) {
@@ -131,11 +133,11 @@ export class DbmlDiagramElement extends HTMLElement {
     this.pendingRelayout = true;
     requestAnimationFrame(() => {
       this.pendingRelayout = false;
-      this.relayout();
+      void this.relayout();
     });
   }
 
-  private relayout(): void {
+  private async relayout(): Promise<void> {
     const db = this.database;
     if (!db) return;
     if (db.tables.length === 0) {
@@ -146,6 +148,7 @@ export class DbmlDiagramElement extends HTMLElement {
     if (this.viewportEl.clientWidth === 0 || this.viewportEl.clientHeight === 0) {
       return;
     }
+    const myToken = ++this.layoutToken;
     this.laidOutWhenVisible = true;
     this.statusEl.textContent = '';
     this.tableEls.clear();
@@ -184,7 +187,9 @@ export class DbmlDiagramElement extends HTMLElement {
       measures.set(id, { width: el.offsetWidth, height: el.offsetHeight, rowOffsets });
     }
 
-    const result = layout(db, measures);
+    const result = await layout(db, measures);
+    // A newer relayout has started while we awaited ELK — drop this result.
+    if (myToken !== this.layoutToken) return;
     this.lastLayout = result;
 
     // Step 3: position tables in the canvas.
