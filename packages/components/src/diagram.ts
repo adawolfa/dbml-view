@@ -1103,7 +1103,12 @@ export class DbmlDiagramElement extends HTMLElement {
     this.updateGroupsToggle();
   }
 
-  /** Export the current diagram as a standalone SVG document. Triggers a download. */
+  /**
+   * Export the current diagram as a standalone SVG document. Dispatches a
+   * cancelable `export-svg` event so a host (e.g. the Tauri shell) can take
+   * over and save through a native dialog; if no listener intercepts, falls
+   * back to a blob-URL anchor download, which is what the browser SPA wants.
+   */
   private exportSvg(): void {
     if (!this.lastLayout) return;
     const width = this.canvasEl.clientWidth;
@@ -1123,11 +1128,19 @@ export class DbmlDiagramElement extends HTMLElement {
     </xhtml:div>
   </foreignObject>
 </svg>`;
+    const filename = t('diagram.export.filename');
+    const event = new CustomEvent<{ svg: string; filename: string }>('export-svg', {
+      detail: { svg, filename },
+      bubbles: true,
+      cancelable: true,
+    });
+    const accepted = this.dispatchEvent(event);
+    if (!accepted) return;
     const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = t('diagram.export.filename');
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     a.remove();

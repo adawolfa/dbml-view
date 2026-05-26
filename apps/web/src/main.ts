@@ -1059,6 +1059,28 @@ detail.addEventListener('hover-change', (event) => {
   structure.setExternalHover(state);
 });
 
+// In the Tauri shell, blob-URL anchor downloads silently fail in WebView2.
+// Intercept the diagram's `export-svg` event and route it through a native
+// save dialog backed by a Rust command. In the browser, no listener fires
+// here, so the diagram falls back to its built-in anchor download.
+if (isTauri) {
+  diagram.addEventListener('export-svg', (event) => {
+    const detail = (event as CustomEvent<{ svg: string; filename: string }>).detail;
+    if (!detail) return;
+    event.preventDefault();
+    void saveSvgViaTauri(detail.svg, detail.filename);
+  });
+}
+
+async function saveSvgViaTauri(content: string, defaultFilename: string): Promise<void> {
+  const { invoke } = await import('@tauri-apps/api/core');
+  try {
+    await invoke('save_svg', { content, defaultFilename });
+  } catch (err) {
+    console.error('save_svg failed', err);
+  }
+}
+
 // Cached so the visibility handler doesn't have to re-parse on every toggle.
 let cachedDatabase: import('@dbml-view/parser').Database | null = null;
 
