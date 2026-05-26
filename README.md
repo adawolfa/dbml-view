@@ -8,7 +8,7 @@ Diagram rendering is meh, on par with all the other diagram software. But it let
 
 ## Usage
 
-- Web: <https://adawolfa.github.io/dbml-view/>
+- Web: <https://dbml.adawolfa.cz/>
 - Desktop (Windows): <https://github.com/adawolfa/dbml-view/releases>
 
 ## Develop

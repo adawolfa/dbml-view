@@ -5,8 +5,9 @@ export default defineConfig({
   root: '.',
   // Asset base path. Default '/' is correct for the desktop (Tauri) build —
   // the custom-protocol webview serves from tauri://localhost/ — and for any
-  // root-hosted browser deployment. For sub-path deployments (e.g. GitHub
-  // Pages at /dbml-view/), set VITE_BASE=/dbml-view/ in the build environment.
+  // root-hosted browser deployment (including the dbml.adawolfa.cz Pages
+  // site). For sub-path deployments, set VITE_BASE=/sub/path/ in the build
+  // environment.
   //
   // Keep this the single source of truth. Do NOT pass --base on the CLI from
   // call sites; set VITE_BASE instead so intent is explicit and visible here.

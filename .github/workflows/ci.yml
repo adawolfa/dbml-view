@@ -226,15 +226,17 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # Pages is served from `https://<user>.github.io/dbml-view/`, so vite
-      # has to emit asset URLs prefixed with /dbml-view/. The base is read by
-      # apps/web/vite.config.ts from VITE_BASE (default '/' — used by the
-      # desktop build) — don't pass --base on the CLI, set the env var here
-      # so intent is visible in the single source of truth.
+      # Pages is served from https://dbml.adawolfa.cz/ (custom domain set on
+      # the repo, CNAME also written into the artifact below). Root-hosted,
+      # so VITE_BASE stays at its '/' default — see apps/web/vite.config.ts.
       - name: Build web app for Pages
-        env:
-          VITE_BASE: /dbml-view/
         run: pnpm --filter @dbml-view/web build
+
+      # GitHub Pages reads the CNAME file from the published artifact to know
+      # which custom domain to serve. The repo-level Pages → Custom domain
+      # setting also has to match (set via `gh api ... pages -f cname=...`).
+      - name: Write CNAME for custom domain
+        run: echo 'dbml.adawolfa.cz' > apps/web/dist/CNAME
 
       - uses: actions/configure-pages@v6
 
