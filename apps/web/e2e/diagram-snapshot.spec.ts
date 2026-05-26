@@ -6,9 +6,13 @@ import { expect, test } from '@playwright/test';
 // `pnpm test:e2e --update-snapshots`.
 //
 // The snapshots are sensitive to font metrics (table widths drive layout), so
-// the baselines are tied to the OS the test was first run on. If you see
-// unexpected diffs on a different machine, regenerate locally rather than
-// fighting sub-pixel drift.
+// the baselines are tied to the OS the test was first run on. Per-OS
+// snapshots are committed for both Windows (the dev/desktop target) and
+// Linux (CI); Playwright suffixes the filename with `-chromium-<platform>`,
+// so the two never collide. Regenerate the Linux baseline by running the
+// suite inside the matching Playwright Docker image (see
+// `scripts/update-linux-snapshots.sh`) — don't rely on the host's font
+// stack for it.
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {

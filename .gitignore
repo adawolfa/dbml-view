@@ -16,6 +16,10 @@ apps/web/test-results/
 apps/web/playwright-report/
 apps/web/.playwright/
 
+# pnpm store created when scripts/update-linux-snapshots.sh runs pnpm inside
+# the Playwright container (no writable HOME-relative default available).
+.pnpm-store/
+
 # IDE
 .idea/
 .vscode/

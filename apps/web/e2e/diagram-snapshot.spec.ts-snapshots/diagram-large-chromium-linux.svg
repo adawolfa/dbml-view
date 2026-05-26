@@ -1,0 +1,402 @@
+<svg class="dv-edges" data-edges="" xmlns="http://www.w3.org/2000/svg" width="2880" height="2819" viewBox="0 0 2880 2819">
+<g class="dv-edge-group" data-edge-id="0" data-from-table="auth.users" data-to-table="auth.credentials" data-from-column="auth.users.id" data-to-column="auth.credentials.user_id">
+<path d="M 2612 2033 H 2618 A 6 6 0 0 1 2624 2039 V 2117 A 4 4 0 0 0 2628 2121 H 2632" class="dv-edge-hit">
+</path>
+<path d="M 2612 2033 H 2618 A 6 6 0 0 1 2624 2039 V 2117 A 4 4 0 0 0 2628 2121 H 2632" class="dv-edge">
+</path>
+<circle cx="2607" cy="2032" r="3" class="dv-marker dv-marker-one">
+</circle>
+<polygon points="2632,2121 2623,2117 2623,2125" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="1" data-from-table="auth.sessions" data-to-table="auth.users" data-from-column="auth.sessions.user_id" data-to-column="auth.users.id">
+<path d="M 2292 2028 H 2306 A 6 6 0 0 0 2318 2028 H 2354 A 6 6 0 0 0 2366 2028 H 2406 A 2 2 0 0 1 2408 2030 V 2031 A 2 2 0 0 0 2410 2033 H 2412" class="dv-edge-hit">
+</path>
+<path d="M 2292 2028 H 2306 A 6 6 0 0 0 2318 2028 H 2354 A 6 6 0 0 0 2366 2028 H 2406 A 2 2 0 0 1 2408 2030 V 2031 A 2 2 0 0 0 2410 2033 H 2412" class="dv-edge">
+</path>
+<polygon points="2292,2028 2282,2023 2282,2033" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="2412,2032 2403,2028 2403,2036" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="2" data-from-table="auth.api_keys" data-to-table="auth.users" data-from-column="auth.api_keys.user_id" data-to-column="auth.users.id">
+<path d="M 2292 1676 H 2306 A 6 6 0 0 0 2318 1676 H 2352 A 8 8 0 0 1 2360 1684 V 2025 A 8 8 0 0 0 2368 2033 H 2412" class="dv-edge-hit">
+</path>
+<path d="M 2292 1676 H 2306 A 6 6 0 0 0 2318 1676 H 2352 A 8 8 0 0 1 2360 1684 V 2025 A 8 8 0 0 0 2368 2033 H 2412" class="dv-edge">
+</path>
+<polygon points="2292,1676 2282,1671 2282,1681" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="2412,2032 2403,2028 2403,2036" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="3" data-from-table="auth.user_roles" data-to-table="auth.users" data-from-column="auth.user_roles.user_id" data-to-column="auth.users.id">
+<path d="M 2292 1482 H 2304 A 8 8 0 0 1 2312 1490 V 2025 A 8 8 0 0 0 2320 2033 H 2412" class="dv-edge-hit">
+</path>
+<path d="M 2292 1482 H 2304 A 8 8 0 0 1 2312 1490 V 2025 A 8 8 0 0 0 2320 2033 H 2412" class="dv-edge">
+</path>
+<polygon points="2292,1482 2282,1477 2282,1487" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="2412,2032 2403,2028 2403,2036" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="4" data-from-table="auth.user_roles" data-to-table="auth.roles" data-from-column="auth.user_roles.role_id" data-to-column="auth.roles.id">
+<path d="M 2292 1508 H 2306 A 6 6 0 0 0 2318 1508 H 2400 A 8 8 0 0 1 2408 1516 V 1888 A 2 2 0 0 0 2410 1890 H 2412" class="dv-edge-hit">
+</path>
+<path d="M 2292 1508 H 2306 A 6 6 0 0 0 2318 1508 H 2400 A 8 8 0 0 1 2408 1516 V 1888 A 2 2 0 0 0 2410 1890 H 2412" class="dv-edge">
+</path>
+<polygon points="2292,1508 2282,1503 2282,1513" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="2412,1889 2403,1885 2403,1893" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="5" data-from-table="auth.user_roles" data-to-table="auth.users" data-from-column="auth.user_roles.granted_by" data-to-column="auth.users.id">
+<path d="M 2292 1533 H 2306 A 6 6 0 0 0 2318 1533 H 2402 A 6 6 0 0 0 2414 1533 H 2616 A 8 8 0 0 1 2624 1541 V 2025 A 8 8 0 0 1 2616 2033 H 2412" class="dv-edge-hit">
+</path>
+<path d="M 2292 1533 H 2306 A 6 6 0 0 0 2318 1533 H 2402 A 6 6 0 0 0 2414 1533 H 2616 A 8 8 0 0 1 2624 1541 V 2025 A 8 8 0 0 1 2616 2033 H 2412" class="dv-edge">
+</path>
+<polygon points="2292,1533 2282,1528 2282,1538" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="2412,2032 2403,2028 2403,2036" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="6" data-from-table="shop.categories" data-to-table="shop.categories" data-from-column="shop.categories.parent_id" data-to-column="shop.categories.id">
+<path d="M 1830 273 H 1870 A 8 8 0 0 0 1878 265 V 255 A 8 8 0 0 0 1870 247 H 1830" class="dv-edge-hit">
+</path>
+<path d="M 1830 273 H 1870 A 8 8 0 0 0 1878 265 V 255 A 8 8 0 0 0 1870 247 H 1830" class="dv-edge">
+</path>
+<polygon points="1830,273 1820,268 1820,278" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="1830,247 1839,243 1839,251" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="7" data-from-table="shop.products" data-to-table="shop.categories" data-from-column="shop.products.category_id" data-to-column="shop.categories.id">
+<path d="M 1610 235 H 1613 A 3 3 0 0 1 1616 238 V 241 A 6 6 0 0 0 1622 247 H 1630" class="dv-edge-hit">
+</path>
+<path d="M 1610 235 H 1613 A 3 3 0 0 1 1616 238 V 241 A 6 6 0 0 0 1622 247 H 1630" class="dv-edge">
+</path>
+<polygon points="1610,234 1600,229 1600,239" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="1630,247 1621,243 1621,251" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="8" data-from-table="shop.product_variants" data-to-table="shop.products" data-from-column="shop.product_variants.product_id" data-to-column="shop.products.id">
+<path d="M 1390 218 H 1357 A 5 5 0 0 1 1352 213 V 213 A 5 5 0 0 1 1357 209 H 1410" class="dv-edge-hit">
+</path>
+<path d="M 1390 218 H 1357 A 5 5 0 0 1 1352 213 V 213 A 5 5 0 0 1 1357 209 H 1410" class="dv-edge">
+</path>
+<polygon points="1390,218 1380,213 1380,223" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="1410,208 1401,204 1401,212" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="9" data-from-table="shop.prices" data-to-table="shop.product_variants" data-from-column="shop.prices.variant_id" data-to-column="shop.product_variants.id">
+<path d="M 1150 415 H 1155 A 5 5 0 0 0 1160 410 V 200 A 8 8 0 0 1 1168 192 H 1190" class="dv-edge-hit">
+</path>
+<path d="M 1150 415 H 1155 A 5 5 0 0 0 1160 410 V 200 A 8 8 0 0 1 1168 192 H 1190" class="dv-edge">
+</path>
+<polygon points="1150,415 1140,410 1140,420" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="1190,192 1181,188 1181,196" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="10" data-from-table="shop.product_images" data-to-table="shop.product_variants" data-from-column="shop.product_images.variant_id" data-to-column="shop.product_variants.id">
+<path d="M 1150 143 H 1120 A 8 8 0 0 0 1112 151 V 184 A 8 8 0 0 0 1120 192 H 1190" class="dv-edge-hit">
+</path>
+<path d="M 1150 143 H 1120 A 8 8 0 0 0 1112 151 V 184 A 8 8 0 0 0 1120 192 H 1190" class="dv-edge">
+</path>
+<polygon points="1150,143 1140,138 1140,148" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="1190,192 1181,188 1181,196" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="11" data-from-table="shop.addresses" data-to-table="auth.users" data-from-column="shop.addresses.user_id" data-to-column="auth.users.id">
+<path d="M 1610 597 H 1850 A 6 6 0 0 0 1862 597 H 1992 A 8 8 0 0 1 2000 605 V 2025 A 8 8 0 0 0 2008 2033 H 2412" class="dv-edge-hit">
+</path>
+<path d="M 1610 597 H 1850 A 6 6 0 0 0 1862 597 H 1992 A 8 8 0 0 1 2000 605 V 2025 A 8 8 0 0 0 2008 2033 H 2412" class="dv-edge">
+</path>
+<polygon points="1610,596 1600,591 1600,601" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="2412,2032 2403,2028 2403,2036" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="12" data-from-table="shop.orders" data-to-table="shop.coupons" data-from-column="shop.orders.coupon_id" data-to-column="shop.coupons.id">
+<path d="M 1390 746 H 1395 A 5 5 0 0 1 1400 751 V 1028 A 5 5 0 0 0 1405 1033 H 1410" class="dv-edge-hit">
+</path>
+<path d="M 1390 746 H 1395 A 5 5 0 0 1 1400 751 V 1028 A 5 5 0 0 0 1405 1033 H 1410" class="dv-edge">
+</path>
+<polygon points="1390,746 1380,741 1380,751" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="1410,1033 1401,1029 1401,1037" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="13" data-from-table="shop.coupon_usages" data-to-table="shop.coupons" data-from-column="shop.coupon_usages.coupon_id" data-to-column="shop.coupons.id">
+<path d="M 1150 1152 H 1226 A 6 6 0 0 0 1238 1152 H 1272 A 8 8 0 0 0 1280 1144 V 1041 A 8 8 0 0 1 1288 1033 H 1410" class="dv-edge-hit">
+</path>
+<path d="M 1150 1152 H 1226 A 6 6 0 0 0 1238 1152 H 1272 A 8 8 0 0 0 1280 1144 V 1041 A 8 8 0 0 1 1288 1033 H 1410" class="dv-edge">
+</path>
+<polygon points="1150,1152 1140,1147 1140,1157" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="1410,1033 1401,1029 1401,1037" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="14" data-from-table="shop.coupon_usages" data-to-table="shop.orders" data-from-column="shop.coupon_usages.order_id" data-to-column="shop.orders.id">
+<path d="M 1150 1178 H 1224 A 8 8 0 0 0 1232 1170 V 652 A 8 8 0 0 0 1224 644 H 1190" class="dv-edge-hit">
+</path>
+<path d="M 1150 1178 H 1224 A 8 8 0 0 0 1232 1170 V 652 A 8 8 0 0 0 1224 644 H 1190" class="dv-edge">
+</path>
+<polygon points="1150,1178 1140,1173 1140,1183" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="1190,644 1181,640 1181,648" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="15" data-from-table="shop.orders" data-to-table="auth.users" data-from-column="shop.orders.user_id" data-to-column="auth.users.id">
+<path d="M 1390 670 H 1394 A 6 6 0 0 0 1406 670 H 1442 A 6 6 0 0 0 1454 670 H 1850 A 6 6 0 0 0 1862 670 H 1896 A 8 8 0 0 1 1904 678 V 2025 A 8 8 0 0 0 1912 2033 H 2412" class="dv-edge-hit">
+</path>
+<path d="M 1390 670 H 1394 A 6 6 0 0 0 1406 670 H 1442 A 6 6 0 0 0 1454 670 H 1850 A 6 6 0 0 0 1862 670 H 1896 A 8 8 0 0 1 1904 678 V 2025 A 8 8 0 0 0 1912 2033 H 2412" class="dv-edge">
+</path>
+<polygon points="1390,670 1380,665 1380,675" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="2412,2032 2403,2028 2403,2036" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="16" data-from-table="shop.orders" data-to-table="shop.addresses" data-from-column="shop.orders.shipping_address_id" data-to-column="shop.addresses.id">
+<path d="M 1390 695 H 1395 A 5 5 0 0 0 1400 690 V 576 A 5 5 0 0 1 1405 571 H 1410" class="dv-edge-hit">
+</path>
+<path d="M 1390 695 H 1395 A 5 5 0 0 0 1400 690 V 576 A 5 5 0 0 1 1405 571 H 1410" class="dv-edge">
+</path>
+<polygon points="1390,695 1380,690 1380,700" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="1410,570 1401,566 1401,574" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="17" data-from-table="shop.orders" data-to-table="shop.addresses" data-from-column="shop.orders.billing_address_id" data-to-column="shop.addresses.id">
+<path d="M 1390 721 H 1440 A 8 8 0 0 0 1448 713 V 579 A 8 8 0 0 0 1440 571 H 1410" class="dv-edge-hit">
+</path>
+<path d="M 1390 721 H 1440 A 8 8 0 0 0 1448 713 V 579 A 8 8 0 0 0 1440 571 H 1410" class="dv-edge">
+</path>
+<polygon points="1390,721 1380,716 1380,726" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="1410,570 1401,566 1401,574" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="18" data-from-table="shop.order_items" data-to-table="shop.orders" data-from-column="shop.order_items.order_id" data-to-column="shop.orders.id">
+<path d="M 1150 609 H 1176 A 8 8 0 0 1 1184 617 V 641 A 3 3 0 0 0 1187 644 H 1190" class="dv-edge-hit">
+</path>
+<path d="M 1150 609 H 1176 A 8 8 0 0 1 1184 617 V 641 A 3 3 0 0 0 1187 644 H 1190" class="dv-edge">
+</path>
+<polygon points="1150,609 1140,604 1140,614" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="1190,644 1181,640 1181,648" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="19" data-from-table="shop.order_items" data-to-table="shop.product_variants" data-from-column="shop.order_items.variant_id" data-to-column="shop.product_variants.id">
+<path d="M 1150 635 H 1120 A 8 8 0 0 1 1112 627 V 200 A 8 8 0 0 1 1120 192 H 1190" class="dv-edge-hit">
+</path>
+<path d="M 1150 635 H 1120 A 8 8 0 0 1 1112 627 V 200 A 8 8 0 0 1 1120 192 H 1190" class="dv-edge">
+</path>
+<polygon points="1150,635 1140,630 1140,640" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="1190,192 1181,188 1181,196" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="20" data-from-table="shop.payments" data-to-table="shop.orders" data-from-column="shop.payments.order_id" data-to-column="shop.orders.id">
+<path d="M 1150 829 H 1176 A 8 8 0 0 0 1184 821 V 647 A 3 3 0 0 1 1187 644 H 1190" class="dv-edge-hit">
+</path>
+<path d="M 1150 829 H 1176 A 8 8 0 0 0 1184 821 V 647 A 3 3 0 0 1 1187 644 H 1190" class="dv-edge">
+</path>
+<polygon points="1150,829 1140,824 1140,834" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="1190,644 1181,640 1181,648" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="21" data-from-table="shop.wishlist_items" data-to-table="auth.users" data-from-column="shop.wishlist_items.user_id" data-to-column="auth.users.id">
+<path d="M 1390 465 H 1394 A 6 6 0 0 0 1406 465 H 1848 A 8 8 0 0 1 1856 473 V 2025 A 8 8 0 0 0 1864 2033 H 2412" class="dv-edge-hit">
+</path>
+<path d="M 1390 465 H 1394 A 6 6 0 0 0 1406 465 H 1848 A 8 8 0 0 1 1856 473 V 2025 A 8 8 0 0 0 1864 2033 H 2412" class="dv-edge">
+</path>
+<polygon points="1390,464 1380,459 1380,469" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="2412,2032 2403,2028 2403,2036" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="22" data-from-table="shop.wishlist_items" data-to-table="shop.products" data-from-column="shop.wishlist_items.product_id" data-to-column="shop.products.id">
+<path d="M 1390 491 H 1395 A 5 5 0 0 0 1400 486 V 214 A 5 5 0 0 1 1405 209 H 1410" class="dv-edge-hit">
+</path>
+<path d="M 1390 491 H 1395 A 5 5 0 0 0 1400 486 V 214 A 5 5 0 0 1 1405 209 H 1410" class="dv-edge">
+</path>
+<polygon points="1390,490 1380,485 1380,495" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="1410,208 1401,204 1401,212" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="23" data-from-table="auth.users" data-to-table="cms.authors" data-from-column="auth.users.id" data-to-column="cms.authors.id">
+<path d="M 2412 2033 H 2128 A 8 8 0 0 1 2120 2025 V 1447 A 8 8 0 0 0 2112 1439 H 2006 A 6 6 0 0 1 1994 1439 H 1910 A 6 6 0 0 1 1898 1439 H 1862 A 6 6 0 0 1 1850 1439 H 1830" class="dv-edge-hit">
+</path>
+<path d="M 2412 2033 H 2128 A 8 8 0 0 1 2120 2025 V 1447 A 8 8 0 0 0 2112 1439 H 2006 A 6 6 0 0 1 1994 1439 H 1910 A 6 6 0 0 1 1898 1439 H 1862 A 6 6 0 0 1 1850 1439 H 1830" class="dv-edge">
+</path>
+<circle cx="2417" cy="2032" r="3" class="dv-marker dv-marker-one">
+</circle>
+<polygon points="1830,1439 1839,1435 1839,1443" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="24" data-from-table="cms.posts" data-to-table="cms.authors" data-from-column="cms.posts.author_id" data-to-column="cms.authors.id">
+<path d="M 1610 1668 H 1632 A 8 8 0 0 0 1640 1660 V 1444 A 5 5 0 0 0 1635 1439 H 1630" class="dv-edge-hit">
+</path>
+<path d="M 1610 1668 H 1632 A 8 8 0 0 0 1640 1660 V 1444 A 5 5 0 0 0 1635 1439 H 1630" class="dv-edge">
+</path>
+<polygon points="1610,1668 1600,1663 1600,1673" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="1630,1439 1621,1435 1621,1443" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="25" data-from-table="cms.post_revisions" data-to-table="cms.posts" data-from-column="cms.post_revisions.post_id" data-to-column="cms.posts.id">
+<path d="M 1380 1757 H 1392 A 8 8 0 0 0 1400 1749 V 1647 A 5 5 0 0 1 1405 1642 H 1410" class="dv-edge-hit">
+</path>
+<path d="M 1380 1757 H 1392 A 8 8 0 0 0 1400 1749 V 1647 A 5 5 0 0 1 1405 1642 H 1410" class="dv-edge">
+</path>
+<polygon points="1380,1757 1370,1752 1370,1762" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="1410,1642 1401,1638 1401,1646" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="26" data-from-table="cms.post_revisions" data-to-table="auth.users" data-from-column="cms.post_revisions.editor_id" data-to-column="auth.users.id">
+<path d="M 1380 1782 H 1442 A 6 6 0 0 0 1454 1782 H 1850 A 6 6 0 0 0 1862 1782 H 1898 A 6 6 0 0 0 1910 1782 H 1944 A 8 8 0 0 1 1952 1790 V 2025 A 8 8 0 0 0 1960 2033 H 2412" class="dv-edge-hit">
+</path>
+<path d="M 1380 1782 H 1442 A 6 6 0 0 0 1454 1782 H 1850 A 6 6 0 0 0 1862 1782 H 1898 A 6 6 0 0 0 1910 1782 H 1944 A 8 8 0 0 1 1952 1790 V 2025 A 8 8 0 0 0 1960 2033 H 2412" class="dv-edge">
+</path>
+<polygon points="1380,1782 1370,1777 1370,1787" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="2412,2032 2403,2028 2403,2036" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="27" data-from-table="cms.post_tags" data-to-table="cms.posts" data-from-column="cms.post_tags.post_id" data-to-column="cms.posts.id">
+<path d="M 1380 1529 H 1378 A 2 2 0 0 0 1376 1531 V 1634 A 8 8 0 0 0 1384 1642 H 1410" class="dv-edge-hit">
+</path>
+<path d="M 1380 1529 H 1378 A 2 2 0 0 0 1376 1531 V 1634 A 8 8 0 0 0 1384 1642 H 1410" class="dv-edge">
+</path>
+<polygon points="1380,1529 1370,1524 1370,1534" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="1410,1642 1401,1638 1401,1646" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="28" data-from-table="cms.post_tags" data-to-table="cms.tags" data-from-column="cms.post_tags.tag_id" data-to-column="cms.tags.id">
+<path d="M 1380 1555 H 1336 A 8 8 0 0 1 1328 1547 V 1507 A 8 8 0 0 1 1336 1499 H 1410" class="dv-edge-hit">
+</path>
+<path d="M 1380 1555 H 1336 A 8 8 0 0 1 1328 1547 V 1507 A 8 8 0 0 1 1336 1499 H 1410" class="dv-edge">
+</path>
+<polygon points="1380,1555 1370,1550 1370,1560" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="1410,1499 1401,1495 1401,1503" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="29" data-from-table="cms.comments" data-to-table="cms.posts" data-from-column="cms.comments.post_id" data-to-column="cms.posts.id">
+<path d="M 1380 2002 H 1422 A 6 6 0 0 0 1434 2002 H 1440 A 8 8 0 0 0 1448 1994 V 1650 A 8 8 0 0 0 1440 1642 H 1410" class="dv-edge-hit">
+</path>
+<path d="M 1380 2002 H 1422 A 6 6 0 0 0 1434 2002 H 1440 A 8 8 0 0 0 1448 1994 V 1650 A 8 8 0 0 0 1440 1642 H 1410" class="dv-edge">
+</path>
+<polygon points="1380,2002 1370,1997 1370,2007" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="1410,1642 1401,1638 1401,1646" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="30" data-from-table="cms.comments" data-to-table="cms.comments" data-from-column="cms.comments.parent_id" data-to-column="cms.comments.id">
+<path d="M 1380 2027 H 1420 A 8 8 0 0 0 1428 2019 V 1984 A 8 8 0 0 0 1420 1976 H 1380" class="dv-edge-hit">
+</path>
+<path d="M 1380 2027 H 1420 A 8 8 0 0 0 1428 2019 V 1984 A 8 8 0 0 0 1420 1976 H 1380" class="dv-edge">
+</path>
+<polygon points="1380,2027 1370,2022 1370,2032" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="1380,1976 1389,1972 1389,1980" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="31" data-from-table="cms.comments" data-to-table="auth.users" data-from-column="cms.comments.author_id" data-to-column="auth.users.id">
+<path d="M 1380 2053 H 1896 A 8 8 0 0 0 1904 2045 V 2041 A 8 8 0 0 1 1912 2033 H 2412" class="dv-edge-hit">
+</path>
+<path d="M 1380 2053 H 1896 A 8 8 0 0 0 1904 2045 V 2041 A 8 8 0 0 1 1912 2033 H 2412" class="dv-edge">
+</path>
+<polygon points="1380,2053 1370,2048 1370,2058" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="2412,2032 2403,2028 2403,2036" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="32" data-from-table="cms.media" data-to-table="auth.users" data-from-column="cms.media.uploader_id" data-to-column="auth.users.id">
+<path d="M 1830 1633 H 1850 A 6 6 0 0 0 1862 1633 H 1898 A 6 6 0 0 0 1910 1633 H 1994 A 6 6 0 0 0 2006 1633 H 2064 A 8 8 0 0 1 2072 1641 V 2025 A 8 8 0 0 0 2080 2033 H 2412" class="dv-edge-hit">
+</path>
+<path d="M 1830 1633 H 1850 A 6 6 0 0 0 1862 1633 H 1898 A 6 6 0 0 0 1910 1633 H 1994 A 6 6 0 0 0 2006 1633 H 2064 A 8 8 0 0 1 2072 1641 V 2025 A 8 8 0 0 0 2080 2033 H 2412" class="dv-edge">
+</path>
+<polygon points="1830,1633 1820,1628 1820,1638" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="2412,2032 2403,2028 2403,2036" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="33" data-from-table="logistics.inventory" data-to-table="logistics.warehouses" data-from-column="logistics.inventory.warehouse_id" data-to-column="logistics.warehouses.id">
+<path d="M 468 830 H 466 A 2 2 0 0 0 464 832 V 923 A 8 8 0 0 0 472 931 H 488" class="dv-edge-hit">
+</path>
+<path d="M 468 830 H 466 A 2 2 0 0 0 464 832 V 923 A 8 8 0 0 0 472 931 H 488" class="dv-edge">
+</path>
+<polygon points="468,830 458,825 458,835" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="488,931 479,927 479,935" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="34" data-from-table="logistics.inventory" data-to-table="shop.product_variants" data-from-column="logistics.inventory.variant_id" data-to-column="shop.product_variants.id">
+<path d="M 468 856 H 816 A 8 8 0 0 0 824 848 V 200 A 8 8 0 0 1 832 192 H 1190" class="dv-edge-hit">
+</path>
+<path d="M 468 856 H 816 A 8 8 0 0 0 824 848 V 200 A 8 8 0 0 1 832 192 H 1190" class="dv-edge">
+</path>
+<polygon points="468,856 458,851 458,861" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="1190,192 1181,188 1181,196" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="35" data-from-table="logistics.shipments" data-to-table="shop.orders" data-from-column="logistics.shipments.order_id" data-to-column="shop.orders.id">
+<path d="M 468 1049 H 482 A 6 6 0 0 0 494 1049 H 864 A 8 8 0 0 0 872 1041 V 652 A 8 8 0 0 1 880 644 H 1190" class="dv-edge-hit">
+</path>
+<path d="M 468 1049 H 482 A 6 6 0 0 0 494 1049 H 864 A 8 8 0 0 0 872 1041 V 652 A 8 8 0 0 1 880 644 H 1190" class="dv-edge">
+</path>
+<polygon points="468,1049 458,1044 458,1054" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="1190,644 1181,640 1181,648" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="36" data-from-table="logistics.shipments" data-to-table="logistics.warehouses" data-from-column="logistics.shipments.warehouse_id" data-to-column="logistics.warehouses.id">
+<path d="M 468 1075 H 480 A 8 8 0 0 0 488 1067 V 931" class="dv-edge-hit">
+</path>
+<path d="M 468 1075 H 480 A 8 8 0 0 0 488 1067 V 931" class="dv-edge">
+</path>
+<polygon points="468,1075 458,1070 458,1080" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="488,931 479,927 479,935" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="37" data-from-table="logistics.shipment_events" data-to-table="logistics.shipments" data-from-column="logistics.shipment_events.carrier" data-to-column="logistics.shipments.carrier">
+<path d="M 248 998 H 268" class="dv-edge-hit">
+</path>
+<path d="M 248 998 H 268" class="dv-edge">
+</path>
+<polygon points="248,998 238,993 238,1003" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="268,998 259,994 259,1002" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="38" data-from-table="analytics.page_views" data-to-table="auth.users" data-from-column="analytics.page_views.user_id" data-to-column="auth.users.id">
+<path d="M 1830 2383 H 2304 A 8 8 0 0 0 2312 2375 V 2041 A 8 8 0 0 1 2320 2033 H 2412" class="dv-edge-hit">
+</path>
+<path d="M 1830 2383 H 2304 A 8 8 0 0 0 2312 2375 V 2041 A 8 8 0 0 1 2320 2033 H 2412" class="dv-edge">
+</path>
+<polygon points="1830,2383 1820,2378 1820,2388" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="2412,2032 2403,2028 2403,2036" class="dv-arrow">
+</polygon>
+</g>
+<g class="dv-edge-group" data-edge-id="39" data-from-table="analytics.events" data-to-table="auth.users" data-from-column="analytics.events.user_id" data-to-column="auth.users.id">
+<path d="M 1830 2628 H 2352 A 8 8 0 0 0 2360 2620 V 2041 A 8 8 0 0 1 2368 2033 H 2412" class="dv-edge-hit">
+</path>
+<path d="M 1830 2628 H 2352 A 8 8 0 0 0 2360 2620 V 2041 A 8 8 0 0 1 2368 2033 H 2412" class="dv-edge">
+</path>
+<polygon points="1830,2628 1820,2623 1820,2633" class="dv-marker dv-marker-many">
+</polygon>
+<polygon points="2412,2032 2403,2028 2403,2036" class="dv-arrow">
+</polygon>
+</g>
+</svg>
