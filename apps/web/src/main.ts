@@ -123,6 +123,9 @@ registerComponents();
 // component render methods (view toggles, file button initial state, dropzone).
 initTranslations();
 
+// Initialise the dropdown trigger's disabled state (no-op in browser).
+updateFileDropdownTriggerState();
+
 // Error modal: close button and backdrop click.
 errorModalClose.addEventListener('click', () => errorModal.close());
 errorModal.addEventListener('click', (e) => {
@@ -179,24 +182,33 @@ function renderFileDropdown(): void {
   fileDropdown.replaceChildren();
   const recents = loadRecent();
   const hasRecents = recents.length > 0;
+  // In Tauri, samples are bundled assets that aren't useful to a desktop user
+  // who opens real .dbml files — they only clutter the menu. Hide them.
+  const showSamples = !isTauri;
+
+  if (hasRecents && showSamples) {
+    fileDropdown.appendChild(makeSectionLabel(t('app.file_dropdown.recent')));
+  }
+
+  for (const recent of recents) {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'file-dropdown-item';
+    item.setAttribute('role', 'menuitem');
+    item.textContent = recent.name;
+    item.title = recent.name;
+    item.addEventListener('click', () => {
+      if (applySource(recent.source, recent.name)) {
+        addToRecent(recent.name, recent.source);
+      }
+      closeFileDropdown();
+    });
+    fileDropdown.appendChild(item);
+  }
+
+  if (!showSamples) return;
 
   if (hasRecents) {
-    fileDropdown.appendChild(makeSectionLabel(t('app.file_dropdown.recent')));
-    for (const recent of recents) {
-      const item = document.createElement('button');
-      item.type = 'button';
-      item.className = 'file-dropdown-item';
-      item.setAttribute('role', 'menuitem');
-      item.textContent = recent.name;
-      item.title = recent.name;
-      item.addEventListener('click', () => {
-        if (applySource(recent.source, recent.name)) {
-          addToRecent(recent.name, recent.source);
-        }
-        closeFileDropdown();
-      });
-      fileDropdown.appendChild(item);
-    }
     const divider = document.createElement('div');
     divider.className = 'file-dropdown-divider';
     divider.setAttribute('role', 'separator');
@@ -217,6 +229,16 @@ function renderFileDropdown(): void {
     });
     fileDropdown.appendChild(item);
   }
+}
+
+/**
+ * In Tauri, the dropdown only ever lists recents (samples are hidden), so when
+ * there are no recents there's nothing to show — disable the trigger. In the
+ * browser, samples are always present, so the trigger stays enabled.
+ */
+function updateFileDropdownTriggerState(): void {
+  if (!isTauri) return;
+  fileDropdownTrigger.disabled = loadRecent().length === 0;
 }
 
 function makeSectionLabel(text: string): HTMLElement {
@@ -335,6 +357,7 @@ function addToRecent(name: string, source: string): void {
   } catch {
     // Quota / private mode — silently skip persistence.
   }
+  updateFileDropdownTriggerState();
 }
 
 function closeFileDropdown(): void {
@@ -713,10 +736,15 @@ function initTranslations(): void {
   // Dropzone — the prompt uses a {extension} placeholder so translators can
   // reorder the phrase; we substitute a <code> element here.
   const dropzoneP1 = dropzone.querySelector('p:not(.dropzone-hint)');
-  const dropzoneHint = dropzone.querySelector('.dropzone-hint');
+  const dropzoneHint = dropzone.querySelector<HTMLElement>('.dropzone-hint');
   if (dropzoneP1)
     dropzoneP1.innerHTML = t('app.dropzone.prompt', { extension: '<code>.dbml</code>' });
-  if (dropzoneHint) dropzoneHint.textContent = t('app.dropzone.hint');
+  if (dropzoneHint) {
+    // Samples aren't shown in Tauri (see renderFileDropdown), so the hint that
+    // points users at them would be misleading.
+    if (isTauri) dropzoneHint.hidden = true;
+    else dropzoneHint.textContent = t('app.dropzone.hint');
+  }
 
   // Settings dropdown.
   const settingsLabel = t('app.settings.open');
