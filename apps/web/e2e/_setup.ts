@@ -30,6 +30,26 @@ export async function loadSample(page: Page, name: string): Promise<void> {
   await page.locator('#dropzone').waitFor({ state: 'hidden' });
 }
 
+/**
+ * Pre-seed the bootstrap LS keys so the app auto-loads a file on first paint.
+ * Use this in Tauri-shell tests where the samples dropdown is hidden and
+ * `loadSample` would have nothing to click on. Must run after
+ * `installPersistentClear` so the seeded values aren't wiped.
+ */
+export async function seedInitialFile(page: Page, source: string, name: string): Promise<void> {
+  await page.addInitScript(
+    ({ source, name }) => {
+      try {
+        localStorage.setItem('dbml-view:last-source', source);
+        localStorage.setItem('dbml-view:last-name', name);
+      } catch {
+        // ignore
+      }
+    },
+    { source, name },
+  );
+}
+
 /** Switch a single view toggle on or off and wait for the pane to settle. */
 export async function setViewToggle(
   page: Page,

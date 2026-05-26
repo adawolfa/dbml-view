@@ -3,8 +3,17 @@
 //     focuses the structure-panel search, opening the panel if it was hidden.
 //   - In a plain browser, the handler bails so the native find UI is intact.
 
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
-import { installPersistentClear, loadSample, setViewToggle } from './_setup';
+import { installPersistentClear, loadSample, seedInitialFile, setViewToggle } from './_setup';
+
+const SMALL_SAMPLE_PATH = join(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../samples/small.dbml',
+);
+const SMALL_SAMPLE_SOURCE = readFileSync(SMALL_SAMPLE_PATH, 'utf-8');
 
 test.beforeEach(async ({ page }) => {
   await installPersistentClear(page);
@@ -41,11 +50,13 @@ test.describe('inside the Tauri shell', () => {
         },
       });
     });
+    // In Tauri the samples dropdown is hidden, so we can't load a sample via
+    // the UI. Pre-seed the bootstrap source so the small sample auto-loads.
+    await seedInitialFile(page, SMALL_SAMPLE_SOURCE, 'small.dbml');
   });
 
   test('Ctrl+F opens the structure panel and focuses the search input', async ({ page }) => {
     await page.goto('/');
-    await loadSample(page, 'small');
     await setViewToggle(page, 'diagram', true);
     await setViewToggle(page, 'structure', false);
     const structureToggle = page.locator('#view-toggles button[data-view="structure"]');
@@ -62,7 +73,6 @@ test.describe('inside the Tauri shell', () => {
     page,
   }) => {
     await page.goto('/');
-    await loadSample(page, 'small');
     const structureToggle = page.locator('#view-toggles button[data-view="structure"]');
     await expect(structureToggle).toHaveAttribute('aria-pressed', 'true');
 
@@ -73,7 +83,6 @@ test.describe('inside the Tauri shell', () => {
 
   test('Ctrl+F selects any existing text in the search input', async ({ page }) => {
     await page.goto('/');
-    await loadSample(page, 'small');
     await page.locator('#structure [data-search]').fill('users');
 
     // Move focus elsewhere so Ctrl+F has work to do.
