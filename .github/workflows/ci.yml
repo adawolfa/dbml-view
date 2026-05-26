@@ -1,0 +1,241 @@
+name: ci
+
+# Pipeline shape:
+#
+#   changes ──► lint-and-test (web) ──► desktop-build (Windows)
+#                       │                      │
+#                       ▼                      ▼
+#                     pages*               release*       (* tag-only)
+#
+#   Path filters decide which jobs run on a normal push/PR.
+#   Tag pushes always run the full pipeline + pages + release.
+
+on:
+  push:
+    branches: [master]
+    # Match both `v1.2.3` and bare `1.2.3` release tags.
+    tags: ['v[0-9]*', '[0-9]*']
+  pull_request:
+  workflow_dispatch: {}
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # --------------------------------------------------------------------------
+  # Detect which parts of the tree changed. The downstream `if:` expressions
+  # also check for tags / workflow_dispatch so the full pipeline still runs
+  # on releases and manual triggers regardless of paths.
+  # --------------------------------------------------------------------------
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      web: ${{ steps.filter.outputs.web }}
+      desktop: ${{ steps.filter.outputs.desktop }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            web:
+              - 'apps/web/**'
+              - 'packages/**'
+              - 'samples/**'
+              - 'scripts/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'tsconfig*.json'
+              - 'biome.json'
+              - '.github/workflows/ci.yml'
+            desktop:
+              - 'apps/desktop/**'
+              - 'apps/web/**'
+              - 'packages/**'
+              - 'scripts/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'tsconfig*.json'
+              - '.github/workflows/ci.yml'
+
+  # --------------------------------------------------------------------------
+  # Lint + typecheck + Playwright E2E. Required gate before anything else.
+  # --------------------------------------------------------------------------
+  lint-and-test:
+    needs: changes
+    if: |
+      needs.changes.outputs.web == 'true' ||
+      needs.changes.outputs.desktop == 'true' ||
+      startsWith(github.ref, 'refs/tags/') ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # version.mjs walks `git describe` — needs full history for tag resolution.
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm lint
+
+      - run: pnpm typecheck
+
+      - name: Install Playwright browser
+        run: pnpm --filter @dbml-view/web exec playwright install --with-deps chromium
+
+      - run: pnpm test:e2e
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # --------------------------------------------------------------------------
+  # Tauri desktop build on Windows. Doubles as both:
+  #   - verification job for desktop-touching PRs / pushes
+  #   - producer of the release artifacts consumed by `release`
+  # Skips if only web-only files changed (and no tag / manual trigger).
+  # --------------------------------------------------------------------------
+  desktop-build:
+    needs: [changes, lint-and-test]
+    if: |
+      needs.changes.outputs.desktop == 'true' ||
+      startsWith(github.ref, 'refs/tags/') ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache Cargo registry & target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            apps/desktop/src-tauri/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('apps/desktop/src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm --filter @dbml-view/desktop build
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dbml-view-windows
+          path: |
+            apps/desktop/src-tauri/target/release/DBMLView.exe
+            apps/desktop/src-tauri/target/release/bundle/msi/*.msi
+            apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
+
+  # --------------------------------------------------------------------------
+  # Tag-only: publish the GitHub release with the Windows artifacts.
+  # --------------------------------------------------------------------------
+  release:
+    needs: [lint-and-test, desktop-build]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dbml-view-windows
+          path: artifacts
+
+      - name: Stage release files
+        run: |
+          mkdir -p release
+          # Standalone unpackaged binary.
+          cp artifacts/DBMLView.exe release/
+          # Installers (msi + NSIS exe).
+          cp artifacts/bundle/msi/*.msi release/
+          cp artifacts/bundle/nsis/*.exe release/
+          ls -la release/
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: release/*
+
+  # --------------------------------------------------------------------------
+  # Tag-only: build the web app and deploy it to GitHub Pages.
+  # --------------------------------------------------------------------------
+  pages:
+    needs: lint-and-test
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      # Pages is served from `https://<user>.github.io/dbml-view/`, so vite
+      # has to emit asset URLs prefixed with /dbml-view/.
+      - name: Build web app for Pages
+        run: pnpm --filter @dbml-view/web exec vite build --base=/dbml-view/
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/web/dist
+
+      - id: deploy
+        uses: actions/deploy-pages@v4
