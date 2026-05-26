@@ -227,9 +227,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       # Pages is served from `https://<user>.github.io/dbml-view/`, so vite
-      # has to emit asset URLs prefixed with /dbml-view/.
+      # has to emit asset URLs prefixed with /dbml-view/. The base is read by
+      # apps/web/vite.config.ts from VITE_BASE (default '/' — used by the
+      # desktop build) — don't pass --base on the CLI, set the env var here
+      # so intent is visible in the single source of truth.
       - name: Build web app for Pages
-        run: pnpm --filter @dbml-view/web exec vite build --base=/dbml-view/
+        env:
+          VITE_BASE: /dbml-view/
+        run: pnpm --filter @dbml-view/web build
 
       - uses: actions/configure-pages@v5
 
