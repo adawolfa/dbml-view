@@ -32,6 +32,7 @@ import {
   otherEndpointOf,
   type RefEntry,
   relationArrow,
+  relationOwnerColor,
   type Selection,
   scrollBehavior,
   searchMatch,
@@ -663,7 +664,11 @@ export class DbmlStructureElement extends HTMLElement {
     const fieldsStr = `(${selfEnd.fieldNames.join(', ')})`;
     const fieldsIndices = q !== '' ? searchMatch(fieldsStr, q) : null;
     const fieldsHtml = highlightHtml(fieldsStr, fieldsIndices);
-    const arrowStyle = entry.ref.color ? ` style="color: ${escapeAttr(entry.ref.color)}"` : '';
+    // Inherit the FK-side (owning) table's headerColor when the ref doesn't
+    // declare its own — matches what the diagram does.
+    const ownerColor = relationOwnerColor(entry.ref, this.database);
+    const arrowColor = entry.ref.color ?? ownerColor;
+    const arrowStyle = arrowColor ? ` style="color: ${escapeAttr(arrowColor)}"` : '';
     return `
       <li>
         <button

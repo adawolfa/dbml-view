@@ -344,14 +344,28 @@ export function reroute(
 ): LayoutResult {
   const knownIds = new Set(positions.keys());
 
-  const renderedRefs: { ref: Ref; from: RefEndpoint; to: RefEndpoint }[] = [];
+  // Per-table headerColor lookup — a ref without an explicit `[color: #…]`
+  // inherits the color of its owning (FK-side) table so colored tables read
+  // as colored clusters in the diagram.
+  const headerColors = new Map<string, string>();
+  for (const t of db.tables) {
+    if (t.headerColor) headerColors.set(tableId(t), t.headerColor);
+  }
+
+  const renderedRefs: { ref: Ref; from: RefEndpoint; to: RefEndpoint; fromColor: string | null }[] =
+    [];
   for (const ref of db.refs) {
     const [a, b] = ref.endpoints;
     if (!a || !b) continue;
     if (!knownIds.has(endpointTableId(a)) || !knownIds.has(endpointTableId(b))) continue;
     const fromSide: RefEndpoint = a.relation === '*' || b.relation !== '*' ? a : b;
     const toSide: RefEndpoint = fromSide === a ? b : a;
-    renderedRefs.push({ ref, from: fromSide, to: toSide });
+    renderedRefs.push({
+      ref,
+      from: fromSide,
+      to: toSide,
+      fromColor: headerColors.get(endpointTableId(fromSide)) ?? null,
+    });
   }
 
   const tables = [...positions.values()];
@@ -614,7 +628,7 @@ type RawRoute = {
 
 function computeRawRoute(
   edgeId: string,
-  entry: { ref: Ref; from: RefEndpoint; to: RefEndpoint },
+  entry: { ref: Ref; from: RefEndpoint; to: RefEndpoint; fromColor: string | null },
   positions: Map<string, PositionedTable>,
   measures: Map<string, TableMeasure>,
 ): RawRoute | null {
@@ -686,7 +700,7 @@ function computeRawRoute(
     midX,
     isSelf,
     selfTable: isSelf ? fromPos : null,
-    color: entry.ref.color ?? null,
+    color: entry.ref.color ?? entry.fromColor ?? null,
   };
 }
 

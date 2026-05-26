@@ -216,6 +216,22 @@ export function indexRefsByTable(db: Database): Map<string, RefEntry[]> {
   return out;
 }
 
+/**
+ * Color a relation inherits from its owning table when no explicit `[color: #…]`
+ * is set on the Ref. The owning table is the FK-holder (cardinality `*`); when
+ * neither side is `*` (e.g. a 1-1 link), fall back to the first endpoint, which
+ * mirrors what the diagram does. Returns `null` when no headerColor is in play.
+ */
+export function relationOwnerColor(ref: Ref, db: Database | null): string | null {
+  if (!db) return null;
+  const [a, b] = ref.endpoints;
+  if (!a || !b) return null;
+  const owner = a.relation === '*' || b.relation !== '*' ? a : b;
+  const ownerId = endpointTableId(owner);
+  const table = db.tables.find((t) => tableId(t) === ownerId);
+  return table?.headerColor ?? null;
+}
+
 /** Pick the endpoint that isn't `selfEnd`. Works for self-refs since we
  * compare by identity, not table id. */
 export function otherEndpointOf(
