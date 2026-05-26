@@ -152,6 +152,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
+      # Bundle filenames embed the version (`DBMLView_X.Y.Z_x64_en-US.msi`), so
+      # if the cache restores artifacts produced at a different version, the new
+      # build adds files alongside them and both sets get uploaded. Wipe the
+      # bundle dir so only fresh artifacts ship.
+      - name: Clean stale bundle artifacts from cache
+        shell: pwsh
+        run: |
+          $bundle = 'apps/desktop/src-tauri/target/release/bundle'
+          if (Test-Path $bundle) { Remove-Item -Recurse -Force $bundle }
+
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm --filter @dbml-view/desktop build
@@ -182,13 +192,18 @@ jobs:
           path: artifacts
 
       - name: Stage release files
+        env:
+          # Strip a leading `v` so both `v1.2.3` and `1.2.3` tags work.
+          VERSION: ${{ github.ref_name }}
         run: |
+          VERSION="${VERSION#v}"
           mkdir -p release
           # Standalone unpackaged binary.
           cp artifacts/DBMLView.exe release/
-          # Installers (msi + NSIS exe).
-          cp artifacts/bundle/msi/*.msi release/
-          cp artifacts/bundle/nsis/*.exe release/
+          # Installers — match on the exact tagged version so a stale cached
+          # bundle from a different version can't sneak into the release.
+          cp "artifacts/bundle/msi/DBMLView_${VERSION}_x64_en-US.msi" release/
+          cp "artifacts/bundle/nsis/DBMLView_${VERSION}_x64-setup.exe" release/
           ls -la release/
 
       - uses: softprops/action-gh-release@v3
