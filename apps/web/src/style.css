@@ -174,7 +174,8 @@ body {
   position: absolute;
   top: calc(100% + 3px);
   left: 0;
-  min-width: 100%;
+  min-width: 260px;
+  max-width: 420px;
   background: var(--app-surface);
   border: 1px solid var(--app-border-strong);
   box-shadow: var(--app-shadow-4);
@@ -183,8 +184,7 @@ body {
 }
 
 .file-dropdown-item {
-  display: flex;
-  align-items: center;
+  display: block;
   width: 100%;
   padding: 0.35rem 0.75rem;
   border: none;
@@ -195,6 +195,8 @@ body {
   color: var(--app-fg);
   text-align: left;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   transition: background 80ms ease;
 }
 
@@ -206,6 +208,22 @@ body {
   outline: 2px solid var(--app-accent);
   outline-offset: -2px;
   background: var(--app-neutral-hover);
+}
+
+.file-dropdown-section {
+  padding: 0.3rem 0.75rem 0.15rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--app-muted);
+  user-select: none;
+}
+
+.file-dropdown-divider {
+  height: 1px;
+  background: var(--app-border);
+  margin: 3px 0;
 }
 
 /* View toggle button group — segmented, independent on/off, at least one always on. */

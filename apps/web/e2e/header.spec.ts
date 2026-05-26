@@ -64,9 +64,9 @@ test.describe('file group', () => {
     await loadSample(page, 'small');
     await page.locator('#file-dropdown-trigger').click();
     await expect(page.locator('#file-dropdown')).toBeVisible();
-    // The structure search input is always visible after load and clearly
-    // outside the file-group.
-    await page.locator('#structure [data-search]').click();
+    // Click well to the right of the file-group and below the header — past
+    // the dropdown's projection — so the document outside-click handler fires.
+    await page.mouse.click(700, 400);
     await expect(page.locator('#file-dropdown')).toBeHidden();
     await expect(page.locator('#file-dropdown-trigger')).toHaveAttribute('aria-expanded', 'false');
   });
@@ -131,6 +131,119 @@ test.describe('file group', () => {
     await expect(page.locator('#dropzone')).toBeHidden();
     await expect(page.locator('#file-button-label')).toHaveText('my_app');
     expect(await page.title()).toBe('my_app');
+  });
+});
+
+test.describe('recent files', () => {
+  /** Upload an inline .dbml via the hidden file input. */
+  const uploadInline = async (
+    page: import('@playwright/test').Page,
+    name: string,
+    body = 'Table t { id integer [pk] }\n',
+  ): Promise<void> => {
+    await page
+      .locator('#file-input')
+      .setInputFiles({ name, mimeType: 'text/plain', buffer: Buffer.from(body) });
+    await expect(page.locator('#file-button-label')).toHaveText(name);
+  };
+
+  test('no recents → dropdown shows samples only (no section headers)', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('#file-dropdown-trigger').click();
+    await expect(page.locator('#file-dropdown')).toBeVisible();
+    await expect(page.locator('#file-dropdown .file-dropdown-section')).toHaveCount(0);
+    await expect(page.locator('#file-dropdown .file-dropdown-divider')).toHaveCount(0);
+  });
+
+  test('uploading a file adds it to recents under a "Recent" section', async ({ page }) => {
+    await page.goto('/');
+    await uploadInline(page, 'first.dbml');
+
+    await page.locator('#file-dropdown-trigger').click();
+    const dropdown = page.locator('#file-dropdown');
+    await expect(dropdown).toBeVisible();
+    // Section headers + divider appear once a recent is present.
+    await expect(dropdown.locator('.file-dropdown-section').nth(0)).toHaveText('Recent');
+    await expect(dropdown.locator('.file-dropdown-section').nth(1)).toHaveText('Samples');
+    await expect(dropdown.locator('.file-dropdown-divider')).toHaveCount(1);
+    // First .file-dropdown-item under the dropdown is the most recent file.
+    await expect(dropdown.locator('.file-dropdown-item').first()).toHaveText('first.dbml');
+  });
+
+  test('loading a sample does not add it to recents', async ({ page }) => {
+    await page.goto('/');
+    await loadSample(page, 'small');
+    await page.locator('#file-dropdown-trigger').click();
+    await expect(page.locator('#file-dropdown .file-dropdown-section')).toHaveCount(0);
+  });
+
+  test('clicking a recent re-opens it and bumps it to the top', async ({ page }) => {
+    await page.goto('/');
+    await uploadInline(page, 'alpha.dbml');
+    await uploadInline(page, 'beta.dbml');
+    await uploadInline(page, 'gamma.dbml');
+
+    // Recents are most-recent-first; load a sample so we can verify the re-open.
+    await loadSample(page, 'small');
+    await expect(page.locator('#file-button-label')).toHaveText('small.dbml');
+
+    await page.locator('#file-dropdown-trigger').click();
+    // Click "alpha.dbml" — the oldest of the three.
+    await page.locator('#file-dropdown .file-dropdown-item', { hasText: /^alpha\.dbml$/ }).click();
+    await expect(page.locator('#file-button-label')).toHaveText('alpha.dbml');
+
+    // Re-open: alpha is now first; the section labels and order reflect the bump.
+    await page.locator('#file-dropdown-trigger').click();
+    const recents = page
+      .locator('#file-dropdown')
+      .locator('.file-dropdown-item')
+      .filter({ hasText: /\.dbml$/ });
+    await expect(recents.nth(0)).toHaveText('alpha.dbml');
+    await expect(recents.nth(1)).toHaveText('gamma.dbml');
+    await expect(recents.nth(2)).toHaveText('beta.dbml');
+  });
+
+  test('recents are capped at 5, oldest evicted', async ({ page }) => {
+    await page.goto('/');
+    for (const name of ['a.dbml', 'b.dbml', 'c.dbml', 'd.dbml', 'e.dbml', 'f.dbml']) {
+      await uploadInline(page, name);
+    }
+
+    await page.locator('#file-dropdown-trigger').click();
+    const recents = page
+      .locator('#file-dropdown')
+      .locator('.file-dropdown-item')
+      .filter({ hasText: /\.dbml$/ });
+    await expect(recents).toHaveCount(5);
+    const names = await recents.allTextContents();
+    expect(names).toEqual(['f.dbml', 'e.dbml', 'd.dbml', 'c.dbml', 'b.dbml']);
+  });
+
+  test('parse error does not add the file to recents', async ({ page }) => {
+    await page.goto('/');
+    await page
+      .locator('#file-input')
+      .setInputFiles({ name: 'broken.dbml', mimeType: 'text/plain', buffer: Buffer.from('@@@') });
+    await expect(page.locator('#error-modal')).toBeVisible();
+    await page.locator('#error-modal-close').click();
+
+    await page.locator('#file-dropdown-trigger').click();
+    await expect(page.locator('#file-dropdown .file-dropdown-section')).toHaveCount(0);
+  });
+
+  test('dropdown is wider than the open button so long names fit', async ({ page }) => {
+    await page.goto('/');
+    // Measure with the default "Open" label so the file-group is at its narrow
+    // resting width — otherwise a long filename could push the button group
+    // close to the dropdown's max-width and defeat the comparison.
+    await page.locator('#file-dropdown-trigger').click();
+    const dropdownBox = await page.locator('#file-dropdown').boundingBox();
+    const groupBox = await page.locator('.file-group').boundingBox();
+    expect(dropdownBox).not.toBeNull();
+    expect(groupBox).not.toBeNull();
+    expect(dropdownBox!.width).toBeGreaterThan(groupBox!.width);
+    // And at least the design min-width — enough room for typical filenames.
+    expect(dropdownBox!.width).toBeGreaterThanOrEqual(260);
   });
 });
 

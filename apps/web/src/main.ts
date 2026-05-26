@@ -32,6 +32,11 @@ const LS_FONT_KEY = 'dbml-view:font';
 const LS_PANEL_WIDTH_PREFIX = 'dbml-view:panel-width:';
 /** Hidden-from-diagram state, keyed by file label so two files don't bleed. */
 const LS_HIDDEN_PREFIX = 'dbml-view:hidden:';
+/** Last 5 user-opened files (drop, picker, URL, Tauri). Samples are excluded. */
+const LS_RECENT_KEY = 'dbml-view:recent-files';
+const MAX_RECENT = 5;
+
+type RecentFile = { name: string; source: string; openedAt: number };
 
 type Locale = 'en' | 'cs';
 
@@ -170,19 +175,55 @@ for (const [path, source] of Object.entries(samples)) {
   if (name) samplesByName.set(name, source);
 }
 
-// Populate the samples dropdown.
-for (const [name] of samplesByName) {
-  const item = document.createElement('button');
-  item.type = 'button';
-  item.className = 'file-dropdown-item';
-  item.setAttribute('role', 'menuitem');
-  item.textContent = name.replace(/\.dbml$/, '');
-  fileDropdown.appendChild(item);
-  item.addEventListener('click', () => {
-    const source = samplesByName.get(name);
-    if (source) applySource(source, name);
-    closeFileDropdown();
-  });
+function renderFileDropdown(): void {
+  fileDropdown.replaceChildren();
+  const recents = loadRecent();
+  const hasRecents = recents.length > 0;
+
+  if (hasRecents) {
+    fileDropdown.appendChild(makeSectionLabel(t('app.file_dropdown.recent')));
+    for (const recent of recents) {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'file-dropdown-item';
+      item.setAttribute('role', 'menuitem');
+      item.textContent = recent.name;
+      item.title = recent.name;
+      item.addEventListener('click', () => {
+        if (applySource(recent.source, recent.name)) {
+          addToRecent(recent.name, recent.source);
+        }
+        closeFileDropdown();
+      });
+      fileDropdown.appendChild(item);
+    }
+    const divider = document.createElement('div');
+    divider.className = 'file-dropdown-divider';
+    divider.setAttribute('role', 'separator');
+    fileDropdown.appendChild(divider);
+    fileDropdown.appendChild(makeSectionLabel(t('app.file_dropdown.samples')));
+  }
+
+  for (const [name] of samplesByName) {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'file-dropdown-item';
+    item.setAttribute('role', 'menuitem');
+    item.textContent = name.replace(/\.dbml$/, '');
+    item.addEventListener('click', () => {
+      const source = samplesByName.get(name);
+      if (source) applySource(source, name);
+      closeFileDropdown();
+    });
+    fileDropdown.appendChild(item);
+  }
+}
+
+function makeSectionLabel(text: string): HTMLElement {
+  const el = document.createElement('div');
+  el.className = 'file-dropdown-section';
+  el.textContent = text;
+  return el;
 }
 
 fileDropdownTrigger.addEventListener('click', () => {
@@ -255,8 +296,45 @@ document.addEventListener('keydown', (event) => {
 });
 
 function openFileDropdown(): void {
+  renderFileDropdown();
   fileDropdown.hidden = false;
   fileDropdownTrigger.setAttribute('aria-expanded', 'true');
+}
+
+function loadRecent(): RecentFile[] {
+  try {
+    const raw = localStorage.getItem(LS_RECENT_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    const valid: RecentFile[] = [];
+    for (const entry of parsed) {
+      if (
+        entry &&
+        typeof entry === 'object' &&
+        typeof (entry as RecentFile).name === 'string' &&
+        typeof (entry as RecentFile).source === 'string' &&
+        typeof (entry as RecentFile).openedAt === 'number'
+      ) {
+        valid.push(entry as RecentFile);
+      }
+    }
+    return valid.slice(0, MAX_RECENT);
+  } catch {
+    return [];
+  }
+}
+
+function addToRecent(name: string, source: string): void {
+  const next = [
+    { name, source, openedAt: Date.now() },
+    ...loadRecent().filter((r) => r.name !== name),
+  ].slice(0, MAX_RECENT);
+  try {
+    localStorage.setItem(LS_RECENT_KEY, JSON.stringify(next));
+  } catch {
+    // Quota / private mode — silently skip persistence.
+  }
 }
 
 function closeFileDropdown(): void {
@@ -276,7 +354,7 @@ function closeSettingsDropdown(): void {
 
 async function loadFile(file: File): Promise<void> {
   const source = await file.text();
-  applySource(source, file.name);
+  if (applySource(source, file.name)) addToRecent(file.name, source);
 }
 
 async function loadUrl(url: string, label: string): Promise<void> {
@@ -284,19 +362,19 @@ async function loadUrl(url: string, label: string): Promise<void> {
     const response = await fetch(url);
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
     const source = await response.text();
-    applySource(source, label);
+    if (applySource(source, label)) addToRecent(label, source);
   } catch (err) {
     status.textContent = t('app.error.load_url', { label, message: (err as Error).message });
   }
 }
 
-function applySource(source: string, label: string): void {
+function applySource(source: string, label: string): boolean {
   const result = parseDbml(source);
   if (!result.ok) {
     // Show the error modal without touching the panels — the last valid
     // file (or the empty state) stays visible behind the modal.
     showParseErrorModal(source, result.errors);
-    return;
+    return false;
   }
   hasSource = true;
   currentFileLabel = label;
@@ -324,6 +402,7 @@ function applySource(source: string, label: string): void {
   } catch {
     // Quota / private mode — silently skip persistence.
   }
+  return true;
 }
 
 /** Show the parse-error modal with code context around each error. */
@@ -1105,11 +1184,15 @@ async function bootstrapTauri(): Promise<boolean> {
   ]);
   type Payload = { name: string; source: string };
   await listen<Payload>('dbml-open', (event) => {
-    applySource(event.payload.source, event.payload.name);
+    if (applySource(event.payload.source, event.payload.name)) {
+      addToRecent(event.payload.name, event.payload.source);
+    }
   });
   const initial = await invoke<Payload | null>('take_pending_open');
   if (initial) {
-    applySource(initial.source, initial.name);
+    if (applySource(initial.source, initial.name)) {
+      addToRecent(initial.name, initial.source);
+    }
     return true;
   }
   return false;
