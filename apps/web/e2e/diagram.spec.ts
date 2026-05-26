@@ -191,7 +191,7 @@ test('groups-toggle button is visible only when the DBML uses table groups', asy
   // The medium sample has a 'commerce' TableGroup — button must be visible.
   const toggle = page.locator('#diagram button[data-act="groups-toggle"]');
   await expect(toggle).toBeVisible();
-  await expect(toggle).toHaveAttribute('title', 'Hide group containers');
+  await expect(toggle).toHaveAttribute('title', 'Show group containers');
 
   // The small sample has no TableGroups — button must be absent from the UI.
   await loadSample(page, 'small');
