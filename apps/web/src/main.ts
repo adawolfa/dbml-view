@@ -1201,22 +1201,17 @@ window.addEventListener('resize', () => {
   }
 });
 
-// When running inside the Tauri shell, subscribe to file-open events (from
-// double-click / second-instance launches) and drain the initial argv payload.
-// Returns true if an initial file was applied — in that case we skip the
-// browser-only fallbacks (URL param, localStorage).
+// When running inside the Tauri shell, drain the initial argv payload supplied
+// by the Rust side. Returns true if an initial file was applied — in that case
+// we skip the browser-only fallbacks (URL param, localStorage).
+//
+// Each desktop launch is its own process now (no single-instance forwarding),
+// so subsequent file opens always come through this same argv → PendingOpen
+// path in a fresh window.
 async function bootstrapTauri(): Promise<boolean> {
   if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) return false;
-  const [{ invoke }, { listen }] = await Promise.all([
-    import('@tauri-apps/api/core'),
-    import('@tauri-apps/api/event'),
-  ]);
+  const { invoke } = await import('@tauri-apps/api/core');
   type Payload = { name: string; source: string };
-  await listen<Payload>('dbml-open', (event) => {
-    if (applySource(event.payload.source, event.payload.name)) {
-      addToRecent(event.payload.name, event.payload.source);
-    }
-  });
   const initial = await invoke<Payload | null>('take_pending_open');
   if (initial) {
     if (applySource(initial.source, initial.name)) {
@@ -1226,3 +1221,14 @@ async function bootstrapTauri(): Promise<boolean> {
   }
   return false;
 }
+
+// Keep the recent-files dropdown in sync across parallel desktop instances.
+// Tauri's WebView2 environment shares one user-data folder per app, so all
+// instances see the same localStorage; the `storage` event fires in every
+// OTHER same-origin context when one of them writes. Refresh the trigger's
+// disabled state and re-render the dropdown if it happens to be open.
+window.addEventListener('storage', (event) => {
+  if (event.key !== LS_RECENT_KEY) return;
+  updateFileDropdownTriggerState();
+  if (!fileDropdown.hidden) renderFileDropdown();
+});

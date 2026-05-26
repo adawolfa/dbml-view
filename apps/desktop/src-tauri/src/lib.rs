@@ -1,8 +1,6 @@
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use tauri::{Emitter, Manager};
-
 #[derive(Clone, serde::Serialize)]
 struct OpenedFile {
     name: String,
@@ -20,7 +18,10 @@ fn read_dbml<P: Into<PathBuf>>(path: P) -> Option<OpenedFile> {
     Some(OpenedFile { name, source })
 }
 
-// Holds the file passed via argv on first launch until the frontend asks for it.
+// Holds the file passed via argv on launch until the frontend asks for it.
+// Each process owns its own instance — multiple desktop windows can run in
+// parallel; recent-files state is synchronised between them via shared
+// WebView2 localStorage in the frontend.
 struct PendingOpen(Mutex<Option<OpenedFile>>);
 
 #[tauri::command]
@@ -34,14 +35,6 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
-            if let Some(payload) = args.into_iter().nth(1).and_then(read_dbml) {
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.set_focus();
-                    let _ = window.emit("dbml-open", payload);
-                }
-            }
-        }))
         .manage(PendingOpen(Mutex::new(initial)))
         .invoke_handler(tauri::generate_handler![take_pending_open])
         .run(tauri::generate_context!())
