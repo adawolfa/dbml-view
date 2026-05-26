@@ -65,6 +65,8 @@ export const cs = {
   'app.view.detail.enum': 'Výčet',
   'app.view.diagram': 'Diagram',
   'app.samples.label': 'Vzorky:',
+  'app.file_dropdown.recent': 'Nedávné',
+  'app.file_dropdown.samples': 'Vzorky',
   'app.theme.switch_to_light': 'Přepnout na světlý motiv',
   'app.theme.switch_to_dark': 'Přepnout na tmavý motiv',
   'app.dropzone.prompt': 'Přetáhněte soubor {extension} nebo klikněte pro procházení.',

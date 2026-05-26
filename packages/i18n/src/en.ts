@@ -63,6 +63,8 @@ export const en = {
   'app.view.detail.enum': 'Enum',
   'app.view.diagram': 'Diagram',
   'app.samples.label': 'Samples:',
+  'app.file_dropdown.recent': 'Recent',
+  'app.file_dropdown.samples': 'Samples',
   'app.theme.switch_to_light': 'Switch to light theme',
   'app.theme.switch_to_dark': 'Switch to dark theme',
   // The {extension} placeholder renders as a <code> element in the app shell.
