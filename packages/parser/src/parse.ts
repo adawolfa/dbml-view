@@ -1,4 +1,10 @@
-import { type CompileError, Compiler, type Database } from '@dbml/parse';
+import {
+  type CompileError,
+  Compiler,
+  type Database,
+  DEFAULT_ENTRY,
+  MemoryProjectLayout,
+} from '@dbml/parse';
 
 export type ParseError = {
   message: string;
@@ -19,15 +25,23 @@ export type ParseResult = { ok: true; db: Database } | { ok: false; errors: Pars
  * better served by seeing the error list.
  */
 export function parseDbml(source: string): ParseResult {
-  const compiler = new Compiler();
-  compiler.setSource(source);
+  // @dbml/parse v8 is project-based; for the single-file viewer we feed the
+  // source into an in-memory layout under the parser's built-in default entry.
+  const layout = new MemoryProjectLayout({ [DEFAULT_ENTRY.absolute]: source });
+  const compiler = new Compiler(layout);
 
-  const rawErrors = compiler.parse.errors();
-  if (rawErrors.length > 0) {
-    return { ok: false, errors: rawErrors.map((e) => toParseError(e, source)) };
+  const validateErrors = compiler.validateFile(DEFAULT_ENTRY).getErrors();
+  if (validateErrors.length > 0) {
+    return { ok: false, errors: validateErrors.map((e) => toParseError(e, source)) };
   }
 
-  const db = compiler.parse.rawDb();
+  const dbReport = compiler.interpretFile(DEFAULT_ENTRY);
+  const interpretErrors = dbReport.getErrors();
+  if (interpretErrors.length > 0) {
+    return { ok: false, errors: interpretErrors.map((e) => toParseError(e, source)) };
+  }
+
+  const db = dbReport.getValue();
   if (!db) {
     return {
       ok: false,

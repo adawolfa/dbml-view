@@ -3,41 +3,40 @@
 // the tree + search and emits selection-change events that the app shell wires
 // to <dbml-detail> (and the URL hash).
 
+import { t } from '@dbml-view/i18n';
 import {
   type Column,
-  DEFAULT_SCHEMA,
   type Database,
+  DEFAULT_SCHEMA,
   type Enum,
-  type Table,
   endpointTableId,
   enumId,
   hasMultipleSchemas,
   parseDbml,
+  type Table,
   tableId,
 } from '@dbml-view/parser';
 
-import { t } from '@dbml-view/i18n';
-
 import {
-  type HiddenSet,
-  type HoverState,
-  type RefEntry,
-  type Selection,
-  type TreeGroup,
   buildTree,
   computeHiddenTableIds,
   emptyHiddenSet,
   escapeAttr,
   escapeHtml,
   formatColumnType,
+  type HiddenSet,
+  type HoverState,
   highlightHtml,
   hoverStateEquals,
   indexRefsByTable,
   otherEndpointOf,
+  type RefEntry,
   relationArrow,
+  type Selection,
   scrollBehavior,
   searchMatch,
   selfEndpoint,
+  type TreeGroup,
   tableGroupKey,
 } from './shared';
 

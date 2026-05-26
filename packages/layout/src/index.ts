@@ -10,13 +10,13 @@
 // of the table.
 
 import {
-  DEFAULT_SCHEMA,
+  columnId,
   type Database,
+  DEFAULT_SCHEMA,
+  endpointTableId,
   type Ref,
   type RefEndpoint,
   type TableGroup,
-  columnId,
-  endpointTableId,
   tableId,
 } from '@dbml-view/parser';
 import ELK, { type ElkNode } from 'elkjs/lib/elk.bundled.js';

@@ -5,12 +5,17 @@ import { DbmlDetailElement, registerDetailElement } from './detail';
 import { DbmlDiagramElement, registerDiagramElement } from './diagram';
 import { DbmlStructureElement, registerStructureElement } from './structure';
 
-export { DbmlStructureElement, registerStructureElement };
-export { DbmlDetailElement, registerDetailElement };
-export { DbmlDiagramElement, registerDiagramElement };
-export type { Selection, HoverState, HiddenSet } from './shared';
+export type { HiddenSet, HoverState, Selection } from './shared';
 export { computeHiddenTableIds, emptyHiddenSet, hiddenSetIsEmpty } from './shared';
 export type { SearchActiveDetail, SearchMatch } from './structure';
+export {
+  DbmlDetailElement,
+  DbmlDiagramElement,
+  DbmlStructureElement,
+  registerDetailElement,
+  registerDiagramElement,
+  registerStructureElement,
+};
 
 /** Register all custom elements. Call this after setLocale() so that the initial
  * render uses the correct translations. */

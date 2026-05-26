@@ -1,11 +1,10 @@
 // Smoke test: parse all sample files, print a one-line summary per file.
 // Run from repo root: `node packages/parser/scripts/smoke.mjs`
-import { readFileSync, readdirSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseDbml } from '../src/parse.ts';
-import { allRefs } from '../src/types.ts';
-import { tableId } from '../src/types.ts';
+import { allRefs, tableId } from '../src/types.ts';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 const samplesDir = join(here, '..', '..', '..', 'samples');

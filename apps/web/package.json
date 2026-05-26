@@ -15,12 +15,12 @@
     "@dbml-view/components": "workspace:*",
     "@dbml-view/i18n": "workspace:*",
     "@dbml-view/parser": "workspace:*",
-    "@tauri-apps/api": "^2.1.1",
-    "@tauri-apps/plugin-opener": "^2.2.6"
+    "@tauri-apps/api": "^2.11.0",
+    "@tauri-apps/plugin-opener": "^2.5.4"
   },
   "devDependencies": {
-    "@playwright/test": "^1.49.0",
-    "@types/node": "^22.10.0",
-    "vite": "^6.0.3"
+    "@playwright/test": "^1.60.0",
+    "@types/node": "^25.9.0",
+    "vite": "^8.0.13"
   }
 }

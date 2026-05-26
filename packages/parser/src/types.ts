@@ -4,12 +4,12 @@
 // when @dbml/parse adds fields.
 
 export type {
-  Database,
-  Table,
   Column,
+  Database,
   Enum,
-  Ref,
   Project,
+  Ref,
+  Table,
   TableGroup,
   TablePartial,
 } from '@dbml/parse';

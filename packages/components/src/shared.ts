@@ -3,15 +3,15 @@
 // handful of relation-walking utilities.
 
 import {
+  allRefs,
   type Column,
-  DEFAULT_SCHEMA,
   type Database,
+  DEFAULT_SCHEMA,
   type Enum,
+  endpointTableId,
   type Ref,
   type Table,
   type TableGroup,
-  allRefs,
-  endpointTableId,
   tableId,
 } from '@dbml-view/parser';
 

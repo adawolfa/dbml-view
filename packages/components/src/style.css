@@ -48,7 +48,12 @@
   display: block;
   color: var(--dv-fg);
   background: var(--dv-bg);
-  font: 13px / 1.4 "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui,
+  font:
+    13px / 1.4 "Segoe UI Variable",
+    "Segoe UI",
+    -apple-system,
+    BlinkMacSystemFont,
+    system-ui,
     sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -112,7 +117,9 @@ dbml-structure {
   border: 1px solid var(--dv-border);
   overflow: hidden;
   background: var(--dv-rail-bg);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 0 2px rgba(0, 0, 0, 0.06);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 0 2px rgba(0, 0, 0, 0.06);
 }
 
 .dv-tree-wrap {
@@ -133,7 +140,9 @@ dbml-structure {
   align-items: center;
   background: var(--dv-input-bg);
   border-bottom: 1px solid var(--dv-border-strong);
-  transition: border-color 80ms ease, box-shadow 80ms ease;
+  transition:
+    border-color 80ms ease,
+    box-shadow 80ms ease;
 }
 
 .dv-search:hover {
@@ -213,7 +222,9 @@ dbml-structure {
   cursor: pointer;
   border-radius: 3px;
   flex-shrink: 0;
-  transition: color 80ms ease, background 80ms ease;
+  transition:
+    color 80ms ease,
+    background 80ms ease;
 }
 
 .dv-search-clear[hidden] {
@@ -492,7 +503,10 @@ dbml-structure {
   cursor: pointer;
   padding: 0;
   opacity: 0;
-  transition: opacity 80ms ease, color 80ms ease, background 80ms ease;
+  transition:
+    opacity 80ms ease,
+    color 80ms ease,
+    background 80ms ease;
   border-radius: 3px;
 }
 
@@ -568,7 +582,9 @@ dbml-detail {
   border: 1px solid var(--dv-border);
   overflow: hidden;
   background: var(--dv-bg);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 0 2px rgba(0, 0, 0, 0.06);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 0 2px rgba(0, 0, 0, 0.06);
 }
 
 .dv-pane {
@@ -820,7 +836,9 @@ dbml-diagram {
   border: 1px solid var(--dv-border);
   overflow: hidden;
   background: var(--dv-canvas-bg);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 0 2px rgba(0, 0, 0, 0.06);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 0 2px rgba(0, 0, 0, 0.06);
 }
 
 .dv-diagram-toolbar {
@@ -844,7 +862,10 @@ dbml-diagram {
   font-weight: 600;
   color: var(--dv-fg);
   min-width: 2rem;
-  transition: background 80ms ease, border-color 80ms ease, color 80ms ease;
+  transition:
+    background 80ms ease,
+    border-color 80ms ease,
+    color 80ms ease;
 }
 
 .dv-diagram-toolbar button:hover {
@@ -998,28 +1019,41 @@ dbml-diagram {
   background: var(--dv-table-bg);
   border: 1px solid var(--dv-border);
   overflow: hidden;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 0 2px rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.06),
+    0 0 2px rgba(0, 0, 0, 0.08);
   min-width: 200px;
   max-width: 320px;
-  transition: box-shadow 120ms ease, border-color 120ms ease, transform 120ms ease;
+  transition:
+    box-shadow 120ms ease,
+    border-color 120ms ease,
+    transform 120ms ease;
 }
 
 .dv-table.is-hovered {
   border-color: var(--dv-accent);
-  box-shadow: 0 4px 8px rgba(15, 108, 189, 0.16), 0 0 2px rgba(15, 108, 189, 0.2);
+  box-shadow:
+    0 4px 8px rgba(15, 108, 189, 0.16),
+    0 0 2px rgba(15, 108, 189, 0.2);
   z-index: 2;
 }
 
 .dv-table.is-selected {
   border-color: var(--dv-accent);
-  box-shadow: 0 0 0 2px var(--dv-accent-soft), 0 4px 8px rgba(15, 108, 189, 0.2);
+  box-shadow:
+    0 0 0 2px var(--dv-accent-soft),
+    0 4px 8px rgba(15, 108, 189, 0.2);
   z-index: 2;
 }
 
 .dv-table.is-dragging {
   /* Snap to the pointer without easing while a drag is active. */
-  transition: box-shadow 120ms ease, border-color 120ms ease;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.18), 0 0 0 2px var(--dv-accent-soft);
+  transition:
+    box-shadow 120ms ease,
+    border-color 120ms ease;
+  box-shadow:
+    0 8px 16px rgba(0, 0, 0, 0.18),
+    0 0 0 2px var(--dv-accent-soft);
   z-index: 3;
 }
 
@@ -1151,10 +1185,14 @@ dbml-diagram {
 /* Brief pulse on a table that was just revealed from an external selection. */
 @keyframes dv-table-reveal {
   0% {
-    box-shadow: 0 0 0 4px var(--dv-accent), 0 8px 24px rgba(15, 108, 189, 0.45);
+    box-shadow:
+      0 0 0 4px var(--dv-accent),
+      0 8px 24px rgba(15, 108, 189, 0.45);
   }
   100% {
-    box-shadow: 0 0 0 2px var(--dv-accent-soft), 0 4px 8px rgba(15, 108, 189, 0.2);
+    box-shadow:
+      0 0 0 2px var(--dv-accent-soft),
+      0 4px 8px rgba(15, 108, 189, 0.2);
   }
 }
 

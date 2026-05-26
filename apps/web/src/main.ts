@@ -4,12 +4,6 @@
 
 import '@dbml-view/components/style.css';
 
-import {
-  computeHiddenTableIds,
-  emptyHiddenSet,
-  hiddenSetIsEmpty,
-  register as registerComponents,
-} from '@dbml-view/components';
 import type {
   DbmlDetailElement,
   DbmlDiagramElement,
@@ -19,9 +13,15 @@ import type {
   SearchActiveDetail,
   Selection,
 } from '@dbml-view/components';
+import {
+  computeHiddenTableIds,
+  emptyHiddenSet,
+  hiddenSetIsEmpty,
+  register as registerComponents,
+} from '@dbml-view/components';
 import { cs, setLocale, t } from '@dbml-view/i18n';
-import { enumId, parseDbml, tableId } from '@dbml-view/parser';
 import type { ParseError } from '@dbml-view/parser';
+import { enumId, parseDbml, tableId } from '@dbml-view/parser';
 
 const LS_KEY = 'dbml-view:last-source';
 const LS_NAME_KEY = 'dbml-view:last-name';
@@ -410,7 +410,8 @@ function applySource(source: string, label: string): boolean {
   diagram.source = source;
   diagram.setHiddenTableIds(computeHiddenTableIds(result.db, hidden));
   // Prefer the project name defined in the DBML `Project` block; fall back to the file label.
-  const projectName = 'name' in result.db.project ? (result.db.project.name ?? null) : null;
+  const projectName =
+    result.db.project && 'name' in result.db.project ? (result.db.project.name ?? null) : null;
   const displayLabel = projectName ?? label;
   setFileLabel(displayLabel);
   void setWindowTitle(displayLabel);

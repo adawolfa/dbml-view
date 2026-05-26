@@ -2,33 +2,32 @@
 // table or enum. Decoupled from <dbml-structure>; the app shell forwards the
 // current selection via setSelection().
 
+import { t } from '@dbml-view/i18n';
 import {
   type Column,
-  DEFAULT_SCHEMA,
-  type Database,
-  type Enum,
-  type Table,
   columnId,
   columnUsesEnum,
+  type Database,
+  DEFAULT_SCHEMA,
+  type Enum,
   endpointTableId,
   enumId,
   hasMultipleSchemas,
   parseDbml,
+  type Table,
   tableId,
 } from '@dbml-view/parser';
 
-import { t } from '@dbml-view/i18n';
-
 import {
-  type HoverState,
-  type RefEntry,
-  type Selection,
   escapeAttr,
   escapeHtml,
   formatColumnType,
+  type HoverState,
   indexRefsByTable,
   otherEndpointOf,
+  type RefEntry,
   relationArrow,
+  type Selection,
   scrollBehavior,
   selfEndpoint,
 } from './shared';
@@ -238,11 +237,7 @@ export class DbmlDetailElement extends HTMLElement {
     if (sel.kind === 'enum') {
       const en = this.database.enums.find((e) => enumId(e) === sel.enumId);
       if (en) {
-        container.innerHTML = renderEnumDetail(
-          en,
-          findEnumUsages(this.database, en),
-          hasMultipleSchemas(this.database),
-        );
+        container.innerHTML = renderEnumDetail(en, findEnumUsages(this.database, en));
         return;
       }
     }
@@ -360,7 +355,7 @@ function renderTableDetail(
   `;
 }
 
-function renderEnumDetail(en: Enum, usages: EnumUsage[], showSchema: boolean): string {
+function renderEnumDetail(en: Enum, usages: EnumUsage[]): string {
   return `
     <header class="dv-detail-header">
       <h2 class="dv-detail-name">

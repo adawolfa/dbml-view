@@ -37,8 +37,8 @@ jobs:
       web: ${{ steps.filter.outputs.web }}
       desktop: ${{ steps.filter.outputs.desktop }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
@@ -76,18 +76,18 @@ jobs:
       github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           # version.mjs walks `git describe` — needs full history for tag resolution.
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
-          version: 9.15.0
+          version: 11.1.3
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'pnpm'
 
       - run: pnpm install --frozen-lockfile
@@ -103,7 +103,7 @@ jobs:
 
       - name: Upload Playwright report on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: apps/web/playwright-report/
@@ -124,17 +124,17 @@ jobs:
       github.event_name == 'workflow_dispatch'
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
-          version: 9.15.0
+          version: 11.1.3
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'pnpm'
 
       - uses: dtolnay/rust-toolchain@stable
@@ -142,7 +142,7 @@ jobs:
           targets: x86_64-pc-windows-msvc
 
       - name: Cache Cargo registry & target
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -157,7 +157,7 @@ jobs:
       - run: pnpm --filter @dbml-view/desktop build
 
       - name: Upload Windows artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dbml-view-windows
           path: |
@@ -176,7 +176,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: dbml-view-windows
           path: artifacts
@@ -191,7 +191,7 @@ jobs:
           cp artifacts/bundle/nsis/*.exe release/
           ls -la release/
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
           fail_on_unmatched_files: true
@@ -211,17 +211,17 @@ jobs:
       pages: write
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
-          version: 9.15.0
+          version: 11.1.3
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'pnpm'
 
       - run: pnpm install --frozen-lockfile
@@ -236,11 +236,11 @@ jobs:
           VITE_BASE: /dbml-view/
         run: pnpm --filter @dbml-view/web build
 
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: apps/web/dist
 
       - id: deploy
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

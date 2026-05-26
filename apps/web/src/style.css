@@ -53,7 +53,12 @@ body {
   margin: 0;
   background: var(--app-bg);
   color: var(--app-fg);
-  font: 14px / 1.4 "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui,
+  font:
+    14px / 1.4 "Segoe UI Variable",
+    "Segoe UI",
+    -apple-system,
+    BlinkMacSystemFont,
+    system-ui,
     sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -116,7 +121,9 @@ body {
   font-weight: 600;
   color: var(--app-fg);
   max-width: 280px;
-  transition: background 80ms ease, border-color 80ms ease;
+  transition:
+    background 80ms ease,
+    border-color 80ms ease;
 }
 
 .file-button:hover {
@@ -151,7 +158,9 @@ body {
   cursor: pointer;
   color: var(--app-muted);
   flex-shrink: 0;
-  transition: background 80ms ease, color 80ms ease;
+  transition:
+    background 80ms ease,
+    color 80ms ease;
 }
 
 .file-dropdown-trigger:hover {
@@ -247,7 +256,9 @@ body {
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--app-fg);
-  transition: background 80ms ease, color 80ms ease;
+  transition:
+    background 80ms ease,
+    color 80ms ease;
 }
 
 .view-toggles button + button {
@@ -356,7 +367,10 @@ body {
   color: var(--app-muted);
   padding: 2rem;
   text-align: center;
-  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease,
+    color 120ms ease;
 }
 
 .dropzone:hover {
@@ -398,7 +412,9 @@ body {
   height: 30px;
   cursor: pointer;
   color: var(--app-fg);
-  transition: background 80ms ease, border-color 80ms ease;
+  transition:
+    background 80ms ease,
+    border-color 80ms ease;
 }
 
 .settings-trigger:hover {
@@ -452,7 +468,9 @@ body {
   font: inherit;
   font-size: 0.85rem;
   color: var(--app-fg);
-  transition: background 80ms ease, color 80ms ease;
+  transition:
+    background 80ms ease,
+    color 80ms ease;
 }
 
 .settings-toggle-btn + .settings-toggle-btn {
@@ -604,7 +622,10 @@ body {
   height: 28px;
   cursor: pointer;
   color: var(--app-muted);
-  transition: background 80ms ease, border-color 80ms ease, color 80ms ease;
+  transition:
+    background 80ms ease,
+    border-color 80ms ease,
+    color 80ms ease;
 }
 
 .error-modal-close:hover {

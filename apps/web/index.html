@@ -11,25 +11,28 @@
     <link rel="stylesheet" href="./src/style.css" />
     <script>
       // Set initial theme and font before paint to avoid FOUC.
-      (function () {
+      (() => {
+        let stored;
+        let theme;
+        let font;
         try {
-          var stored = localStorage.getItem('dbml-view:theme');
-          var theme =
+          stored = localStorage.getItem('dbml-view:theme');
+          theme =
             stored === 'light' || stored === 'dark'
               ? stored
               : window.matchMedia('(prefers-color-scheme: dark)').matches
                 ? 'dark'
                 : 'light';
           document.documentElement.setAttribute('data-theme', theme);
-        } catch (e) {
+        } catch {
           document.documentElement.setAttribute('data-theme', 'light');
         }
         try {
-          var font = localStorage.getItem('dbml-view:font');
+          font = localStorage.getItem('dbml-view:font');
           if (font === 'proportional') {
             document.documentElement.setAttribute('data-font', 'proportional');
           }
-        } catch (e) {}
+        } catch {}
       })();
     </script>
   </head>
