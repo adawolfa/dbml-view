@@ -34,6 +34,18 @@ pub fn run() {
     let initial = std::env::args().nth(1).and_then(read_dbml);
 
     tauri::Builder::default()
+        .plugin(
+            // Restore size/position/maximized only — visibility is owned by the
+            // frontend (window starts hidden to avoid a white flash; see
+            // showTauriWindow in apps/web/src/main.ts).
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(
+                    tauri_plugin_window_state::StateFlags::SIZE
+                        | tauri_plugin_window_state::StateFlags::POSITION
+                        | tauri_plugin_window_state::StateFlags::MAXIMIZED,
+                )
+                .build(),
+        )
         .plugin(tauri_plugin_opener::init())
         .manage(PendingOpen(Mutex::new(initial)))
         .invoke_handler(tauri::generate_handler![take_pending_open])
