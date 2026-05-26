@@ -222,6 +222,72 @@ test('groups-toggle hides and restores group container elements', async ({ page 
   await expect(firstGroup).toBeVisible();
 });
 
+test('dragging the right-edge handle resizes a table horizontally', async ({ page }) => {
+  // Reset zoom so the 1:1 pixel math below holds.
+  await page.locator('#diagram button[data-act="reset"]').click();
+  const table = page.locator('#diagram .dv-table[data-table-id="shop.products"]');
+  const handle = table.locator('[data-resize-handle]');
+  await expect(handle).toHaveCount(1);
+
+  const startWidth = (await table.boundingBox())!.width;
+
+  // Drive the resize through synthetic PointerEvents so we don't depend on
+  // Chromium's hit-test routing of CDP mouse events to the 6 px handle (which
+  // proved flaky in headless mode). The component listens for pointerdown on
+  // the handle and subsequent moves on the .dv-nodes parent that captures the
+  // pointer; we dispatch in that order.
+  const finalWidth = await page.evaluate(
+    ({ deltaX }) => {
+      const handleEl = document.querySelector<HTMLElement>(
+        '#diagram .dv-table[data-table-id="shop.products"] [data-resize-handle]',
+      );
+      const nodesEl = document.querySelector<HTMLElement>('#diagram .dv-nodes');
+      const tableEl = document.querySelector<HTMLElement>(
+        '#diagram .dv-table[data-table-id="shop.products"]',
+      );
+      if (!handleEl || !nodesEl || !tableEl) return -1;
+      const r = handleEl.getBoundingClientRect();
+      const startX = r.left + r.width / 2;
+      const startY = r.top + r.height / 2;
+      const fire = (target: Element, type: string, x: number): void => {
+        target.dispatchEvent(
+          new PointerEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            composed: true,
+            pointerId: 1,
+            pointerType: 'mouse',
+            isPrimary: true,
+            clientX: x,
+            clientY: startY,
+            button: 0,
+            buttons: 1,
+          }),
+        );
+      };
+      fire(handleEl, 'pointerdown', startX);
+      return new Promise<number>((resolve) => {
+        const steps = 8;
+        let i = 1;
+        const tick = (): void => {
+          fire(nodesEl, 'pointermove', startX + (deltaX * i) / steps);
+          if (i++ < steps) {
+            requestAnimationFrame(tick);
+          } else {
+            fire(nodesEl, 'pointerup', startX + deltaX);
+            requestAnimationFrame(() => resolve(tableEl.getBoundingClientRect().width));
+          }
+        };
+        requestAnimationFrame(tick);
+      });
+    },
+    { deltaX: 120 },
+  );
+
+  // ~120 px wider, with slack for sub-pixel rendering and clamp boundaries.
+  expect(finalWidth).toBeGreaterThan(startWidth + 80);
+});
+
 test('panning the canvas via background drag changes the viewport translation', async ({
   page,
 }) => {

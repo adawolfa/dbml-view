@@ -36,6 +36,10 @@ const ZOOM_STEP = 1.2;
 const CANVAS_PADDING = 32;
 /** Pointer movement (in viewport pixels) below which a header press is treated as a click, not a drag. */
 const DRAG_THRESHOLD = 3;
+/** Bounds for the user-driven horizontal resize. Lower than the auto-measure min so the user can squeeze
+ *  long type names off-screen, and far higher than the auto max so tables can hold long column names. */
+const MIN_TABLE_WIDTH = 140;
+const MAX_TABLE_WIDTH = 800;
 
 type Viewport = { scale: number; tx: number; ty: number };
 
@@ -93,6 +97,9 @@ export class DbmlDiagramElement extends HTMLElement {
   private layoutToken = 0;
   private hideNonRelational = false;
   private hideGroups = false;
+  /** User-driven width overrides, keyed by tableId. Survive relayouts within the same database
+   *  (FK-toggle, hide/show) but are cleared on setDatabase. */
+  private widthOverrides = new Map<string, number>();
 
   connectedCallback(): void {
     if (!this.rendered) {
@@ -164,6 +171,8 @@ export class DbmlDiagramElement extends HTMLElement {
   setDatabase(db: Database): void {
     this.database = db;
     this.laidOutWhenVisible = false;
+    // New database — drop any width overrides from the previous file's tables.
+    this.widthOverrides.clear();
     if (!this.rendered) return;
     this.scheduleRelayout();
   }
@@ -226,6 +235,15 @@ export class DbmlDiagramElement extends HTMLElement {
       if (table.headerColor) {
         el.style.setProperty('--dv-table-header-color', table.headerColor);
         el.classList.add('has-header-color');
+      }
+      // Re-apply any pre-existing user resize before measuring so ELK sees the chosen width.
+      // Lifting the CSS min/max here lets the inline width actually bind to that value
+      // (the auto-measure clamps would otherwise win).
+      const override = this.widthOverrides.get(id);
+      if (override !== undefined) {
+        el.style.minWidth = '0';
+        el.style.maxWidth = 'none';
+        el.style.width = `${override}px`;
       }
       this.nodesEl.appendChild(el);
       this.tableEls.set(id, el);
@@ -518,6 +536,7 @@ export class DbmlDiagramElement extends HTMLElement {
     });
 
     this.wireTableDrag();
+    this.wireTableResize();
     this.wireGroupDrag();
 
     this.toolbarEl.addEventListener('click', (event) => {
@@ -686,6 +705,89 @@ export class DbmlDiagramElement extends HTMLElement {
     this.nodesEl.addEventListener('pointermove', onMove);
     this.nodesEl.addEventListener('pointerup', endDrag);
     this.nodesEl.addEventListener('pointercancel', endDrag);
+  }
+
+  /**
+   * Drag the right edge of a table to change its width. Mirrors {@link wireTableDrag}
+   * but starts only on the handle, scales the delta by the viewport zoom, and writes
+   * directly to positions + measures so edge re-routing picks up the new width.
+   */
+  private wireTableResize(): void {
+    let resizeId: string | null = null;
+    let resizeEl: HTMLElement | null = null;
+    let resizePointer: number | null = null;
+    let startClientX = 0;
+    let startWidth = 0;
+    let pendingFrame = false;
+    let pendingWidth = 0;
+
+    const onMove = (event: PointerEvent): void => {
+      if (resizePointer === null || event.pointerId !== resizePointer) return;
+      const scale = this.viewport.scale || 1;
+      const dx = (event.clientX - startClientX) / scale;
+      pendingWidth = clamp(startWidth + dx, MIN_TABLE_WIDTH, MAX_TABLE_WIDTH);
+      if (pendingFrame) return;
+      pendingFrame = true;
+      requestAnimationFrame(() => {
+        pendingFrame = false;
+        if (!resizeId) return;
+        const pos = this.positions.get(resizeId);
+        const measure = this.measures.get(resizeId);
+        if (!pos || !measure) return;
+        pos.width = pendingWidth;
+        measure.width = pendingWidth;
+        this.widthOverrides.set(resizeId, pendingWidth);
+        if (resizeEl) {
+          // Lift the auto-measure clamps so the inline width binds to the user's value.
+          resizeEl.style.minWidth = '0';
+          resizeEl.style.maxWidth = 'none';
+          resizeEl.style.width = `${pendingWidth}px`;
+        }
+        if (pos.groupId) this.updateGroupRect(pos.groupId);
+        this.rerouteEdges();
+      });
+    };
+
+    const endResize = (event: PointerEvent): void => {
+      if (resizePointer === null || event.pointerId !== resizePointer) return;
+      try {
+        this.nodesEl.releasePointerCapture(event.pointerId);
+      } catch {
+        // ignore — pointer wasn't captured
+      }
+      if (resizeEl) resizeEl.classList.remove('is-resizing');
+      this.canvasEl.classList.remove('is-resizing-table');
+      resizeId = null;
+      resizeEl = null;
+      resizePointer = null;
+      pendingFrame = false;
+    };
+
+    this.nodesEl.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
+      const target = event.target as HTMLElement;
+      const handle = target.closest<HTMLElement>('[data-resize-handle]');
+      if (!handle) return;
+      const tableEl = handle.closest<HTMLElement>('[data-table-id]');
+      const id = tableEl?.dataset.tableId;
+      if (!tableEl || !id) return;
+      const pos = this.positions.get(id);
+      if (!pos) return;
+      event.preventDefault();
+      // Don't let the drag-by-header handler or the viewport pan handler see this.
+      event.stopPropagation();
+      resizeId = id;
+      resizeEl = tableEl;
+      resizePointer = event.pointerId;
+      startClientX = event.clientX;
+      startWidth = pos.width;
+      tableEl.classList.add('is-resizing');
+      this.canvasEl.classList.add('is-resizing-table');
+      this.nodesEl.setPointerCapture(event.pointerId);
+    });
+    this.nodesEl.addEventListener('pointermove', onMove);
+    this.nodesEl.addEventListener('pointerup', endResize);
+    this.nodesEl.addEventListener('pointercancel', endResize);
   }
 
   /**
@@ -1327,6 +1429,7 @@ function buildTableElement(
       <span class="dv-table-name">${escapeHtml(table.name)}</span>
     </div>
     ${visibleRows}
+    <div class="dv-table-resize" data-resize-handle aria-hidden="true"></div>
   `;
   return el;
 }

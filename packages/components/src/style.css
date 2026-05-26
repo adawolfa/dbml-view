@@ -1082,6 +1082,46 @@ dbml-diagram {
   cursor: grabbing;
 }
 
+/* Right-edge resize handle. Invisible by default; a thin accent stripe appears
+   on hover/active so the affordance is discoverable without adding chrome. */
+.dv-table-resize {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  touch-action: none;
+  z-index: 1;
+  background: transparent;
+  transition: background 80ms ease;
+}
+
+.dv-table-resize:hover,
+.dv-table.is-resizing .dv-table-resize {
+  background: var(--dv-accent);
+  opacity: 0.5;
+}
+
+.dv-table.is-resizing {
+  /* Match dragging UX: snap to the pointer without easing while resize is active. */
+  transition:
+    box-shadow 120ms ease,
+    border-color 120ms ease;
+  border-color: var(--dv-accent);
+  box-shadow:
+    0 4px 8px rgba(15, 108, 189, 0.16),
+    0 0 0 2px var(--dv-accent-soft);
+  z-index: 3;
+}
+
+/* While a resize is in flight, the whole canvas keeps the ew-resize cursor so the
+   pointer doesn't flicker between cursors as it strays off the 6px handle. */
+.dv-canvas.is-resizing-table,
+.dv-canvas.is-resizing-table * {
+  cursor: ew-resize !important;
+}
+
 .dv-table-schema {
   display: block;
   font-size: 0.62rem;
