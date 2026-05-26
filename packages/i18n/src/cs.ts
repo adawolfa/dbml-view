@@ -81,4 +81,6 @@ export const cs = {
   'app.settings.language.label': 'Jazyk',
   'app.settings.font.mono': 'Mono',
   'app.settings.font.proportional': 'Sans',
+  'app.settings.github': 'GitHub',
+  'app.settings.github.title': 'Zobrazit zdrojový kód na GitHubu',
 } satisfies Translations;

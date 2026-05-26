@@ -74,6 +74,9 @@ const fontPropBtn = mustGet<HTMLButtonElement>('font-proportional');
 const fontMonoLabel = mustGet<HTMLElement>('font-mono-label');
 const fontPropLabel = mustGet<HTMLElement>('font-proportional-label');
 const langSelect = mustGet<HTMLSelectElement>('lang-select');
+const settingsVersion = mustGet<HTMLElement>('settings-version');
+const settingsGithub = mustGet<HTMLAnchorElement>('settings-github');
+const settingsGithubLabel = mustGet<HTMLElement>('settings-github-label');
 
 const errorModal = mustGet<HTMLDialogElement>('error-modal');
 const errorModalTitle = mustGet<HTMLElement>('error-modal-title');
@@ -197,6 +200,22 @@ settingsTrigger.addEventListener('click', () => {
     closeSettingsDropdown();
   }
 });
+
+// Inside the Tauri shell `target="_blank"` would either navigate the webview
+// away or be silently swallowed. Intercept and hand the URL off to the opener
+// plugin so it lands in the user's default browser. The browser SPA keeps the
+// default anchor behavior.
+if (isTauri) {
+  settingsGithub.addEventListener('click', (event) => {
+    event.preventDefault();
+    void openExternal(settingsGithub.href);
+  });
+}
+
+async function openExternal(url: string): Promise<void> {
+  const { openUrl } = await import('@tauri-apps/plugin-opener');
+  await openUrl(url);
+}
 
 document.addEventListener('click', (event) => {
   if (!fileDropdown.hidden) {
@@ -640,6 +659,13 @@ function initTranslations(): void {
   fontPropBtn.title = propLabel;
 
   langSelect.setAttribute('aria-label', t('app.settings.language.label'));
+
+  // Version + GitHub link in the settings footer. __APP_VERSION__ is injected
+  // by Vite at build time from the git tag (see scripts/version.mjs).
+  settingsVersion.textContent = __APP_VERSION__;
+  settingsGithubLabel.textContent = t('app.settings.github');
+  settingsGithub.title = t('app.settings.github.title');
+  settingsGithub.setAttribute('aria-label', t('app.settings.github.title'));
 
   errorModalClose.setAttribute('aria-label', t('app.error.parse.close'));
 }

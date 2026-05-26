@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import { version } from '../../scripts/version.mjs';
 
 export default defineConfig({
   root: '.',
@@ -15,5 +16,9 @@ export default defineConfig({
     target: 'es2022',
     outDir: 'dist',
     sourcemap: true,
+  },
+  // Surface the git-derived version to the runtime as a compile-time constant.
+  define: {
+    __APP_VERSION__: JSON.stringify(version()),
   },
 });

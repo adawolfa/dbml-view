@@ -487,6 +487,55 @@ body {
   outline-offset: -1px;
 }
 
+/* Footer row inside the settings dropdown: build version + GitHub link. */
+.settings-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.15rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--app-border);
+  font-size: 0.75rem;
+  color: var(--app-muted);
+}
+
+.settings-version {
+  font-variant-numeric: tabular-nums;
+  /* The dev-build suffix can get long (e.g. 0.0.0-dev+gabc12345); let it wrap
+     rather than overflow the dropdown. */
+  word-break: break-all;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.settings-github {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex: 0 0 auto;
+  padding: 0.15rem 0.3rem;
+  color: var(--app-muted);
+  text-decoration: none;
+  transition: color 80ms ease;
+}
+
+.settings-github:hover,
+.settings-github:focus-visible {
+  color: var(--app-accent);
+}
+
+.settings-github:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: 1px;
+}
+
+.settings-github-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
 /* ── Parse-error modal ─────────────────────────────────────────────────────── */
 
 .error-modal {

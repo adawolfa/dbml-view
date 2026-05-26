@@ -3,5 +3,13 @@
   "identifier": "default",
   "description": "Default capability — read-only viewer needs only core IPC.",
   "windows": ["main"],
-  "permissions": ["core:default", "core:window:allow-show", "core:window:allow-set-title"]
+  "permissions": [
+    "core:default",
+    "core:window:allow-show",
+    "core:window:allow-set-title",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://github.com/*" }]
+    }
+  ]
 }

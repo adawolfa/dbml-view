@@ -33,6 +33,7 @@ pub fn run() {
     let initial = std::env::args().nth(1).and_then(read_dbml);
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             if let Some(payload) = args.into_iter().nth(1).and_then(read_dbml) {
                 if let Some(window) = app.get_webview_window("main") {

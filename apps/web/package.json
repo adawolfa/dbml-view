@@ -15,7 +15,8 @@
     "@dbml-view/components": "workspace:*",
     "@dbml-view/i18n": "workspace:*",
     "@dbml-view/parser": "workspace:*",
-    "@tauri-apps/api": "^2.1.1"
+    "@tauri-apps/api": "^2.1.1",
+    "@tauri-apps/plugin-opener": "^2.2.6"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0",

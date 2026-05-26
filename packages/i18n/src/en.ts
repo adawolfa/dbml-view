@@ -80,4 +80,6 @@ export const en = {
   'app.settings.language.label': 'Language',
   'app.settings.font.mono': 'Mono',
   'app.settings.font.proportional': 'Sans',
+  'app.settings.github': 'GitHub',
+  'app.settings.github.title': 'View source on GitHub',
 } as const;

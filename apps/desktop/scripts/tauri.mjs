@@ -18,7 +18,15 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { semver } from '../../../scripts/version.mjs';
+
 const args = process.argv.slice(2);
+
+// Inject the git-derived version into the Tauri config so MSI/NSIS metadata,
+// `app.getVersion()`, and the bundle filename all match the released tag.
+// Tauri/MSI/NSIS reject pre-release suffixes, so we use the strict X.Y.Z form
+// (the richer display string still ships inside the web bundle).
+const versionConfig = JSON.stringify({ version: semver() });
 
 // ── Windows MSVC toolchain lookup ────────────────────────────────────────────
 
@@ -88,7 +96,11 @@ if (args[0] === 'dev') {
   // custom-protocol serves dist/ via tauri:// (same as release; no dev server).
   // tauri dev normally strips this feature via --no-default-features, so we
   // re-add it explicitly.
-  process.exit(runTauri(['dev', '--features', 'custom-protocol', ...args.slice(1)]));
+  process.exit(
+    runTauri(['dev', '--features', 'custom-protocol', '--config', versionConfig, ...args.slice(1)]),
+  );
+} else if (args[0] === 'build') {
+  process.exit(runTauri(['build', '--config', versionConfig, ...args.slice(1)]));
 } else {
   process.exit(runTauri(args));
 }
